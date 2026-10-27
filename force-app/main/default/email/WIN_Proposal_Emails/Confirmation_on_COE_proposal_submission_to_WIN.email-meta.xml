@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <encodingKey>UTF-8</encodingKey>
+    <letterhead>WIN</letterhead>
+    <name>Confirmation on COE proposal submission to WIN</name>
+    <style>freeForm</style>
+    <subject>Proposal Submission Confirmation – WIN COE</subject>
+    <type>html</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

@@ -1,0 +1,258 @@
+.slds-button_icon-more{display: none}
+
+.inverseTextColor{
+    color:#000!important;
+}
+
+
+.slds-button_neutral, .slds-button--neutral {
+   
+    text-align: center;
+    background-color: #C02026!important;
+    color: #ffff!important;}
+
+/* ====================================================================
+   WADHWANI GRANTS - SITE TOAST STYLE
+   Experience Builder > Theme > Edit CSS (paste at the end)
+
+   Restyles every standard toast on the site (Validator, Reviewer and
+   Approver portals) to match the portal status banners:
+     Error   - pale red,    red text,    red left edge
+     Warning - pale orange, brown text,  orange left edge
+     Success - pale green,  green text,  green left edge
+     Info    - pale blue,   blue text,   blue left edge
+
+   Written without CSS variables so the Edit CSS checker accepts it.
+   Text, icon and close button all follow the banner text color
+   (currentColor), so each type only sets 3 colors.
+   ==================================================================== */
+
+/* ---------- Banner shape (all four types) ---------- */
+.forceToastMessage.slds-notify_toast,
+.forceToastMessage.slds-notify--toast,
+.forceToastMessage .slds-notify_toast,
+.forceToastMessage .slds-notify--toast {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    min-width: 320px !important;
+    max-width: 640px !important;
+    min-height: 0 !important;
+    margin: 8px auto !important;
+    padding: 12px 44px 12px 16px !important;
+    border: 0 !important;
+    border-left: 4px solid !important;
+    border-radius: 6px !important;
+    box-shadow: 0 2px 8px rgba(65, 64, 65, 0.12) !important;
+    font-family: 'Open Sans', Arial, sans-serif !important;
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+    text-align: left !important;
+}
+
+/* ---------- Colors per type ----------
+   Matches the theme class whether it sits ON the toast element
+   (this site) or on an element inside it. */
+.forceToastMessage.slds-theme--error,
+.forceToastMessage.slds-theme_error,
+.forceToastMessage .slds-theme--error,
+.forceToastMessage .slds-theme_error {
+    background: #FCEBEA !important;
+    background-color: #FCEBEA !important;
+    color: #B3261E !important;
+    border-left-color: #B3261E !important;
+}
+
+.forceToastMessage.slds-theme--error .toastTitle,
+.forceToastMessage.slds-theme--error .toastMessage,
+.forceToastMessage.slds-theme--error .forceActionsText,
+.forceToastMessage.slds-theme_error .toastTitle,
+.forceToastMessage.slds-theme_error .toastMessage,
+.forceToastMessage.slds-theme_error .forceActionsText,
+.forceToastMessage .slds-theme--error .toastTitle,
+.forceToastMessage .slds-theme--error .toastMessage,
+.forceToastMessage .slds-theme--error .forceActionsText,
+.forceToastMessage .slds-theme_error .toastTitle,
+.forceToastMessage .slds-theme_error .toastMessage,
+.forceToastMessage .slds-theme_error .forceActionsText {
+    color: #B3261E !important;
+}
+
+.forceToastMessage.slds-theme--warning,
+.forceToastMessage.slds-theme_warning,
+.forceToastMessage .slds-theme--warning,
+.forceToastMessage .slds-theme_warning {
+    background: #FEF1E6 !important;
+    background-color: #FEF1E6 !important;
+    color: #8A4B08 !important;
+    border-left-color: #F68720 !important;
+}
+
+.forceToastMessage.slds-theme--warning .toastTitle,
+.forceToastMessage.slds-theme--warning .toastMessage,
+.forceToastMessage.slds-theme--warning .forceActionsText,
+.forceToastMessage.slds-theme_warning .toastTitle,
+.forceToastMessage.slds-theme_warning .toastMessage,
+.forceToastMessage.slds-theme_warning .forceActionsText,
+.forceToastMessage .slds-theme--warning .toastTitle,
+.forceToastMessage .slds-theme--warning .toastMessage,
+.forceToastMessage .slds-theme--warning .forceActionsText,
+.forceToastMessage .slds-theme_warning .toastTitle,
+.forceToastMessage .slds-theme_warning .toastMessage,
+.forceToastMessage .slds-theme_warning .forceActionsText {
+    color: #8A4B08 !important;
+}
+
+.forceToastMessage.slds-theme--success,
+.forceToastMessage.slds-theme_success,
+.forceToastMessage .slds-theme--success,
+.forceToastMessage .slds-theme_success {
+    background: #E8F3EA !important;
+    background-color: #E8F3EA !important;
+    color: #2E7D32 !important;
+    border-left-color: #2E7D32 !important;
+}
+
+.forceToastMessage.slds-theme--success .toastTitle,
+.forceToastMessage.slds-theme--success .toastMessage,
+.forceToastMessage.slds-theme--success .forceActionsText,
+.forceToastMessage.slds-theme_success .toastTitle,
+.forceToastMessage.slds-theme_success .toastMessage,
+.forceToastMessage.slds-theme_success .forceActionsText,
+.forceToastMessage .slds-theme--success .toastTitle,
+.forceToastMessage .slds-theme--success .toastMessage,
+.forceToastMessage .slds-theme--success .forceActionsText,
+.forceToastMessage .slds-theme_success .toastTitle,
+.forceToastMessage .slds-theme_success .toastMessage,
+.forceToastMessage .slds-theme_success .forceActionsText {
+    color: #2E7D32 !important;
+}
+
+.forceToastMessage.slds-theme--info,
+.forceToastMessage.slds-theme_info,
+.forceToastMessage .slds-theme--info,
+.forceToastMessage .slds-theme_info {
+    background: #E8F0FA !important;
+    background-color: #E8F0FA !important;
+    color: #1E6BB8 !important;
+    border-left-color: #1E7BC4 !important;
+}
+
+.forceToastMessage.slds-theme--info .toastTitle,
+.forceToastMessage.slds-theme--info .toastMessage,
+.forceToastMessage.slds-theme--info .forceActionsText,
+.forceToastMessage.slds-theme_info .toastTitle,
+.forceToastMessage.slds-theme_info .toastMessage,
+.forceToastMessage.slds-theme_info .forceActionsText,
+.forceToastMessage .slds-theme--info .toastTitle,
+.forceToastMessage .slds-theme--info .toastMessage,
+.forceToastMessage .slds-theme--info .forceActionsText,
+.forceToastMessage .slds-theme_info .toastTitle,
+.forceToastMessage .slds-theme_info .toastMessage,
+.forceToastMessage .slds-theme_info .forceActionsText {
+    color: #1E6BB8 !important;
+}
+
+/* ---------- Icon: small, in the text color ---------- */
+.forceToastMessage .toastIcon,
+.forceToastMessage .slds-notify_toast .slds-icon_container {
+    margin: 0 10px 0 0 !important;
+    flex-shrink: 0 !important;
+    align-self: center !important;
+    background: transparent !important;
+    color: inherit !important;
+}
+
+.forceToastMessage .toastIcon .slds-icon,
+.forceToastMessage .toastIcon svg {
+    width: 16px !important;
+    height: 16px !important;
+    fill: currentColor !important;
+}
+
+/* ---------- Title + message on one line ---------- */
+.forceToastMessage .toastContent,
+.forceToastMessage .slds-notify__content {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    color: inherit !important;
+}
+
+/* Title and message sit side by side on one line */
+.forceToastMessage .toastContent .slds-hyphenate,
+.forceToastMessage .slds-notify__content .slds-hyphenate {
+    display: block !important;
+}
+
+.forceToastMessage .toastContent .toastTitle,
+.forceToastMessage .toastTitle {
+    display: inline !important;
+    margin: 0 6px 0 0 !important;
+    font-family: 'Barlow', 'Open Sans', Arial, sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: inherit !important;
+}
+
+.forceToastMessage .toastTitle:after {
+    content: ".";
+}
+
+.forceToastMessage .toastContent .toastMessage,
+.forceToastMessage .toastMessage,
+.forceToastMessage .forceActionsText {
+    display: inline !important;
+    font-size: 15px !important;
+    font-weight: 400 !important;
+    color: inherit !important;
+}
+
+.forceToastMessage .toastMessage a {
+    color: inherit !important;
+    text-decoration: underline !important;
+}
+
+/* ---------- Close button: text color, top-right ---------- */
+.forceToastMessage .toastClose,
+.forceToastMessage .slds-notify__close {
+    position: absolute !important;
+    top: 50% !important;
+    right: 10px !important;
+    margin: 0 !important;
+    transform: translateY(-50%) !important;
+    color: inherit !important;
+}
+
+.forceToastMessage .toastClose .slds-button,
+.forceToastMessage .slds-notify__close .slds-button,
+.forceToastMessage button.toastClose {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: inherit !important;
+}
+
+.forceToastMessage .toastClose svg,
+.forceToastMessage .slds-notify__close svg {
+    width: 14px !important;
+    height: 14px !important;
+    fill: currentColor !important;
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 600px) {
+    .forceToastMessage.slds-notify_toast,
+    .forceToastMessage.slds-notify--toast,
+    .forceToastMessage .slds-notify_toast,
+    .forceToastMessage .slds-notify--toast {
+        min-width: 0 !important;
+        max-width: 95% !important;
+        font-size: 14px !important;
+    }
+}
+
+/* WG Color System v1 (U138/ST-05): Barlow for the theme font + pill login/forgot-password buttons */
+@font-face { font-family: 'Barlow'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/Barlow-SemiBold.ttf') format('truetype'); font-weight: 600; }
+@font-face { font-family: 'Barlow'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/Barlow-Bold.ttf') format('truetype'); font-weight: 700; }
+.salesforceIdentityLoginForm2 .loginButton, .salesforceIdentityForgotPassword2 .loginButton { border-radius: 24px !important; font-weight: 600 !important; height: 40px !important; padding: 0 26px !important; font-size: 14px !important; line-height: 1 !important; box-sizing: border-box !important; }
+:root { --dxp-c-section-columns-max-width: 1170px; }

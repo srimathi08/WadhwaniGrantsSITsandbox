@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>IndividualApplication$Project_Title__c</field>
+    </columns>
+    <columns>
+        <field>IndividualApplication$Project_Duration__c</field>
+    </columns>
+    <columns>
+        <field>IndividualApplication$COE_Approval_Comments__c</field>
+    </columns>
+    <columns>
+        <aggregateTypes>Sum</aggregateTypes>
+        <field>IndividualApplication$Total_Project_Budget_INR__c</field>
+    </columns>
+    <filter>
+        <criteriaItems>
+            <column>IndividualApplication$Status</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value>,Proposal Submitted to WIN Admin,Proposal Resubmitted to WIN Admin,Under Review</value>
+        </criteriaItems>
+        <criteriaItems>
+            <column>IndividualApplication$Account</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>notEqual</operator>
+            <value>Test Qbay</value>
+        </criteriaItems>
+        <criteriaItems>
+            <column>IndividualApplication$RecordType</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value>IndividualApplication.Project_Proposal</value>
+        </criteriaItems>
+        <criteriaItems>
+            <column>IndividualApplication$Account</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value>Indian Institute of Technology (ISM) Dhanbad,Indian Institute of Technology Hyderabad,Indian Institute of Technology Kanpur,&quot;INDIAN INSTITUTE OF TECHNOLOGY, DELHI&quot;</value>
+        </criteriaItems>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>IndividualApplication$Account</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>IndividualApplication$Name</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Custom Project Report</name>
+    <params>
+        <name>co</name>
+        <value>1</value>
+    </params>
+    <reportType>Proposals_with_reviews__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>false</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>IndividualApplication$CreatedDate</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

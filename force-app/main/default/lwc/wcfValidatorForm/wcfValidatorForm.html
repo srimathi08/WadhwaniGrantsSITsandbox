@@ -1,0 +1,648 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="wg-loading">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            <p class="wg-loading-text">Loading validator form…</p>
+        </div>
+    </template>
+
+    <template if:false={isLoading}>
+
+        <!-- ══ SAVING OVERLAY (covers this panel only) ═════════ -->
+        <template if:true={isSaving}>
+            <div class="wcf-saving-overlay" role="status">
+                <div class="wcf-saving-inner">
+                    <lightning-spinner alternative-text={savingLabel} size="medium" variant="brand"></lightning-spinner>
+                    <p class="wcf-saving-text">{savingLabel}</p>
+                </div>
+            </div>
+        </template>
+
+        <!-- ══════════════════════════════════════
+             APP CONTEXT BAR
+        ══════════════════════════════════════ -->
+        <div class="wcf-context-bar">
+            <p class="wcf-context-stage">Validation</p>
+            <h1 class="wcf-context-title">Validator form</h1>
+            <div class="wcf-context-meta">
+                <div class="wcf-meta-item">
+                    <span class="wcf-meta-label">Application ID</span>
+                    <span class="wcf-meta-val">{applicantName}</span>
+                </div>
+                <div class="wcf-meta-item">
+                    <span class="wcf-meta-label">Due date</span>
+                    <span class="wcf-meta-val">{dueDate}</span>
+                </div>
+                <template if:true={mandateTrack}>
+                    <span class="wcf-meta-pill">{mandateTrack}</span>
+                </template>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════
+             REVIEWER RETURN NOTICE
+        ══════════════════════════════════════ -->
+        <template if:true={isReturnedByReviewer}>
+            <div class="wcf-draft-banner wcf-reviewer-return-banner" role="alert">
+                <div class="wcf-draft-banner-left">
+                    <lightning-icon icon-name="utility:reply" size="x-small" alternative-text="" class="wcf-draft-icon"></lightning-icon>
+                    <div class="wcf-draft-banner-text">
+                        <span class="wcf-draft-banner-title">Returned by Reviewer: action required</span>
+                        <span class="wcf-draft-banner-sub">
+                            <template if:true={reviewerReturnComment}>
+                                {reviewerReturnComment}
+                            </template>
+                            <template if:false={reviewerReturnComment}>
+                                No comment was provided.
+                            </template>
+                            <template if:true={reviewerReturnDateFormatted}>
+                                &nbsp;·&nbsp; {reviewerReturnDateFormatted}
+                            </template>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ══════════════════════════════════════
+             DRAFT RESUME BANNER
+        ══════════════════════════════════════ -->
+        <template if:true={showDraftBanner}>
+            <div class="wcf-draft-banner" role="status">
+                <div class="wcf-draft-banner-left">
+                    <lightning-icon icon-name="utility:edit" size="x-small" alternative-text="" class="wcf-draft-icon"></lightning-icon>
+                    <div class="wcf-draft-banner-text">
+                        <span class="wcf-draft-banner-title">Draft in progress</span>
+                        <span class="wcf-draft-banner-sub">
+                            Last saved {draftLastSaved} &nbsp;·&nbsp; {completionPercent}% complete ({completedFieldCount} of {totalRequiredFieldCount} required fields filled)
+                        </span>
+                    </div>
+                </div>
+                <div class="wcf-draft-progress-bar-wrap">
+                    <div class={progressBarClass}></div>
+                </div>
+                <button type="button" class="wcf-draft-dismiss" onclick={handleDismissDraftBanner} title="Dismiss" aria-label="Dismiss draft notice">
+                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                </button>
+            </div>
+        </template>
+
+        <!-- ══════════════════════════════════════
+             FORM BODY
+        ══════════════════════════════════════ -->
+        <div class="wcf-vf-wrapper">
+
+            <!-- SECTION 1: Completeness Check -->
+            <div class="wcf-vf-section">
+                <div class="wcf-vf-sec-head">
+                    <div class="wcf-vf-sec-num">{section1.sectionNumber}</div>
+                    <div class="wcf-vf-sec-info">
+                        <h3 class="wcf-vf-sec-title">{section1.title}</h3>
+                        <p class="wcf-vf-sec-lede">{section1.lede}</p>
+                    </div>
+                </div>
+
+                <template for:each={section1.questions} for:item="q">
+                    <template if:true={q.showQuestion}>
+                        <div key={q.key} class={q.containerClass}>
+                            <div class="wcf-vf-field-top">
+                                <div class="wcf-vf-field-q">
+                                    {q.questionText}
+                                    <template if:true={q.isRequired}><span class="wcf-req"> *</span></template>
+                                    <template if:false={q.isRequired}><span class="wcf-opt"> (Optional)</span></template>
+                                </div>
+                            </div>
+                            <template if:true={q.hintText}>
+                                <p class="wcf-hint">{q.hintText}</p>
+                            </template>
+
+                            <!-- Auto indicator for S1.1, S1.2, S1.3 -->
+                            <template if:true={q.autoIndicator.show}>
+                                <div class={q.autoIndicator.stateClass}>
+                                    <div class="wcf-auto-icon">{q.autoIndicator.icon}</div>
+                                    <div>{q.autoIndicator.message}</div>
+                                </div>
+                            </template>
+
+                            <!-- Confirm Pills -->
+                            <template if:true={q.isConfirmPill}>
+                                <div class="wcf-confirm-row">
+                                    <template for:each={q.options} for:item="opt">
+                                        <button type="button"
+                                                key={opt.val}
+                                                class={opt.cls}
+                                                data-field={q.key}
+                                                data-val={opt.val}
+                                                onclick={handleConfirmPill}>
+                                            {opt.label}
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- TextArea -->
+                            <template if:true={q.isTextArea}>
+                                <lightning-textarea
+                                    name={q.key}
+                                    value={q.value}
+                                    max-length="4000"
+                                    placeholder={q.placeholder}
+                                    onchange={handleTextChange}
+                                    data-field={q.key}
+                                    variant="label-hidden"
+                                    label={q.questionText}
+                                    class="wcf-textarea">
+                                </lightning-textarea>
+                                <div class={q.wcClass}>{q.wordCount} / {q.wordLimit} words · {q.requiredLabel}</div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+            </div>
+
+            <!-- SECTION 2: First-Pass Eligibility -->
+            <div class="wcf-vf-section">
+                <div class="wcf-vf-sec-head">
+                    <div class="wcf-vf-sec-num">{section2.sectionNumber}</div>
+                    <div class="wcf-vf-sec-info">
+                        <h3 class="wcf-vf-sec-title">{section2.title}</h3>
+                        <p class="wcf-vf-sec-lede">{section2.lede}</p>
+                    </div>
+                </div>
+
+                <template for:each={section2.questions} for:item="q">
+                    <template if:true={q.showQuestion}>
+                        <!-- Conditional follow-on text box -->
+                        <template if:true={q.isTextArea}>
+                            <div key={q.key} class="wcf-dep-wrapper">
+                                <div class="wcf-cond-inner">
+                                    <div class="wcf-cond-label">{q.questionText} <span class="wcf-req">*</span></div>
+                                    <lightning-textarea
+                                        name={q.key}
+                                        value={q.value}
+                                        max-length="6000"
+                                        placeholder={q.placeholder}
+                                        onchange={handleTextChange}
+                                        data-field={q.key}
+                                        variant="label-hidden"
+                                        label={q.questionText}>
+                                    </lightning-textarea>
+                                    <div class={q.wcClass}>{q.wordCount} / {q.wordLimit} words · Required</div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template if:false={q.isTextArea}>
+                            <div key={q.key} class={q.containerClass}>
+                                <div class="wcf-vf-field-top">
+                                    <div class="wcf-vf-field-q">{q.questionText} <span class="wcf-req">*</span></div>
+                                </div>
+                                <template if:true={q.hintText}>
+                                    <p class="wcf-hint">{q.hintText}</p>
+                                </template>
+
+                                <!-- Picklist card options -->
+                                <template if:true={q.isPicklistCard}>
+                                    <div class="wcf-picklist">
+                                        <template for:each={q.options} for:item="opt">
+                                            <button type="button"
+                                                    key={opt.val}
+                                                    class={opt.cls}
+                                                    data-field={q.key}
+                                                    data-val={opt.val}
+                                                    onclick={handlePicklist}>
+                                                <span class="wcf-pick-dot"></span>{opt.label}
+                                            </button>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- Binary radio options -->
+                                <template if:true={q.isBinaryRadio}>
+                                    <div class="wcf-picklist wcf-picklist-binary">
+                                        <template for:each={q.options} for:item="opt">
+                                            <button type="button"
+                                                    key={opt.val}
+                                                    class={opt.cls}
+                                                    data-field={q.key}
+                                                    data-val={opt.val}
+                                                    onclick={handlePicklist}>
+                                                <span class="wcf-pick-radio"></span>
+                                                <span class="wcf-pick-text">
+                                                    <span class="wcf-pick-main">{opt.label}</span>
+                                                    <template if:true={opt.sublabel}>
+                                                        <span class="wcf-pick-sub">{opt.sublabel}</span>
+                                                    </template>
+                                                </span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
+                </template>
+            </div>
+
+            <!-- SECTION 3: Decision & Return -->
+            <div class="wcf-vf-section">
+                <div class="wcf-vf-sec-head">
+                    <div class="wcf-vf-sec-num">3</div>
+                    <div class="wcf-vf-sec-info">
+                        <h3 class="wcf-vf-sec-title">Decision</h3>
+                    </div>
+                </div>
+
+                <!-- S3.1 Decision cards -->
+                <div class="wcf-vf-field">
+                    <div class="wcf-vf-field-top">
+                        <div class="wcf-vf-field-q">Decision: Based on Sections 1 and 2, what is your decision on this Application? <span class="wcf-req">*</span></div>
+                    </div>
+                    <div class="wcf-decision-cards">
+                        <template for:each={s3_1Options} for:item="opt">
+                            <button type="button"
+                                    key={opt.val}
+                                    class={opt.cls}
+                                    data-field="s3_1"
+                                    data-val={opt.val}
+                                    onclick={handlePicklist}>
+                                <span class="wcf-dec-label">{opt.label}</span>
+                                <span class="wcf-dec-desc">{opt.desc}</span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- S3.2 Decision rationale -->
+                <template if:true={showDecisionRationale}>
+                    <div class="wcf-vf-field">
+                        <div class="wcf-vf-field-top">
+                            <div class="wcf-vf-field-q">Decision rationale: Briefly explain your decision. <span class="wcf-req">*</span></div>
+                        </div>
+                        <p class="wcf-hint">Required regardless of decision. For Pass, this can be brief. For Return, name the gaps. For Flag, this complements S3.3.</p>
+                        <lightning-textarea
+                            name="s3_2"
+                            value={formState.s3_2}
+                            max-length="6000"
+                            placeholder="e.g., 'Application is complete and within scope; routing to Reviewers.'"
+                            onchange={handleTextChange}
+                            data-field="s3_2"
+                            variant="label-hidden"
+                            label="Decision rationale">
+                        </lightning-textarea>
+                        <div class={wcClass_s3_2}>{wordCount_s3_2} / 300 words · Required</div>
+                    </div>
+                </template>
+
+                <!-- FLAG section -->
+                <template if:true={showFlagSection}>
+                    <div class="wcf-dep-wrapper wcf-dep-flag">
+                        <div class="wcf-vf-field">
+                            <div class="wcf-vf-field-top">
+                                <div class="wcf-vf-field-q">Flag rationale: Select all reasons that apply. <span class="wcf-req">*</span></div>
+                            </div>
+                            <p class="wcf-hint">You can select more than one. Reviewers see your selections alongside your free-text rationale. Options suggested by your Section 2 answers have a dashed border (confirm or change).</p>
+                            <div class="wcf-checklist">
+                                <template for:each={flagOptions} for:item="opt">
+                                    <button type="button" key={opt.val} class={opt.cls} data-val={opt.val} onclick={handleFlagCheck}>
+                                        <span class="wcf-checkbox"></span>
+                                        <span class="wcf-check-label">{opt.label}</span>
+                                        <template if:true={opt.suggested}>
+                                            <span class="wcf-suggest-tag">Suggested by S2</span>
+                                        </template>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- S3.4 Flag Other -->
+                        <template if:true={showFlagOther}>
+                            <div class="wcf-dep-nested">
+                                <div class="wcf-vf-field">
+                                    <div class="wcf-vf-field-top">
+                                        <div class="wcf-vf-field-q">Other: describe the concern. <span class="wcf-req">*</span></div>
+                                    </div>
+                                    <lightning-textarea
+                                        name="s3_4"
+                                        value={formState.s3_4}
+                                        max-length="4000"
+                                        placeholder="Describe the Other concern in 1–3 sentences."
+                                        onchange={handleTextChange}
+                                        data-field="s3_4"
+                                        variant="label-hidden"
+                                        label="Other concern">
+                                    </lightning-textarea>
+                                    <div class={wcClass_s3_4}>{wordCount_s3_4} / 200 words · Required</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- RETURN section -->
+                <template if:true={showReturnSection}>
+                    <div class="wcf-dep-wrapper wcf-dep-return">
+                        <div class="wcf-vf-field">
+                            <div class="wcf-vf-field-top">
+                                <div class="wcf-vf-field-q">
+                                    Select Question Number(s): Which questions need a return reason?
+                                    <span class="wcf-req">*</span>
+                                </div>
+                            </div>
+                            <p class="wcf-hint">
+                                Click one or more numbers to open a return-reason field for each.
+                                Click a selected number again (or use Remove on its card) to remove it.
+                            </p>
+
+                            <div class="wcf-qnum-grid">
+                                <template for:each={questionNumberOptions} for:item="opt">
+                                    <button key={opt.val}
+                                            class={opt.cls}
+                                            data-val={opt.val}
+                                            onclick={handleQuestionNumberToggle}
+                                            type="button">
+                                        {opt.label}
+                                    </button>
+                                </template>
+                            </div>
+
+                            <template if:true={hasOpenQuestions}>
+                                <div class="wcf-qcards-wrap">
+                                    <template for:each={openQuestionCards} for:item="card">
+                                        <div key={card.key} class={card.cls}>
+                                            <div class="wcf-qcard-header">
+                                                <span class="wcf-qcard-num">Q{card.num}</span>
+                                                <span class="wcf-qcard-title">{card.label}</span>
+                                                <button class="wcf-qcard-remove"
+                                                        data-num={card.num}
+                                                        onclick={handleRemoveQuestionCard}
+                                                        title="Remove this question"
+                                                        type="button">
+                                                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                                                    Remove
+                                                </button>
+                                            </div>
+
+                                            <lightning-textarea
+                                                name={card.field}
+                                                value={card.value}
+                                                max-length="2400"
+                                                label={card.label}
+                                                variant="label-hidden"
+                                                placeholder="Describe the return reason for this question in 1–3 sentences."
+                                                data-num={card.num}
+                                                onchange={handleQuestionCardTextChange}
+                                                class="wcf-qcard-textarea">
+                                            </lightning-textarea>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- SECTION 4: Application Tags -->
+            <div class="wcf-vf-section">
+                <div class="wcf-vf-sec-head">
+                    <div class="wcf-vf-sec-num">{section4.sectionNumber}</div>
+                    <div class="wcf-vf-sec-info">
+                        <h3 class="wcf-vf-sec-title">{section4.title}</h3>
+                        <p class="wcf-vf-sec-lede">{section4.lede}</p>
+                    </div>
+                </div>
+
+                <template for:each={section4.questions} for:item="q">
+                    <div key={q.key} class={q.containerClass}>
+                        <div class="wcf-vf-field-top">
+                            <div class="wcf-vf-field-q">{q.questionText} <span class="wcf-req">*</span></div>
+                        </div>
+                        <template if:true={q.isWrapPicklist}>
+                            <div class="wcf-picklist wcf-picklist-wrap">
+                                <template for:each={q.options} for:item="opt">
+                                    <button type="button"
+                                            key={opt.val}
+                                            class={opt.cls}
+                                            data-field={q.key}
+                                            data-val={opt.val}
+                                            onclick={handlePicklist}>
+                                        <span class="wcf-pick-dot"></span>{opt.label}
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={q.isWrapPicklist}>
+                            <div class="wcf-picklist">
+                                <template for:each={q.options} for:item="opt">
+                                    <button type="button"
+                                            key={opt.val}
+                                            class={opt.cls}
+                                            data-field={q.key}
+                                            data-val={opt.val}
+                                            onclick={handlePicklist}>
+                                        <span class="wcf-pick-dot"></span>{opt.label}
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <!-- SECTION 5: Notes for Reviewers -->
+            <template if:true={showNotesSection}>
+                <div class="wcf-vf-section">
+                    <div class="wcf-vf-sec-head">
+                        <div class="wcf-vf-sec-num">{section5.sectionNumber}</div>
+                        <div class="wcf-vf-sec-info">
+                            <!-- FIX: asterisk now only on the question, not on the title as well -->
+                            <h3 class="wcf-vf-sec-title">{section5.title}</h3>
+                            <p class="wcf-vf-sec-lede">{section5.lede}</p>
+                        </div>
+                    </div>
+                    <template for:each={section5.questions} for:item="q">
+                        <div key={q.key} class="wcf-vf-field">
+                            <div class="wcf-vf-field-top">
+                                <div class="wcf-vf-field-q">{q.questionText} <span class="wcf-req">*</span></div>
+                            </div>
+                            <lightning-textarea
+                                name={q.key}
+                                value={q.value}
+                                max-length="10000"
+                                placeholder={q.placeholder}
+                                onchange={handleTextChange}
+                                data-field={q.key}
+                                variant="label-hidden"
+                                label={q.questionText}>
+                            </lightning-textarea>
+                            <div class={q.wcClass}>{q.wordCount} / {q.wordLimit} words · Required</div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- ══════════════════════════════════════
+                 FOOTER: draft status + actions (sticky)
+            ══════════════════════════════════════ -->
+            <div class="wcf-vf-footer">
+                <div class="wcf-footer-left">
+                    <template if:true={isDraftSaved}>
+                        <div class="wcf-draft-chip">
+                            <span class="wcf-draft-chip-dot"></span>
+                            Draft &nbsp;·&nbsp; {draftLastSaved} &nbsp;·&nbsp; {completionPercent}% complete
+                        </div>
+                    </template>
+                    <div class="wcf-footer-status">{footerStatus}</div>
+                </div>
+                <!-- Same buttons as the Reviewer form footer: grey outline "Save draft",
+                     solid red "Submit" (was two lightning-buttons that the theme turned red) -->
+                <div class="wcf-footer-actions">
+                    <button class="neutral-btn wcf-footer-btn"
+                            onclick={handleSaveDraft}
+                            disabled={isSaving}>
+                        {saveDraftLabel}
+                    </button>
+                    <button class="primary-btn wcf-footer-btn"
+                            onclick={handleSeal}
+                            disabled={isSealDisabled}>
+                        Submit
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ══════════════════════════════════════
+             PREVIEW / CONFIRM MODAL
+        ══════════════════════════════════════ -->
+        <template if:true={showPreview}>
+            <section class="preview-modal">
+                <section role="dialog" tabindex="-1" aria-modal="true" aria-label="Confirm your decision" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+
+                        <template if:true={isSaving}>
+                            <div class="wcf-saving-overlay wcf-saving-overlay-modal">
+                                <div class="wcf-saving-inner">
+                                    <lightning-spinner alternative-text="Submitting" size="medium" variant="brand"></lightning-spinner>
+                                    <p class="wcf-saving-text">Submitting…</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <header class="slds-modal__header">
+                            <h2 class="preview-modal-title">Confirm your decision</h2>
+                        </header>
+
+                       <div class="slds-modal__content preview-container">
+
+    <!-- Completeness check -->
+    <div class="preview-section">
+        <h3>{previewCompleteness.title}</h3>
+        <template for:each={previewCompleteness.rows} for:item="row">
+            <div key={row.key} class="preview-item">
+                <span class="label">{row.label}</span>
+                <span class="value">{row.value}</span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Eligibility -->
+    <div class="preview-section">
+        <h3>{previewEligibility.title}</h3>
+        <template for:each={previewEligibility.rows} for:item="row">
+            <div key={row.key} class="preview-item">
+                <span class="label">{row.label}</span>
+                <span class="value">{row.value}</span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Decision (unchanged from your current file) -->
+    <div class="preview-section decision-section">
+        <h3>Decision</h3>
+        <div class="decision-card">
+            <div class="decision-title">{formState.s3_1}</div>
+            <div class="decision-rationale">{formState.s3_2}</div>
+        </div>
+
+        <template if:true={showReturnSection}>
+            <template if:true={hasPreviewQuestions}>
+                <div class="preview-subsection">
+                    <h4>Return reasons by question</h4>
+                    <div class="preview-qnum-pills">
+                        <template for:each={previewQuestionCards} for:item="card">
+                            <span key={card.key} class="preview-qnum-pill">Q{card.num}</span>
+                        </template>
+                    </div>
+                    <template for:each={previewQuestionCards} for:item="card">
+                        <div key={card.key} class="preview-qcard">
+                            <div class="preview-qcard-header">
+                                <span class="preview-qcard-num">Q{card.num}</span>
+                                <span class="preview-qcard-label">{card.label}: Return Reason</span>
+                            </div>
+                            <div class="preview-qcard-text">{card.text}</div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </template>
+
+        <template if:true={showFlagSection}>
+            <div class="preview-subsection">
+                <h4>Flag reasons</h4>
+                <template for:each={selectedFlagReasons} for:item="reason">
+                    <span key={reason} class="preview-tag">{reason}</span>
+                </template>
+            </div>
+            <template if:true={showFlagOther}>
+                <div class="preview-subsection">
+                    <h4>Other concern</h4>
+                    <div class="preview-notes">{formState.s3_4}</div>
+                </div>
+            </template>
+        </template>
+    </div>
+
+    <!-- Application tags -->
+    <div class="preview-section">
+        <h3>{previewTags.title}</h3>
+        <template for:each={previewTags.rows} for:item="row">
+            <div key={row.key} class="preview-item">
+                <span class="label">{row.label}</span>
+                <span class="value">{row.value}</span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Notes (only when the form shows Section 5, i.e. Pass or Flag) -->
+    <template if:true={showNotesSection}>
+        <div class="preview-section">
+            <h3>{previewNotesTitle}</h3>
+            <div class="preview-notes">{formState.s5_1}</div>
+        </div>
+    </template>
+
+</div>
+                        <footer class="slds-modal__footer">
+                            <lightning-button
+                                label="Back to edit"
+                                onclick={handleClosePreview}
+                                disabled={isSaving}>
+                            </lightning-button>
+                            <lightning-button
+                                label={sealButtonLabel}
+                                variant="brand"
+                                onclick={handleFinalSeal}
+                                disabled={isSaving}
+                                class="preview-submit-btn">
+                            </lightning-button>
+                        </footer>
+
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </section>
+        </template>
+    </template>
+</template>

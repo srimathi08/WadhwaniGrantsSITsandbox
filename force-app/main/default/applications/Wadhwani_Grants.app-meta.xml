@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <brand>
+        <headerColor>#BF2026</headerColor>
+        <logoVersion>1</logoVersion>
+        <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
+    </brand>
+    <formFactors>Small</formFactors>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <isNavTabPersistenceDisabled>false</isNavTabPersistenceDisabled>
+    <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
+    <label>Wadhwani Grants</label>
+    <navType>Standard</navType>
+    <tabs>standard-Account</tabs>
+    <tabs>standard-Contact</tabs>
+    <tabs>standard-FundingOpportunity</tabs>
+    <tabs>standard-IndividualApplication</tabs>
+    <tabs>standard-ApplicationReview</tabs>
+    <tabs>standard-ApplicationDecision</tabs>
+    <tabs>Translated_Proposal__c</tabs>
+    <tabs>Translated_Historical_Data__c</tabs>
+    <tabs>Translated_Current_Fiscal_Year_Data__c</tabs>
+    <tabs>Translated_Outcome_Data__c</tabs>
+    <tabs>WCF_Compliance_Document__c</tabs>
+    <tabs>WCF_Business_Sector__c</tabs>
+    <tabs>Current_fiscal_year_data__c</tabs>
+    <tabs>Historical_Data__c</tabs>
+    <tabs>Outcomes_Data__c</tabs>
+    <tabs>Translated_Business_Sector__c</tabs>
+    <tabs>Translated_Skilling_Domain__c</tabs>
+    <tabs>WCF_Skilling_Domain__c</tabs>
+    <tabs>AI_Feedback__c</tabs>
+    <tabs>Co_Founder__c</tabs>
+    <tabs>Application_FAQ__c</tabs>
+    <uiType>Lightning</uiType>
+    <utilityBar>Wadhwani_Grants_UtilityBar</utilityBar>
+</CustomApplication>

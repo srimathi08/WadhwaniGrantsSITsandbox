@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>If WIN team suggest modifications</description>
+    <encodingKey>UTF-8</encodingKey>
+    <letterhead>WIN</letterhead>
+    <name>Request for Modifications</name>
+    <style>freeForm</style>
+    <subject>Request for Proposal Modifications – WIN COE</subject>
+    <type>html</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

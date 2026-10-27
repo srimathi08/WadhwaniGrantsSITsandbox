@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <help><!-- Plan for Commercialization and Market Entry --></help>
+    <label><!-- 4.3 Plan for Commercialization --></label>
+    <name>Plan_for_Commercialization__c</name>
+</CustomFieldTranslation>

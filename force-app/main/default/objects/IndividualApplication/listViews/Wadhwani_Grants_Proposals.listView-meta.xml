@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Wadhwani_Grants_Proposals</fullName>
+    <columns>Name</columns>
+    <columns>Account</columns>
+    <columns>AppliedDate</columns>
+    <columns>Status</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>RecordType</field>
+        <operation>equals</operation>
+        <value>IndividualApplication.WCF_Job_Creation_Proposals,IndividualApplication.WCF_Job_Fulfillment_Job_Creation_Proposals,IndividualApplication.WCF_Job_Fulfillment_Proposals</value>
+    </filters>
+    <label>Wadhwani Grants Proposals</label>
+</ListView>

@@ -1,0 +1,68 @@
+<template>
+    <div class="steps-container">
+        <!-- STEP 1 -->
+        <div class="step-with-line">
+            <div class="step-container">
+                <div class="circle">1</div>
+                <div class="step-content">
+                    <div class="heading">COE Registration</div>
+                    <div class="status-line">
+                        <strong>Status:</strong>
+                        <span class="status-text">{registrationStatusText}</span>
+                        <span class="status-icon">{registrationStatusIcon}</span>
+
+                        <template if:true={showStep1Link}>
+                            <a href="/coe/s/institute-register"
+                            
+                               class="register-link">
+                               Click here to register
+                            </a>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="line"></div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="step-with-line">
+            <div class="step-container">
+                <div class="circle">2</div>
+                <div class="step-content">
+                    <div class="heading">COE Proposal</div>
+                    <div class="status-line">
+                        <strong>Status:</strong>
+                        <span class="status-text">{coeProposalStatus}</span>
+                        <template if:true={showStep2Link}>
+                            <a href={coeProposalLink} class="register-link">
+                                Click here to submit proposal
+                            </a>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="line"></div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step-container">
+            <div class="circle">3</div>
+            <div class="step-content">
+                <div class="heading">Project Proposals</div>
+                <div class="status-line">
+                    <template if:true={showStep3Links}>
+                        <div class="project-links">
+                          <a href={projectProposalListUrl} class="view-all-link">
+                                View All Project Proposals
+                            </a>
+                            <a href="/coe/s/project-proposal-submission"
+                               class="new-proposal-link">
+                                Click here to submit project proposal
+                            </a>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

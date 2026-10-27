@@ -1,0 +1,314 @@
+<template>
+    <div class="ac-shell">
+
+        <!-- ══ TOP BAR ═════════════════════════════════════════ -->
+        <div class="ac-topbar">
+            <div class="ac-topbar-left">
+                <button class="neutral-btn" onclick={handleBack}>
+                    <lightning-icon icon-name="utility:chevronleft" size="xx-small" alternative-text=""></lightning-icon>
+                    Back to queue
+                </button>
+                <div class="ac-title-block">
+                    <div class="ac-title-row">
+                        <h2 class="ac-title">Approver decision</h2>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="ac-sub">{appName}</span>
+                        <template lwc:if={hasRevision}>
+                            <span class="wg-tag wg-tag--warning">{revisionLabel}</span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ac-topbar-right">
+                <template lwc:if={existingDecision}>
+
+                    <!-- Returned to Reviewer or Validator — waiting on them -->
+                    <template lwc:if={isReturned}>
+                        <span class="wg-pill wg-pill--returned ac-status-pill">
+                            <lightning-icon icon-name="utility:reply" size="xx-small" alternative-text=""></lightning-icon>
+                            {returnStatusMessage}
+                        </span>
+                    </template>
+
+                    <!-- Finalized decision + revoke controls -->
+                    <template lwc:else>
+                        <span class={existingDecisionClass}>
+                            Decision recorded: {existingDecision}
+                        </span>
+
+                        <template lwc:if={isRevokable}>
+                            <span class="ac-revoke-timer">
+                                <lightning-icon icon-name="utility:clock" size="xx-small" alternative-text=""></lightning-icon>
+                                {daysRemaining} day(s) left to revoke
+                            </span>
+                            <button class="ghost-btn" onclick={handleRevokeClick}>
+                                <lightning-icon icon-name="utility:undo" size="xx-small" alternative-text=""></lightning-icon>
+                                Revoke decision
+                            </button>
+                        </template>
+
+                        <template lwc:else>
+                            <span class="ac-revoke-expired">
+                                <lightning-icon icon-name="utility:lock" size="xx-small" alternative-text=""></lightning-icon>
+                                Revoke window closed
+                            </span>
+                        </template>
+                    </template>
+
+                </template>
+
+                <template lwc:elseif={isRevoked}>
+                    <span class="wg-pill wg-pill--warning ac-status-pill">
+                        <lightning-icon icon-name="utility:undo" size="xx-small" alternative-text=""></lightning-icon>
+                        Decision Revoked on {revokedDateFormatted} • Awaiting new decision
+                    </span>
+                </template>
+            </div>
+        </div>
+
+        <!-- ══ RETURN CONVERSATION — compact, collapsible ═════════
+             Collapsed (default): one line with the latest reply.
+             Expanded: the thread in time order, height-capped.      -->
+        <template lwc:if={showConversationThread}>
+            <div class={convoClass}>
+                <button class="ac-convo-bar"
+                        onclick={handleToggleConvo}
+                        aria-expanded={convoExpandedAttr}
+                        aria-controls="ac-convo-thread">
+                    <lightning-icon icon-name="utility:chat" size="x-small" alternative-text="" class="ac-convo-icon"></lightning-icon>
+                    <span class="ac-convo-title">Return conversation</span>
+                    <span class="ac-convo-count">{convoMessageCount}</span>
+
+                    <template lwc:if={isConvoCollapsed}>
+                        <span class="ac-convo-preview">
+                            <strong>{convoPreviewAuthor}:</strong> {convoPreviewText}
+                        </span>
+                    </template>
+
+                    <span class="ac-convo-toggle">
+                        {convoToggleLabel}
+                        <lightning-icon icon-name={convoToggleIcon} size="xx-small" alternative-text=""></lightning-icon>
+                    </span>
+                </button>
+
+                <template lwc:if={isConvoExpanded}>
+                    <div class="ac-convo-thread" id="ac-convo-thread">
+                        <template lwc:if={isRevoked}>
+                            <div class="ac-msg ac-msg--approver">
+                                <div class="ac-msg-meta">
+                                    <span class="ac-msg-author">You (Approver)</span>
+                                    <span class="ac-msg-date">{revokedDateFormatted}</span>
+                                </div>
+                                <p class="ac-msg-text">{revokedComment}</p>
+                            </div>
+                        </template>
+
+                        <template lwc:if={isBackFromReviewer}>
+                            <div class="ac-msg ac-msg--approver">
+                                <div class="ac-msg-meta">
+                                    <span class="ac-msg-author">You (Approver)</span>
+                                    <span class="ac-msg-date">{priorReturnDateFormatted}</span>
+                                </div>
+                                <p class="ac-msg-text">{priorReturnComment}</p>
+                            </div>
+                        </template>
+
+                        <template lwc:if={hasReviewerComment}>
+                            <div class="ac-msg ac-msg--reviewer">
+                                <div class="ac-msg-meta">
+                                    <span class="ac-msg-author">Reviewer</span>
+                                    <span class="ac-msg-date">Reply</span>
+                                </div>
+                                <p class="ac-msg-text">{reviewerComment}</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- ══ SPLIT PANE ══════════════════════════════════════ -->
+        <div class="split-pane">
+            <div class={leftPaneClass}>
+                <div class="pane-label">
+                    <lightning-icon icon-name="utility:file" size="x-small" alternative-text="" class="pane-label-text"></lightning-icon>
+                    <span class="pane-label-text">Applicant proposal (RFI)</span>
+                    <button class="wg-icon-btn pane-toggle-btn"
+                            onclick={handleToggleLeftPane}
+                            title={leftToggleTitle}
+                            aria-label={leftToggleTitle}>
+                        <lightning-icon icon-name={leftToggleIcon} size="xx-small" alternative-text=""></lightning-icon>
+                    </button>
+                </div>
+                <template lwc:if={isLeftOpen}>
+                    <div class="pane-body">
+                        <c-wcf-form-preview record-id={applicationId}></c-wcf-form-preview>
+                    </div>
+                </template>
+            </div>
+
+            <template lwc:if={showResizer}>
+                <div class="resizer" onmousedown={handleResizerMouseDown} title="Drag to resize" aria-hidden="true">
+                    <div class="resizer-handle"></div>
+                </div>
+            </template>
+
+            <div class={rightPaneClass}>
+                <div class="pane-label">
+                    <button class="wg-icon-btn pane-toggle-btn"
+                            onclick={handleToggleRightPane}
+                            title={rightToggleTitle}
+                            aria-label={rightToggleTitle}>
+                        <lightning-icon icon-name={rightToggleIcon} size="xx-small" alternative-text=""></lightning-icon>
+                    </button>
+                    <lightning-icon icon-name="utility:rating" size="x-small" alternative-text="" class="pane-label-text"></lightning-icon>
+                    <span class="pane-label-text">Reviewer evaluation</span>
+                </div>
+                <template lwc:if={isRightOpen}>
+                    <div class="pane-body pane-body--padded">
+                        <c-wcf-reviewer-form-preview
+                            review-id={reviewId}
+                            outcome-developer-name={outcomeDeveloperName}
+                        ></c-wcf-reviewer-form-preview>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- ══ ACTION BAR ══════════════════════════════════════ -->
+        <div class="action-bar">
+            <div class="action-bar-inner">
+
+                <!-- Decision panel: comment always; reasons only for Reject -->
+                <template lwc:if={showDecisionPanel}>
+                    <div class="ac-field">
+                        <label class="field-label">
+                            Decision comment <span class="ac-req">* required</span>
+                        </label>
+                        <textarea
+                            class="form-input ac-textarea"
+                            placeholder="Add context for your decision…"
+                            rows="2"
+                            oninput={handleCommentInput}
+                            value={comment}
+                        ></textarea>
+                    </div>
+
+                    <template lwc:if={isReturnDecision}>
+                        <div class="ac-field">
+                            <label class="field-label">
+                                Rejection reason(s) <span class="ac-req">* required</span>
+                            </label>
+                            <div class="reason-tile-grid">
+                                <template for:each={rejectionReasonTiles} for:item="opt">
+                                    <label key={opt.value} class={opt.tileClass}>
+                                        <input type="checkbox"
+                                               checked={opt.isChecked}
+                                               data-value={opt.value}
+                                               onchange={handleReasonToggle} />
+                                        <span class="reason-tile-label">{opt.label}</span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="btn-group">
+                        <button class="neutral-btn" onclick={handleCancelDecisionPanel}>
+                            Cancel
+                        </button>
+                        <button class={decisionPanelButtonClass} onclick={handleDecisionPanelContinue}>
+                            <lightning-icon icon-name={decisionPanelButtonIcon} size="xx-small" alternative-text=""></lightning-icon>
+                            {decisionPanelButtonLabel}
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Default: Accept / Reject -->
+                <template lwc:else>
+                    <div class="btn-group">
+                        <button class="primary-btn ac-reject-btn" onclick={handleReturn} disabled={isDecisionMade}>
+                            <lightning-icon icon-name="utility:reply" size="xx-small" alternative-text=""></lightning-icon>
+                            Reject
+                        </button>
+                        <button class="success-btn accept-btn" onclick={handleApprove} disabled={isDecisionMade}>
+                            <lightning-icon icon-name="utility:check" size="xx-small" alternative-text=""></lightning-icon>
+                            Accept
+                        </button>
+                    </div>
+                </template>
+
+            </div>
+        </div>
+
+        <!-- ══ DECISION CONFIRMATION MODAL ═════════════════════ -->
+        <template lwc:if={showModal}>
+            <div class="modal-backdrop">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-label={modalTitle}>
+                    <div class={modalHeaderClass}>
+                        <h3 class="modal-title">{modalTitle}</h3>
+                    </div>
+                    <div class="modal-body">
+                        <p>{modalMessage}</p>
+                        <template lwc:if={comment}>
+                            <div class="modal-comment">
+                                <strong>Comment:</strong> {comment}
+                            </div>
+                        </template>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="neutral-btn"
+                                onclick={handleModalCancel}
+                                disabled={isSubmitting}>
+                            Cancel
+                        </button>
+                        <button class={modalConfirmClass}
+                                onclick={handleModalConfirm}
+                                disabled={isConfirmDisabled}>
+                            <template lwc:if={isSubmitting}>
+                                <lightning-spinner alternative-text="Saving" size="small"></lightning-spinner>
+                            </template>
+                            <template lwc:else>
+                                {modalConfirmLabel}
+                            </template>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ══ REVOKE CONFIRMATION MODAL ═══════════════════════ -->
+        <template lwc:if={showRevokeModal}>
+            <div class="modal-backdrop">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-label="Revoke decision">
+                    <div class="modal-header modal-revoke">
+                        <h3 class="modal-title">Revoke decision</h3>
+                    </div>
+                    <div class="modal-body">
+    <p>Are you sure you want to revoke the&#160;<strong class="revoke-decision-text">{existingDecision}</strong>&#160;decision for {appName}? This marks the decision as Revoked and allows a new one to be submitted.</p>
+</div>
+                    <div class="modal-footer">
+                        <button class="neutral-btn"
+                                onclick={handleRevokeCancel}
+                                disabled={isRevoking}>
+                            Cancel
+                        </button>
+                        <button class="modal-btn btn-confirm-decline"
+                                onclick={handleRevokeConfirm}
+                                disabled={isRevoking}>
+                            <template lwc:if={isRevoking}>
+                                <lightning-spinner alternative-text="Revoking" size="small"></lightning-spinner>
+                            </template>
+                            <template lwc:else>
+                                Yes, revoke
+                            </template>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+    </div>
+</template>

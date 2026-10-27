@@ -1,0 +1,172 @@
+<template>
+    <div class="wg-page rd-page">
+
+        <!-- PAGE HEADER -->
+        <div class="wg-page-header">
+            <div class="wg-page-heading">
+                <p class="wg-page-eyebrow">Reviewer portal</p>
+                <h1 class="wg-page-title">{greeting}, <span class="wg-page-title-accent">Reviewer</span></h1>
+                <p class="wg-page-subtitle">{todayDate}</p>
+            </div>
+            <div class="wg-page-actions">
+                <button class="primary-btn" onclick={handleViewAllReviewerQueue}>
+                    <lightning-icon icon-name="utility:list" size="xx-small" alternative-text=""></lightning-icon>
+                    View Proposals Queue
+                </button>
+            </div>
+        </div>
+
+        <div class="wg-page-body">
+
+            <!-- KPI TILES — click opens the queue filtered to that bucket -->
+            <div class="wg-stat-grid wg-dash-stats" role="group" aria-label="Open the queue filtered by">
+                <template for:each={reviewerCards} for:item="c">
+                    <button key={c.id}
+                            class={c.kpiClass}
+                            data-filter={c.id}
+                            onclick={handleReviewerTileClick}>
+                        <span class="wg-stat-head">
+                            <span class="wg-stat-label">{c.label}</span>
+                            <span class={c.dotClass}></span>
+                        </span>
+                        <span class="wg-stat-value">{c.count}</span>
+                        <span class="wg-stat-caption">{c.subtitle}</span>
+                    </button>
+                </template>
+            </div>
+
+            <!-- DUE SOON -->
+            <div class="rd-section">
+                <div class="wg-section-head">
+                    <div>
+                        <h2 class="wg-section-title">Due soon</h2>
+                        <p class="wg-section-subtitle">Proposals assigned to you, nearest due date first</p>
+                    </div>
+                    <button class="wg-link" onclick={handleViewAllReviewerQueue}>View full queue →</button>
+                </div>
+
+                <div class="wg-card">
+                    <div class="wg-table-wrap">
+                        <table class="wg-table rd-table">
+                            <thead>
+                                <tr>
+                                    <th class="wg-col-index" scope="col">#</th>
+                                    <th scope="col">Application ID</th>
+                                    <th scope="col">Organization</th>
+                                    <th scope="col">Track</th>
+                                    <th scope="col">Due date</th>
+                                    <th scope="col">Status</th>
+                                    <th class="wg-col-action" scope="col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={reviewerPreviewRows} for:item="row">
+                                    <tr key={row.id}>
+                                        <td class="wg-col-index">{row.rowNum}</td>
+                                        <td class="wg-cell-id">
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <span>{row.appId}</span>
+                                                <template lwc:if={row.hasRevision}>
+                                                    <span class="wg-tag wg-tag--warning">{row.revisionLabel}</span>
+                                                </template>
+                                            </div>
+                                        </td>
+                                        <td>{row.organizationName}</td>
+                                        <td>
+                                            <div class="rd-tags">
+                                                <template for:each={row.trackTags} for:item="tg">
+                                                    <span key={tg.code} class={tg.cls} title={tg.label}>{tg.code}</span>
+                                                </template>
+                                            </div>
+                                        </td>
+                                        <td><span class={row.dueDateClass}>{row.dueDate}</span></td>
+                                        <td><span class={row.statusClass}>{row.status}</span></td>
+                                        <td class="wg-col-action">
+                                            <button class="primary-btn wg-btn-sm"
+                                                    data-id={row.appRecordId}
+                                                    data-appname={row.appId}
+                                                    data-review-id={row.reviewId}
+                                                    data-action={row.reviewAction}
+                                                    data-headquarters={row.headquarters}
+                                                    data-track={row.track}
+                                                    onclick={handleReviewerRowAction}>
+                                                <lightning-icon icon-name={row.actionIcon} size="xx-small" alternative-text=""></lightning-icon>
+                                                {row.action}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template lwc:if={noReviewerPreviewRows}>
+                                    <tr>
+                                        <td colspan="7" class="wg-table-empty">No proposals assigned for review</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+           <!-- ACCEPTED APPLICATIONS — awaiting compliance request -->
+<div class="rd-section">
+    <div class="wg-section-head">
+        <div>
+            <h2 class="wg-section-title">Accepted applications</h2>
+           <p class="wg-section-subtitle">Accepted by the Approver: awaiting a compliance document request</p>
+        </div>
+        <button class="wg-link" onclick={handleViewRequestedCompliances}>View requested compliances →</button>
+    </div>
+
+    <div class="wg-card">
+        <div class="wg-table-wrap">
+            <table class="wg-table rd-table rd-table--accepted">
+                <thead>
+                    <tr>
+                        <th class="wg-col-index rd-col-index" scope="col">#</th>
+                        <th class="rd-col-app" scope="col">Application</th>
+                        <th class="rd-col-org" scope="col">Organization</th>
+                        <th scope="col">Approver comment</th>
+                        <th class="rd-col-date" scope="col">Decision date</th>
+                        <th class="rd-col-action rd-align-end" scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={acceptedApplicationRows} for:item="row">
+                        <tr key={row.id}>
+                            <td class="wg-col-index">{row.rowNum}</td>
+                            <td class="wg-cell-id">
+                                <a href="javascript:void(0);" class="rd-app-link"
+                                   title="View proposal and review"
+                                   data-id={row.applicationId}
+                                   onclick={handleViewApplication}>{row.appName}</a>
+                            </td>
+                            <td>{row.organizationName}</td>
+                            <td class="rd-comment-cell">
+                                <div class="rd-comment" title={row.approverComment}>{row.approverComment}</div>
+                            </td>
+                            <td class="wg-cell-muted rd-nowrap">{row.decisionDateFormatted}</td>
+                            <td class="rd-align-end">
+                                <button class="success-btn wg-btn-sm rd-action-btn"
+                                        data-id={row.applicationId}
+                                        data-appname={row.appName}
+                                        onclick={handleCreateComplianceRequest}>
+                                    <lightning-icon icon-name="utility:new" size="xx-small" alternative-text=""></lightning-icon>
+                                    Request compliance
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <template lwc:if={noAcceptedApplicationRows}>
+                        <tr>
+                            <td colspan="6" class="wg-table-empty">No accepted applications awaiting a compliance request</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+        </div>
+    </div>
+</template>

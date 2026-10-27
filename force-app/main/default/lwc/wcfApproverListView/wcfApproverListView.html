@@ -1,0 +1,187 @@
+<template>
+    <div class="wg-page wcf-aq">
+
+        <!-- ══ PAGE HEADER ══════════════════════════════════════ -->
+        <div class="wg-page-header">
+            <div class="wg-page-heading">
+                <p class="wg-page-eyebrow">Approver portal</p>
+                <h1 class="wg-page-title">Wadhwani Grants Approver Queue</h1>
+                <p class="wg-page-subtitle">{subtitle}</p>
+            </div>
+            <div class="wg-page-actions">
+                <div class="wg-search">
+                    <lightning-icon icon-name="utility:search" size="x-small" alternative-text=""></lightning-icon>
+                    <input
+                        type="text"
+                        placeholder="Search by ID, organization, submitter…"
+                        aria-label="Search proposals"
+                        value={searchTerm}
+                        oninput={handleSearch}
+                    />
+                </div>
+                <button class="wg-icon-btn" onclick={handleRefresh} title="Refresh" aria-label="Refresh list">
+                    <lightning-icon icon-name="utility:refresh" size="x-small" alternative-text=""></lightning-icon>
+                </button>
+            </div>
+        </div>
+
+        <div class="wg-page-body">
+
+            <!-- ══ ACTIVE FILTER BANNER ══════════════════════════ -->
+            <template lwc:if={hasStatusFilter}>
+                <div class="info-banner wcf-aq-filter" role="status">
+                    <lightning-icon icon-name="utility:filter" size="x-small" alternative-text=""></lightning-icon>
+                    <div class="wg-banner-body">
+                        Filtered by: <strong>{activeFilterLabel}</strong>
+                    </div>
+                    <button class="ghost-btn wg-banner-action" onclick={handleClearFilter}>
+                        <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                        Show all
+                    </button>
+                </div>
+            </template>
+
+            <template lwc:if={isLoading}>
+                <div class="wg-card">
+                    <div class="wg-loading">
+                        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                        <p class="wg-loading-text">Loading approver queue…</p>
+                    </div>
+                </div>
+            </template>
+
+            <template lwc:else>
+
+                <!-- ══ SUMMARY TILES ═══════════════════════════════ -->
+                <div class="wg-stat-grid wcf-aq-stats" role="group" aria-label="Filter by decision status">
+                    <template for:each={summaryItems} for:item="s">
+                        <button key={s.id}
+                                class={s.cls}
+                                data-filter={s.id}
+                                aria-pressed={s.pressed}
+                                title="Click to filter"
+                                onclick={handleSummaryClick}>
+                            <span class="wg-stat-head">
+                                <span class="wg-stat-label">{s.label}</span>
+                                <span class={s.dotCls}></span>
+                            </span>
+                            <span class="wg-stat-value">{s.count}</span>
+                        </button>
+                    </template>
+                </div>
+
+                <!-- ══ TABLE CARD ══════════════════════════════════ -->
+                <div class="wg-card">
+                    <template lwc:if={hasItems}>
+                        <div class="wg-table-wrap">
+                            <table class="wg-table wcf-aq-table">
+                                <thead>
+                                    <tr>
+                                        <th class="wg-col-index" scope="col">#</th>
+                                        <th scope="col">APPLICATION ID</th>
+                                        <th scope="col">ORGANIZATION</th>
+                                        <th scope="col">HEADQUARTERS</th>
+                                        <th scope="col">TRACK</th>
+                                        <th scope="col">REVIEW STATUS</th>
+                                        <th scope="col">DECISION</th>
+                                        <th class="wg-col-action" scope="col">ACTION</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={paginatedItems} for:item="row">
+                                        <tr key={row.applicationId} class={row.rowClass}>
+                                            <td class="wg-col-index">{row.sno}</td>
+                                            <td class="wg-cell-id">
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span>{row.applicationName}</span>
+                                                    <template lwc:if={row.hasRevision}>
+                                                        <span class="wg-tag wg-tag--warning">{row.revisionLabel}</span>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td><span class="wcf-trunc" title={row.organizationName}>{row.organizationName}</span></td>
+                                            <td><span class="wcf-trunc" title={row.headquarters}>{row.headquarters}</span></td>
+                                            <td>
+                                                <div class="wcf-aq-tags">
+                                                    <template for:each={row.trackBadges} for:item="tb">
+                                                        <span key={tb.code} class={tb.badgeClass} title={tb.label}>{tb.code}</span>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td><span class={row.recBadgeClass}>{row.recommendationLabel}</span></td>
+                                            <td>
+                                                <template lwc:if={row.existingDecision}>
+                                                    <span class={row.decisionBadgeClass}>{row.decisionLabel}</span>
+                                                </template>
+                                                <template lwc:else>
+                                                    <span class="wg-cell-muted">—</span>
+                                                </template>
+                                            </td>
+                                            <td class="wg-col-action">
+                                                <button
+                                                    class={row.actionBtnClass}
+                                                    data-id={row.applicationId}
+                                                    data-appname={row.applicationName}
+                                                    data-review-id={row.reviewId}
+                                                    data-track={row.track}
+                                                    data-track-label={row.trackLabel}
+                                                    disabled={row.isDisabled}
+                                                    onclick={handleStartApprove}>
+                                                    <lightning-icon icon-name={row.actionIcon} size="xx-small" alternative-text=""></lightning-icon>
+                                                    {row.actionLabel}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="wg-pagination">
+                            <span>Showing {paginationStart}–{paginationEnd} of {filteredCount}</span>
+                            <div class="wg-pagination-controls">
+                                <button class="wg-icon-btn" onclick={handlePrevPage} disabled={isFirstPage} aria-label="Previous page">
+                                    <lightning-icon icon-name="utility:chevronleft" size="xx-small" alternative-text=""></lightning-icon>
+                                </button>
+                                <template for:each={pageNumbers} for:item="pg">
+                                    <button key={pg.num}
+                                            class={pg.btnClass}
+                                            data-page={pg.num}
+                                            aria-current={pg.current}
+                                            onclick={handlePageClick}>{pg.num}</button>
+                                </template>
+                                <button class="wg-icon-btn" onclick={handleNextPage} disabled={isLastPage} aria-label="Next page">
+                                    <lightning-icon icon-name="utility:chevronright" size="xx-small" alternative-text=""></lightning-icon>
+                                </button>
+                            </div>
+                            <div class="wcf-aq-pagesize wg-pagesize">
+                                <span>Rows per page</span>
+                                <!-- FIX: native select — its menu is drawn by the browser above the
+                                     page, so the card's rounded-corner clipping can't cut it off
+                                     (the lightning-combobox menu was hidden inside the card). -->
+                                <select class="wg-pagesize-select"
+                                        aria-label="Rows per page"
+                                        onchange={handlePageSizeChange}>
+                                    <template for:each={pageSizeChoices} for:item="opt">
+                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Empty -->
+                    <template lwc:else>
+                        <div class="wg-empty">
+                            <lightning-icon icon-name="utility:check" size="large" alternative-text=""></lightning-icon>
+                            <p class="wg-empty-title">No proposals awaiting decision</p>
+                            <p class="wg-empty-text">All reviewed proposals have been decided, or no reviews have been submitted yet.</p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+        </div>
+    </div>
+</template>

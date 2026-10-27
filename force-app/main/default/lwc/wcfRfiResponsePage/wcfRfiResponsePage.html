@@ -1,0 +1,877 @@
+<template>
+    <div class="rfi-response-wrapper">
+
+        <!-- ── LOADING ── -->
+        <template if:true={isLoading}>
+            <div class="rfi-loading-box">
+                <lightning-spinner alternative-text="Loading revision data..." size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- ── SUBMITTED ── -->
+        <template if:true={isSubmitted}>
+            <div class="rfi-success-container">
+                <div class="rfi-success-icon-wrap">
+                    <lightning-icon icon-name="utility:success" size="large" variant="success"></lightning-icon>
+                </div>
+                <h1 class="rfi-success-title">Revision Submitted Successfully</h1>
+                <p class="rfi-success-sub">
+                    Your answers for Application <strong>{applicationName}</strong> have been updated and resubmitted.
+                    The validator has been notified to resume their review.
+                </p>
+                <button class="btn-primary-red" onclick={handleBackToDashboard}>Back to Dashboard</button>
+            </div>
+        </template>
+
+        <!-- ── REVISION QUESTIONNAIRE ── -->
+        <template if:false={isSubmitted}>
+            <template if:false={isLoading}>
+
+                <div class="rfi-header-banner">
+                    <div class="rfi-header-icon-wrap">
+                        <lightning-icon icon-name="utility:warning" size="small" variant="warning"></lightning-icon>
+                    </div>
+                    <div>
+                        <h1 class="rfi-header-title">Revision Requested: Application {applicationName}</h1>
+                        <p class="rfi-header-sub">
+                            Please review the validator feedback notes below and update only the returned questions.
+                            All other answers in your application remain unchanged.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rfi-questions-container">
+                    <template if:true={hasFlaggedQuestions}>
+                        <template for:each={flaggedQuestions} for:item="q">
+                            <div key={q.key} class="rfi-question-card" data-qkey={q.key}>
+
+                                <!-- Validator note -->
+                                <div class="rfi-validator-note">
+                                    <div class="rfi-note-icon">
+                                        <lightning-icon icon-name="utility:announcement" size="xx-small" variant="error"></lightning-icon>
+                                    </div>
+                                    <div class="rfi-note-content">
+                                        <span class="rfi-note-qref">Question {q.displayNumber}: {q.title}</span>
+                                        <div class="rfi-note-text">
+                                            <strong>Validator Note:</strong> {q.returnText}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="rfi-field-area">
+
+                                    <!-- ═════════ Q1: Track selection (read-only) ═════════ -->
+                                    <template if:true={q.isQ1}>
+                                        <p class="rfi-field-hint">Selected tracks for your organization's application (read-only):</p>
+                                        <div class="rfi-grid-three">
+                                            <template for:each={trackCards} for:item="trk">
+                                                <div key={trk.code} class={trk.cssClass}>
+                                                    <div class="custom-checkbox">
+                                                        <template if:true={trk.isSelected}>✓</template>
+                                                    </div>
+                                                    <span class="track-label-text">{trk.label}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q2: Organizational identifying info ═════════ -->
+                                    <template if:true={q.isQ2}>
+                                        <div class="rfi-grid-two">
+                                            <lightning-input label="Organizational Name" value={formValues.Organization_Name__c}
+                                                data-field="Organization_Name__c" disabled></lightning-input>
+
+                                            <div class="location-autocomplete-container">
+                                                <lightning-input label="Headquarters City and Country"
+                                                    value={formValues.Headquarters_City_and_Country__c}
+                                                    data-field="Headquarters_City_and_Country__c"
+                                                    onchange={handleLocationInput}
+                                                    onblur={handleLocationBlur}
+                                                    autocomplete="off"
+                                                    placeholder="Type city or country..."
+                                                    required>
+                                                </lightning-input>
+                                                <p class="subtext-muted rfi-hint-small">e.g., "Chennai, India"</p>
+                                                <template if:true={isSearchingLocation}>
+                                                    <div class="location-searching">Searching…</div>
+                                                </template>
+                                                <template if:true={showLocationDropdown}>
+                                                    <ul class="location-dropdown">
+                                                        <template for:each={locationResults} for:item="loc">
+                                                            <li key={loc.value} data-value={loc.value} onmousedown={handleSelectLocation}>
+                                                                <span class="location-city">{loc.label}</span>
+                                                                <span class="location-detail">{loc.subDisplay}</span>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </template>
+                                            </div>
+
+                                            <div class="rfi-full-width">
+                                                <lightning-input label="Primary Service Regions"
+                                                    value={formValues.Primary_Service_Regions__c}
+                                                    data-field="Primary_Service_Regions__c"
+                                                    onchange={handleFieldChange}
+                                                    required></lightning-input>
+                                                <p class="subtext-muted rfi-hint-small">Where do you operate? List all states, provinces, or regions in priority order.</p>
+                                            </div>
+
+                                            <lightning-input label="Leader Name" value={formValues.Leader_Name__c}
+                                                data-field="Leader_Name__c" onchange={handleFieldChange} required></lightning-input>
+
+                                            <lightning-input label="Leader Title" value={formValues.Leader_Title__c}
+                                                data-field="Leader_Title__c" onchange={handleFieldChange} required></lightning-input>
+
+                                            <div>
+                                                <lightning-input label="Leader Tenure (Optional)" value={formValues.Leader_Tenure__c}
+                                                    data-field="Leader_Tenure__c" onchange={handleFieldChange}
+                                                    type="number" min="0" max="99" step="1"></lightning-input>
+                                                <p class="subtext-muted rfi-hint-small">Number of years your current named leader has held their role. Round to the nearest year.</p>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q3: Submitter contact ═════════ -->
+                                    <template if:true={q.isQ3}>
+                                        <div class="rfi-grid-two">
+                                            <lightning-input label="Submitter Name" value={formValues.Submitter_Name__c}
+                                                data-field="Submitter_Name__c" disabled></lightning-input>
+                                            <lightning-input label="Job Title" value={formValues.Job_Title__c}
+                                                data-field="Job_Title__c" onchange={handleFieldChange} required></lightning-input>
+                                            <lightning-input type="email" label="Work Email" value={formValues.Work_Email_ID__c}
+                                                data-field="Work_Email_ID__c" disabled></lightning-input>
+                                            <lightning-input type="tel" label="Phone Number" value={formValues.Phone__c}
+                                                data-field="Phone__c" disabled></lightning-input>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q4: Legal structure ═════════ -->
+                                    <template if:true={q.isQ4}>
+                                        <div class="rfi-grid-two">
+                                            <div>
+                                                <lightning-combobox label="Legal Structure" value={formValues.Legal_Type__c}
+                                                    options={legalTypeOptions} data-field="Legal_Type__c"
+                                                    onchange={handleFieldChange} required></lightning-combobox>
+                                                <template if:true={isLegalTypeOther}>
+                                                    <div class="rfi-stack-gap">
+                                                        <lightning-input label="Please specify your legal structure type"
+                                                            value={formValues.Legal_Type_Other__c} data-field="Legal_Type_Other__c"
+                                                            maxlength="255" onchange={handleFieldChange} required></lightning-input>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <div>
+                                                <lightning-combobox label="Registration Jurisdiction" value={formValues.Registration_Jurisdiction__c}
+                                                    options={countryOptions} data-field="Registration_Jurisdiction__c"
+                                                    onchange={handleFieldChange} required></lightning-combobox>
+                                                <template if:true={isRegistrationJurisdictionOther}>
+                                                    <div class="rfi-stack-gap">
+                                                        <lightning-input label="Please specify the registration country"
+                                                            value={formValues.Registration_Jurisdiction_Other__c} data-field="Registration_Jurisdiction_Other__c"
+                                                            maxlength="255" onchange={handleFieldChange} required></lightning-input>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <lightning-input type="date" label="Incorporation Date" value={formValues.Incorporation_Date__c}
+                                                data-field="Incorporation_Date__c" min="1900-01-01" max={todayDateString}
+                                                date-style="short" onchange={handleFieldChange} required></lightning-input>
+                                        </div>
+
+                                        <div class="rfi-richtext-wrapper rfi-section-gap">
+                                            <label class="rfi-richtext-label">{descriptions.Q4GovLabel} <span class="required">*</span></label>
+                                            <div class="subtext-muted rfi-richtext-helper">{descriptions.Q4GovHelper}</div>
+                                            <div class="modern-toolbar">
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                            </div>
+                                            <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                data-field="Legal_Structure__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                            <template if:true={isOverLimit.Legal_Structure__c}>
+                                                <div class="rfi-field-error-message">
+                                                    ⚠️ {wordLimitErrors.Legal_Structure__c}
+                                                </div>
+                                            </template>
+                                            <div class="rfi-richtext-footer">
+    <button type="button" class="modern-ai-btn" data-id="Legal_Structure__c" onclick={handleAIClick}>✦ AI Feedback</button>
+    <span class={wordCountClass.Legal_Structure__c}>{wordCountDisplay.Legal_Structure__c}</span>
+</div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q5: Legal & tax compliance ═════════ -->
+                                    <template if:true={q.isQ5}>
+                                        <div class="rfi-grid-two">
+                                            <lightning-combobox label="Do you have 501(c)(3) status or equivalent US tax-exempt determination?" value={formValues.Has_501c3_Status__c}
+                                                options={yesNoOptions} data-field="Has_501c3_Status__c" onchange={handleFieldChange} required></lightning-combobox>
+                                            <lightning-combobox label="Do you currently hold an active Equivalency Determination (ED) certificate?" value={formValues.Has_Equivalency_Determination__c}
+                                                options={yesNoOptions} data-field="Has_Equivalency_Determination__c" onchange={handleFieldChange} required></lightning-combobox>
+                                            <lightning-combobox label="Do you have a valid FCRA registration?" value={formValues.Is_FCRA_Registered__c}
+                                                options={yesNoNotApplicableOptions} data-field="Is_FCRA_Registered__c" onchange={handleFieldChange} required></lightning-combobox>
+                                            <lightning-combobox label="Are you willing to pursue an Equivalency Determination (ED) if selected?" value={formValues.Willing_to_Pursue_ED__c}
+                                                options={yesNoOptions} data-field="Willing_to_Pursue_ED__c" onchange={handleFieldChange} required></lightning-combobox>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q6: Fiscal year end ═════════ -->
+                                    <template if:true={q.isQ6}>
+                                        <p class="rfi-field-hint">{descriptions.Q6}</p>
+                                        <div class="rfi-grid-two rfi-narrow">
+                                            <lightning-combobox label="Fiscal Year End Month" value={formValues.Fiscal_Month__c}
+                                                options={fiscalMonthOptions} data-field="Fiscal_Month__c" onchange={handleFiscalMonthChange} required></lightning-combobox>
+                                            <lightning-combobox label="Fiscal Year End Day" value={formValues.Fiscal_Day__c}
+                                                options={fiscalDayOptions} data-field="Fiscal_Day__c" onchange={handleFiscalDayChange} required></lightning-combobox>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q7: Top funders (optional) ═════════ -->
+                                    <template if:true={q.isQ7}>
+                                        <p class="rfi-field-hint">{descriptions.Q7}</p>
+
+                                        <div class="rfi-inner-card">
+                                            <div class="rfi-inner-header"><span class="rfi-inner-label">FUNDER 1</span></div>
+                                            <div class="rfi-grid-two">
+                                                <lightning-input label="Funder Name" placeholder="e.g., Open Society Foundations" value={formValues.Funder_1_Name__c} data-field="Funder_1_Name__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="text" label="Approx Annual Amount (USD)" value={funderAmounts.f1} data-field="Funder_1_Amount__c" onchange={handleNumericChange}></lightning-input>
+                                            </div>
+                                            <div class="rfi-grid-three rfi-stack-gap">
+                                                <lightning-input type="date" label="Funding Period Start" value={formValues.Funder_1_Period_Start__c} data-field="Funder_1_Period_Start__c" min="1990-01-01" max="2099-12-31" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="date" label="Funding Period End" value={formValues.Funder_1_Period_End__c} data-field="Funder_1_Period_End__c" min="1990-01-01" max="2099-12-31" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-combobox label="Funding Type" value={formValues.Funder_1_Type__c} options={funderTypeOptions} data-field="Funder_1_Type__c" onchange={handleFieldChange}></lightning-combobox>
+                                            </div>
+                                        </div>
+
+                                        <div class="rfi-inner-card">
+                                            <div class="rfi-inner-header"><span class="rfi-inner-label">FUNDER 2</span></div>
+                                            <div class="rfi-grid-two">
+                                                <lightning-input label="Funder Name" value={formValues.Funder_2_Name__c} data-field="Funder_2_Name__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="text" label="Approx Annual Amount (USD)" value={funderAmounts.f2} data-field="Funder_2_Amount__c" onchange={handleNumericChange}></lightning-input>
+                                            </div>
+                                            <div class="rfi-grid-three rfi-stack-gap">
+                                                <lightning-input type="date" label="Funding Period Start" value={formValues.Funder_2_Period_Start__c} data-field="Funder_2_Period_Start__c" min="1990-01-01" max="2099-12-31" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="date" label="Funding Period End" value={formValues.Funder_2_Period_End__c} data-field="Funder_2_Period_End__c" min="1990-01-01" max="2099-12-31" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-combobox label="Funding Type" value={formValues.Funder_2_Type__c} options={funderTypeOptions} data-field="Funder_2_Type__c" onchange={handleFieldChange}></lightning-combobox>
+                                            </div>
+                                        </div>
+
+                                        <div class="rfi-inner-card">
+                                            <div class="rfi-inner-header"><span class="rfi-inner-label">FUNDER 3</span></div>
+                                            <div class="rfi-grid-two">
+                                                <lightning-input label="Funder Name" value={formValues.Funder_3_Name__c} data-field="Funder_3_Name__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="text" label="Approx Annual Amount (USD)" value={funderAmounts.f3} data-field="Funder_3_Amount__c" onchange={handleNumericChange}></lightning-input>
+                                            </div>
+                                            <div class="rfi-grid-three rfi-stack-gap">
+                                                <lightning-input type="date" label="Funding Period Start" value={formValues.Funder_3_Period_Start__c} data-field="Funder_3_Period_Start__c" min="1990-01-01" max="2099-12-31" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="date" label="Funding Period End" value={formValues.Funder_3_Period_End__c} data-field="Funder_3_Period_End__c" min="1990-01-01" max="2099-12-31" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-combobox label="Funding Type" value={formValues.Funder_3_Type__c} options={funderTypeOptions} data-field="Funder_3_Type__c" onchange={handleFieldChange}></lightning-combobox>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q8: References (optional) ═════════ -->
+                                    <template if:true={q.isQ8}>
+                                        <p class="rfi-field-hint">{descriptions.Q8}</p>
+                                        <div class="rfi-consent-note">
+                                            <strong>Consent:</strong> these contacts may be approached by Wadhwani Grants during evaluation.
+                                        </div>
+                                        <div class="rfi-inner-card">
+                                            <div class="rfi-inner-header"><span class="rfi-inner-label">REFERENCE 1</span></div>
+                                            <div class="rfi-grid-three">
+                                                <lightning-input label="Name" value={formValues.Reference_1_Name__c} data-field="Reference_1_Name__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input label="Organization / Role" value={formValues.Reference_1_Role__c} data-field="Reference_1_Role__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="email" label="Email" value={formValues.Reference_1_Email__c} data-field="Reference_1_Email__c" onchange={handleFieldChange}></lightning-input>
+                                            </div>
+                                        </div>
+                                        <div class="rfi-inner-card">
+                                            <div class="rfi-inner-header"><span class="rfi-inner-label">REFERENCE 2</span></div>
+                                            <div class="rfi-grid-three">
+                                                <lightning-input label="Name" value={formValues.Reference_2_Name__c} data-field="Reference_2_Name__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input label="Organization / Role" value={formValues.Reference_2_Role__c} data-field="Reference_2_Role__c" onchange={handleFieldChange}></lightning-input>
+                                                <lightning-input type="email" label="Email" value={formValues.Reference_2_Email__c} data-field="Reference_2_Email__c" onchange={handleFieldChange}></lightning-input>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Hints for numeric-table questions ═════════ -->
+                                    <template if:true={q.isQ9}><p class="rfi-field-hint">{descriptions.Q9}</p></template>
+                                    <template if:true={q.isQ10}><p class="rfi-field-hint">{descriptions.Q10}</p></template>
+                                    <template if:true={q.isQ13}><p class="rfi-field-hint">{descriptions.Q13}</p></template>
+                                    <template if:true={q.isQ14}><p class="rfi-field-hint">{descriptions.Q14}</p></template>
+                                    <template if:true={q.isQ17}><p class="rfi-field-hint">{descriptions.Q17}</p></template>
+                                    <template if:true={q.isQ18}><p class="rfi-field-hint">{descriptions.Q18}</p></template>
+                                    <template if:true={q.isQ23}><p class="rfi-field-hint">{descriptions.Q23}</p></template>
+
+                                    <!-- Q22: full outcome definition, same as the main form -->
+                                    <template if:true={q.isQ22}>
+                                        <div class="rfi-q22-desc">
+                                            <p>A household counts as an outcome when both of these are true:</p>
+                                            <ol>
+                                                <li>Its yearly income is now Rs 1,00,000 or more.</li>
+                                                <li>That income is at least 30% higher than when the household joined you.</li>
+                                            </ol>
+                                            <p>Both must be true of the same household. Growth is measured from when it joined, not from last year. Count each household once, in the first year both are true, and never again. A household counted in CFY-2 does not appear again in CFY-1.</p>
+                                            <p class="rfi-q22-subhead">Examples (threshold: Rs 1,00,000)</p>
+                                            <ul>
+                                                <li>Rs 60,000 to Rs 84,000 (+40%): No. Grew enough, still under Rs 1,00,000.</li>
+                                                <li>Rs 84,000 to Rs 1,20,000 (+43%): Yes. Both true.</li>
+                                                <li>Rs 1,20,000 to Rs 1,44,000 (+20%): No. Above Rs 1,00,000, didn't grow enough.</li>
+                                                <li>Rs 1,20,000 to Rs 1,80,000 (+50%): Yes. Both true.</li>
+                                            </ul>
+                                            <p>Income means take-home money the household keeps after business costs, not total sales. We compare the 6 months before you started with the most recent 6 months, and double each to get a yearly figure. Both readings need a bank or UPI statement covering that period, for the same named people. Where there is no household figure, use the person's own small business, judged the same way.</p>
+                                            <p>Most households get there in about three years. That is a guide, not a cutoff. You tell us whether the household credits your work. We ask a sample of households the same question. This form asks only for the count. Household records come later, only if you receive a grant.</p>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Shared numeric table (Q9, Q10, Q13, Q14, Q17, Q18, Q22, Q23) ═════════ -->
+                                    <template if:true={q.hasTable}>
+                                        <div class="rfi-table-scroll">
+                                            <table class="rfi-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="rfi-th-item">Item</th>
+                                                        <template for:each={q.table.headers} for:item="h">
+                                                            <th key={h.id}>{h.label}</th>
+                                                        </template>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={q.table.rows} for:item="row">
+                                                        <tr key={row.id} class={row.rowClass}>
+                                                            <td class="rfi-td-label">
+                                                                <template if:true={row.required}><span class="required rfi-row-required">*</span></template>
+                                                                <strong>{row.label}</strong>
+                                                                <template if:true={row.subtext}>
+                                                                    <div class="subtext-muted">{row.subtext}</div>
+                                                                </template>
+                                                            </td>
+                                                            <template for:each={row.cells} for:item="cell">
+                                                                <td key={cell.id} class="rfi-td-value">
+                                                                    <div class="rfi-currency-cell">
+                                                                        <template if:true={cell.isCurrency}>
+                                                                            <span class="rfi-currency-prefix">$</span>
+                                                                        </template>
+                                                                        <template if:true={cell.isComputed}>
+                                                                            <div class="rfi-computed-cell"><strong>{cell.display}</strong></div>
+                                                                        </template>
+                                                                        <template if:true={cell.isInput}>
+                                                                            <lightning-input
+                                                                                class="rfi-cell-input"
+                                                                                type="text"
+                                                                                variant="label-hidden"
+                                                                                label={cell.ariaLabel}
+                                                                                value={cell.display}
+                                                                                data-field={cell.key}
+                                                                                onchange={handleNumericChange}>
+                                                                            </lightning-input>
+                                                                        </template>
+                                                                    </div>
+                                                                </td>
+                                                            </template>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </template>
+
+                                    <template if:true={q.isQ9}>
+                                        <div class="subtext-muted rfi-table-footnote">You enter 7 numbers (1 start balance + 3 revenues + 3 expenses); the remaining cells fill automatically.</div>
+                                    </template>
+
+                                    <!-- Q10: deviation explanation (only when a deviation exists, same as main form) -->
+                                    <template if:true={q.isQ10}>
+                                        <template if:true={isDeviationExplanationRequired}>
+                                            <div class="rfi-richtext-wrapper rfi-section-gap">
+                                                <label class="rfi-richtext-label">{descriptions.Q10ExplLabel} <span class="required">*</span></label>
+                                                <div class="subtext-muted rfi-richtext-helper">{descriptions.Q10ExplDesc}</div>
+                                                <div class="modern-toolbar">
+                                                    <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                    <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                    <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                                </div>
+                                                <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                    data-field="Revenue_Explanation__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                                <template if:true={isOverLimit.Revenue_Explanation__c}>
+                                                    <div class="rfi-field-error-message">
+                                                        ⚠️ {wordLimitErrors.Revenue_Explanation__c}
+                                                    </div>
+                                                </template>
+                                                <div class="rfi-richtext-footer">
+                                                    
+                                                    <span class={wordCountClass.Revenue_Explanation__c}>{wordCountDisplay.Revenue_Explanation__c}</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+
+                                    <!-- ═════════ Q11: Skilling approach ═════════ -->
+                                    <template if:true={q.isQ11}>
+                                        <div class="rfi-richtext-wrapper">
+                                            <label class="rfi-richtext-label">{q.title} <span class="required">*</span></label>
+                                            <div class="subtext-muted rfi-richtext-helper">{descriptions.Q11}</div>
+                                            <div class="modern-toolbar">
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                            </div>
+                                            <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                data-field="Skilling_Approach__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                            <template if:true={isOverLimit.Skilling_Approach__c}>
+                                                <div class="rfi-field-error-message">
+                                                    ⚠️ {wordLimitErrors.Skilling_Approach__c}
+                                                </div>
+                                            </template>
+                                            <div class="rfi-richtext-footer">
+                                                <button type="button" class="modern-ai-btn" data-id="Skilling_Approach__c" onclick={handleAIClick}>✦ AI Feedback</button>
+                                                <span class={wordCountClass.Skilling_Approach__c}>{wordCountDisplay.Skilling_Approach__c}</span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q12: Skilling domains ═════════ -->
+                                    <template if:true={q.isQ12}>
+                                        <p class="rfi-field-hint">{descriptions.Q12}</p>
+                                        <template for:each={skillingDomainRowsIndexed} for:item="row">
+                                            <div key={row.uid} class="rfi-domain-card">
+                                                <div class="rfi-domain-card-head">
+                                                    <span class="rfi-inner-label">Domain {row.displayIdx}</span>
+                                                    <template if:true={canRemoveSkillingDomainRow}>
+                                                        <button type="button" class="rfi-remove-btn" data-uid={row.uid} onclick={handleRemoveSkillingDomain}>✕ Remove</button>
+                                                    </template>
+                                                </div>
+                                                <div class="rfi-stack-gap-bottom">
+                                                    <label class="rfi-field-label">Domain / Program Name <span class="required">*</span></label>
+                                                    <input type="text" class="rfi-text-input" value={row.name} data-uid={row.uid} data-field="name" onchange={handleSkillingDomainChange} />
+                                                </div>
+                                                <div class="rfi-grid-four">
+                                                    <div>
+                                                        <label class="rfi-field-label">Hours of Training <span class="required">*</span></label>
+                                                        <input type="number" class="rfi-number-input" value={row.hours} data-uid={row.uid} data-field="hours" onchange={handleSkillingDomainChange} min="0" />
+                                                    </div>
+                                                    <div>
+                                                        <label class="rfi-field-label">Duration (Months) <span class="required">*</span></label>
+                                                        <input type="number" class="rfi-number-input" value={row.duration} data-uid={row.uid} data-field="duration" onchange={handleSkillingDomainChange} min="0" />
+                                                    </div>
+                                                    <div>
+                                                        <label class="rfi-field-label">When Started <span class="required">*</span></label>
+                                                        <input type="date" class="rfi-date-input" value={row.whenStarted} data-uid={row.uid} data-field="whenStarted" min={minProgrammeStartDate} max={todayDateString} onchange={handleSkillingDomainChange} />
+                                                    </div>
+                                                    <div>
+                                                        <label class="rfi-field-label">Annual Enrollment <span class="required">*</span></label>
+                                                        <input type="number" class="rfi-number-input" value={row.enrollment} data-uid={row.uid} data-field="enrollment" onchange={handleSkillingDomainChange} min="0" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <button type="button" class="rfi-add-btn" onclick={handleAddSkillingDomain}>+ Add Domain Row</button>
+                                    </template>
+
+                                    <!-- ═════════ Q15: Job creation approach ═════════ -->
+                                    <template if:true={q.isQ15}>
+                                        <div class="rfi-richtext-wrapper">
+                                            <label class="rfi-richtext-label">{q.title} <span class="required">*</span></label>
+                                            <div class="subtext-muted rfi-richtext-helper">{descriptions.Q15}</div>
+                                            <div class="modern-toolbar">
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                            </div>
+                                            <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                data-field="Job_Creation_Approach__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                            <template if:true={isOverLimit.Job_Creation_Approach__c}>
+                                                <div class="rfi-field-error-message">
+                                                    ⚠️ {wordLimitErrors.Job_Creation_Approach__c}
+                                                </div>
+                                            </template>
+                                            <div class="rfi-richtext-footer">
+                                                <button type="button" class="modern-ai-btn" data-id="Job_Creation_Approach__c" onclick={handleAIClick}>✦ AI Feedback</button>
+                                                <span class={wordCountClass.Job_Creation_Approach__c}>{wordCountDisplay.Job_Creation_Approach__c}</span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q16: Business sectors ═════════ -->
+                                    <template if:true={q.isQ16}>
+                                        <p class="rfi-field-hint">{descriptions.Q16}</p>
+                                        <template for:each={businessSectorRowsIndexed} for:item="row">
+                                            <div key={row.uid} class="rfi-domain-card">
+                                                <div class="rfi-domain-card-head">
+                                                    <span class="rfi-inner-label">SECTOR {row.displayIdx}</span>
+                                                    <template if:true={canRemoveBusinessSectorRow}>
+                                                        <button type="button" class="rfi-remove-btn" data-uid={row.uid} onclick={handleRemoveBusinessSector}>✕ Remove</button>
+                                                    </template>
+                                                </div>
+                                                <div class="rfi-grid-two rfi-stack-gap-bottom">
+                                                    <div>
+                                                        <label class="rfi-field-label">Business Sector <span class="required">*</span></label>
+                                                        <select class="rfi-select" data-uid={row.uid} data-field="sector" onchange={handleBusinessSectorChange}>
+                                                            <template for:each={row.sectorOptions} for:item="opt">
+                                                                <option key={opt.value} value={opt.value} selected={opt.isSelected}>{opt.label}</option>
+                                                            </template>
+                                                        </select>
+                                                        <template if:true={row.isOtherSector}>
+                                                            <div class="rfi-stack-gap">
+                                                                <label class="rfi-field-label">Please specify your business sector <span class="required">*</span></label>
+                                                                <input type="text" class="rfi-text-input" value={row.sectorOther} data-uid={row.uid} data-field="sectorOther" onchange={handleBusinessSectorChange} />
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                    <div>
+                                                        <label class="rfi-field-label">When Programme Started <span class="required">*</span></label>
+                                                        <input type="date" class="rfi-date-input" value={row.whenBegan} data-uid={row.uid} data-field="whenBegan" min={minProgrammeStartDate} max={todayDateString} onchange={handleBusinessSectorChange} />
+                                                    </div>
+                                                </div>
+
+                                                <div class="rfi-stack-gap-bottom">
+                                                    <label class="rfi-field-label">Type of Support Provided <span class="required">*</span></label>
+                                                    <div class="subtext-muted">Select all that apply.</div>
+                                                    <div class="rfi-chip-row">
+                                                        <template for:each={row.supportTypeChips} for:item="chip">
+                                                            <button key={chip.value} type="button" class={chip.chipClass}
+                                                                data-uid={row.uid} data-chip={chip.value} onclick={handleSupportTypeChip}>
+                                                                {chip.label}
+                                                            </button>
+                                                        </template>
+                                                    </div>
+                                                </div>
+
+                                                <template if:true={row.showSupportTypeOther}>
+                                                    <div class="rfi-stack-gap-bottom">
+                                                        <label class="rfi-field-label">Please specify the type of support <span class="required">*</span></label>
+                                                        <input type="text" class="rfi-text-input" value={row.supportTypeOther} data-uid={row.uid} data-field="supportTypeOther" onchange={handleBusinessSectorChange} />
+                                                    </div>
+                                                </template>
+
+                                                <div class="rfi-narrow-field">
+                                                    <label class="rfi-field-label">Yearly Enrolment <span class="required">*</span></label>
+                                                    <input type="number" class="rfi-number-input" value={row.enrollment} data-uid={row.uid} data-field="enrollment" onchange={handleBusinessSectorChange} min="0" />
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <button type="button" class="rfi-add-btn" onclick={handleAddBusinessSector}>+ Add sector</button>
+                                    </template>
+
+                                    <!-- ═════════ Q19: Livelihood approach ═════════ -->
+                                    <template if:true={q.isQ19}>
+                                        <div class="rfi-richtext-wrapper">
+                                            <label class="rfi-richtext-label">{q.title} <span class="required">*</span></label>
+                                            <div class="subtext-muted rfi-richtext-helper">{descriptions.Q19}</div>
+                                            <div class="modern-toolbar">
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                            </div>
+                                            <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                data-field="Livelihood_Approach__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                            <template if:true={isOverLimit.Livelihood_Approach__c}>
+                                                <div class="rfi-field-error-message">
+                                                    ⚠️ {wordLimitErrors.Livelihood_Approach__c}
+                                                </div>
+                                            </template>
+                                            <div class="rfi-richtext-footer">
+                                                <button type="button" class="modern-ai-btn" data-id="Livelihood_Approach__c" onclick={handleAIClick}>✦ AI Feedback</button>
+                                                <span class={wordCountClass.Livelihood_Approach__c}>{wordCountDisplay.Livelihood_Approach__c}</span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q20: Livelihood programs ═════════ -->
+                                    <template if:true={q.isQ20}>
+                                        <p class="rfi-field-hint">{descriptions.Q20}</p>
+                                        <div class="rfi-table-scroll">
+                                            <table class="rfi-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Program / Initiative Name <span class="required">*</span></th>
+                                                        <th>Type of Support Provided <span class="required">*</span></th>
+                                                        <th>Duration in Man-Hours <span class="required">*</span></th>
+                                                        <th>Annual Enrollment <span class="required">*</span></th>
+                                                        <th class="rfi-th-action"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={livelihoodProgramRows} for:item="row">
+                                                        <tr key={row.uid}>
+                                                            <td><input type="text" class="rfi-text-input" value={row.name} data-uid={row.uid} data-field="name" onchange={handleLivelihoodProgramChange} /></td>
+                                                            <td><input type="text" class="rfi-text-input" value={row.supportType} data-uid={row.uid} data-field="supportType" onchange={handleLivelihoodProgramChange} /></td>
+                                                            <td><input type="number" class="rfi-number-input" value={row.manHours} data-uid={row.uid} data-field="manHours" onchange={handleLivelihoodProgramChange} min="0" /></td>
+                                                            <td><input type="number" class="rfi-number-input" value={row.enrollment} data-uid={row.uid} data-field="enrollment" onchange={handleLivelihoodProgramChange} min="0" /></td>
+                                                            <td class="rfi-td-action">
+                                                                <template if:true={canRemoveLivelihoodProgramRow}>
+                                                                    <button type="button" class="rfi-remove-btn" data-uid={row.uid} onclick={handleRemoveLivelihoodProgram} title="Remove row">✕</button>
+                                                                </template>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <button type="button" class="rfi-add-btn" onclick={handleAddLivelihoodProgram}>+ Add Program Row</button>
+                                    </template>
+
+                                    <!-- ═════════ Q21: Communities ═════════ -->
+                                    <template if:true={q.isQ21}>
+                                        <p class="rfi-field-hint">{descriptions.Q21}</p>
+                                        <div class="rfi-table-scroll">
+                                            <table class="rfi-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>State <span class="required">*</span></th>
+                                                        <th>District / Area <span class="required">*</span></th>
+                                                        <th>{fyLabels.fy3} <span class="required">*</span></th>
+                                                        <th>{fyLabels.fy2} <span class="required">*</span></th>
+                                                        <th>{fyLabels.fy1} <span class="required">*</span></th>
+                                                        <th>CFY (projected) <span class="required">*</span></th>
+                                                        <th class="rfi-th-action"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={communityRowsWithStateOptions} for:item="row">
+                                                        <tr key={row.uid}>
+                                                            <td>
+                                                                <select class="rfi-select" data-uid={row.uid} data-field="state" onchange={handleCommunityChange}>
+                                                                    <template for:each={row.stateDropdownOptions} for:item="opt">
+                                                                        <option key={opt.label} value={opt.value} selected={opt.isSelected}>{opt.label}</option>
+                                                                    </template>
+                                                                </select>
+                                                            </td>
+                                                            <td><input type="text" class="rfi-text-input" value={row.district} data-uid={row.uid} data-field="district" onchange={handleCommunityChange} /></td>
+                                                            <td><input type="number" class="rfi-number-input" value={row.fy3} data-uid={row.uid} data-field="fy3" onchange={handleCommunityChange} min="0" /></td>
+                                                            <td><input type="number" class="rfi-number-input" value={row.fy2} data-uid={row.uid} data-field="fy2" onchange={handleCommunityChange} min="0" /></td>
+                                                            <td><input type="number" class="rfi-number-input" value={row.fy1} data-uid={row.uid} data-field="fy1" onchange={handleCommunityChange} min="0" /></td>
+                                                            <td><input type="number" class="rfi-number-input" value={row.proj} data-uid={row.uid} data-field="proj" onchange={handleCommunityChange} min="0" /></td>
+                                                            <td class="rfi-td-action">
+                                                                <template if:true={canRemoveCommunityRow}>
+                                                                    <button type="button" class="rfi-remove-btn" data-uid={row.uid} onclick={handleRemoveCommunity} title="Remove row">✕</button>
+                                                                </template>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <button type="button" class="rfi-add-btn" onclick={handleAddCommunity}>+ Add Community Row</button>
+                                    </template>
+
+                                    <!-- ═════════ Q24: Independent verification ═════════ -->
+                                    <template if:true={q.isQ24}>
+                                        <p class="rfi-field-hint">{descriptions.Q24}</p>
+                                        <div class="rfi-stack-gap-bottom">
+                                            <label class="rfi-field-label">Outcomes verified by a third party? <span class="required">*</span></label>
+                                            <div class="rfi-radio-group">
+                                                <label><input type="radio" name="q24_ver" value="Yes" checked={isQ24VerifiedYes} data-field="Q24_VERIFIED__c" onchange={handleFieldChange} /> Yes</label>
+                                                <label><input type="radio" name="q24_ver" value="No" checked={isQ24VerifiedNo} data-field="Q24_VERIFIED__c" onchange={handleFieldChange} /> No</label>
+                                            </div>
+                                        </div>
+
+                                        <template if:true={isQ24VerifiedYes}>
+                                            <div class="rfi-stack-gap-bottom">
+                                                <lightning-input label="Who conducted the verification?"
+                                                    value={formValues.Details_of_Ethical_Received__c}
+                                                    data-field="Details_of_Ethical_Received__c"
+                                                    onchange={handleFieldChange} onblur={handleQ24DetailsBlur} required></lightning-input>
+                                            </div>
+                                            <div class="rfi-upload-container">
+                                                <label class="rfi-field-label">Upload verification report <span class="required">*</span></label>
+                                                <p class="subtext-muted">PDF only, max 25 MB per file. You can select several files at once.</p>
+                                                <lightning-file-upload
+                                                    label="Upload"
+                                                    name="q24FileUpload"
+                                                    record-id={recordId}
+                                                    accept={pdfOnlyFormats}
+                                                    multiple
+                                                    onuploadfinished={handleQ24UploadFinished}>
+                                                </lightning-file-upload>
+                                                <template if:true={hasQ24UploadedFiles}>
+                                                    <ul class="rfi-uploaded-list">
+                                                        <template for:each={q24UploadedFiles} for:item="f">
+                                                            <li key={f.documentId} class="rfi-uploaded-item">
+                                                                <span class="rfi-uploaded-name">
+                                                                    <lightning-icon icon-name="doctype:pdf" size="x-small"></lightning-icon>
+                                                                    <span>{f.name}</span>
+                                                                </span>
+                                                                <button type="button" class="rfi-remove-btn" data-id={f.documentId} onclick={handleRemoveQ24File}>✕ Remove</button>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </template>
+
+                                    <!-- ═════════ Q25: Sustainability plan ═════════ -->
+                                    <template if:true={q.isQ25}>
+                                        <div class="rfi-richtext-wrapper">
+                                            <label class="rfi-richtext-label">{q.title} <span class="required">*</span></label>
+                                            <div class="subtext-muted rfi-richtext-helper">{descriptions.Q25}</div>
+                                            <div class="modern-toolbar">
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                            </div>
+                                            <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                data-field="Organizational_Sustainability__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                            <template if:true={isOverLimit.Organizational_Sustainability__c}>
+                                                <div class="rfi-field-error-message">
+                                                    ⚠️ {wordLimitErrors.Organizational_Sustainability__c}
+                                                </div>
+                                            </template>
+                                            <div class="rfi-richtext-footer">
+                                                <button type="button" class="modern-ai-btn" data-id="Organizational_Sustainability__c" onclick={handleAIClick}>✦ AI Feedback</button>
+                                                <span class={wordCountClass.Organizational_Sustainability__c}>{wordCountDisplay.Organizational_Sustainability__c}</span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q26: Additional funding ═════════ -->
+                                    <template if:true={q.isQ26}>
+                                        <div class="rfi-richtext-wrapper">
+                                            <label class="rfi-richtext-label">{q.title} <span class="required">*</span></label>
+                                            <div class="subtext-muted rfi-richtext-helper">{descriptions.Q26}</div>
+                                            <div class="modern-toolbar">
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleBold}><b>B</b></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleItalic}><i>I</i></button>
+                                                <button type="button" class="toolbar-min-btn" onmousedown={preventFocusLoss} onclick={handleUnderline}><u>U</u></button>
+                                            </div>
+                                            <div class="modern-richtext-area" contenteditable="true" lwc:dom="manual"
+                                                data-field="Use_of_Additional_Funding__c" oninput={handleRichTextInput} onpaste={handlePaste}></div>
+                                            <template if:true={isOverLimit.Use_of_Additional_Funding__c}>
+                                                <div class="rfi-field-error-message">
+                                                    ⚠️ {wordLimitErrors.Use_of_Additional_Funding__c}
+                                                </div>
+                                            </template>
+                                            <div class="rfi-richtext-footer">
+                                                <button type="button" class="modern-ai-btn" data-id="Use_of_Additional_Funding__c" onclick={handleAIClick}>✦ AI Feedback</button>
+                                                <span class={wordCountClass.Use_of_Additional_Funding__c}>{wordCountDisplay.Use_of_Additional_Funding__c}</span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- ═════════ Q27: GenieAI (optional) ═════════ -->
+                                    <template if:true={q.isQ27}>
+                                        <p class="rfi-field-hint">{descriptions.Q27}</p>
+                                        <div class="rfi-link-row">
+                                            <a href="https://www.youtube.com/watch?v=B8Glesyhvgw" target="_blank" rel="noopener noreferrer">GenieAI for Entrepreneurship – Overview Video</a>
+                                            <a href="https://www.youtube.com/watch?v=RwePgeR98oc" target="_blank" rel="noopener noreferrer">GenieAI Skilling Platform – Product Demo</a>
+                                        </div>
+                                        <div class="rfi-narrow">
+                                            <lightning-combobox label="Interest Level (Optional)"
+                                                value={formValues.GenieAI_Interest_Level__c}
+                                                options={genieAIOptions}
+                                                placeholder="Select an option"
+                                                data-field="GenieAI_Interest_Level__c"
+                                                onchange={handleFieldChange}></lightning-combobox>
+                                        </div>
+                                        <template if:true={showSynergiesTextBox}>
+                                            <div class="rfi-section-gap">
+                                                <lightning-textarea
+                                                    label="How could GenieAI contribute to your work?"
+                                                    value={formValues.Operational_Synergies_with_WOF__c}
+                                                    data-field="Operational_Synergies_with_WOF__c"
+                                                    onchange={handleFieldChange}
+                                                    required></lightning-textarea>
+                                                <template if:true={isOverLimit.Operational_Synergies_with_WOF__c}>
+                                                    <div class="rfi-field-error-message">
+                                                        ⚠️ {wordLimitErrors.Operational_Synergies_with_WOF__c}
+                                                    </div>
+                                                </template>
+                                                <div class="rfi-richtext-footer">
+                                                    <span class={genieWordCountClass}>{genieWordCountDisplay}</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+
+                                    <!-- ═════════ Q28: Supporting documents (optional) ═════════ -->
+                                    <template if:true={q.isQ28}>
+                                        <p class="rfi-field-hint">{descriptions.Q28}</p>
+                                        <p class="subtext-muted">PDF, Word, PowerPoint, or Excel (up to 25 MB per file). You can select several files at once.</p>
+                                        <div class="rfi-upload-container">
+                                            <lightning-file-upload
+                                                label="Upload Supporting Document"
+                                                name="q28FileUpload"
+                                                record-id={recordId}
+                                                accept={acceptedFileFormats}
+                                                multiple
+                                                onuploadfinished={handleQ28UploadFinished}>
+                                            </lightning-file-upload>
+                                            <template if:true={hasQ28UploadedFiles}>
+                                                <ul class="rfi-uploaded-list">
+                                                    <template for:each={q28UploadedFiles} for:item="f">
+                                                        <li key={f.documentId} class="rfi-uploaded-item">
+                                                            <span class="rfi-uploaded-name">
+                                                                <lightning-icon icon-name="doctype:attachment" size="x-small"></lightning-icon>
+                                                                <span>{f.name}</span>
+                                                            </span>
+                                                            <button type="button" class="rfi-remove-btn" data-id={f.documentId} onclick={handleRemoveQ28File}>✕ Remove</button>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                    <template if:false={hasFlaggedQuestions}>
+                        <div class="rfi-no-flagged-card">
+                            <lightning-icon icon-name="utility:info_alt" size="medium" variant="base"></lightning-icon>
+                            <h3>No Specific Questions Returned</h3>
+                            <p>All questions are in good standing or have already been updated. Click Submit Revision below to complete the process.</p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Footer -->
+                <div class="rfi-footer-bar">
+                    <button type="button" class="btn-secondary-outline" onclick={handleCancel}>Cancel</button>
+                    <button type="button" class="btn-primary-red" onclick={handleSubmitResponse} disabled={isSaving}>
+                        <template if:true={isSaving}>Submitting Revision...</template>
+                        <template if:false={isSaving}>Submit Revision</template>
+                    </button>
+                </div>
+                                    <!-- ══ AI FEEDBACK MODAL ══ -->
+                <template if:true={isAIModalOpen}>
+                    <section role="dialog" tabindex="-1" aria-modal="true" class="rfi-ai-modal">
+                        <div class="rfi-ai-modal-container">
+                            <div class="rfi-ai-modal-header">
+                                <h2 class="rfi-ai-modal-title">✨ {aiModalTitle}</h2>
+                                <button type="button" class="rfi-ai-close-btn" aria-label="Close" onclick={closeAIModal}>✕</button>
+                            </div>
+                            <div class="rfi-ai-modal-body">
+                                <template if:true={isAiLoading}>
+                                    <div class="rfi-ai-loading">
+                                        <lightning-spinner alternative-text="Generating AI Feedback" size="medium"></lightning-spinner>
+                                        <p>Generating AI feedback...</p>
+                                    </div>
+                                </template>
+                                <template if:false={isAiLoading}>
+                                    <template for:each={formattedAiSections} for:item="section">
+                                        <div key={section.id} class="rfi-ai-section">
+                                            <div class="rfi-ai-section-title">{section.title}</div>
+                                            <ul class="rfi-ai-points">
+                                                <template for:each={section.points} for:item="point">
+                                                    <li key={point.id}>
+                                                        <lightning-formatted-rich-text value={point.text}></lightning-formatted-rich-text>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </template>
+                            </div>
+                            <div class="rfi-ai-modal-footer">
+                                <button type="button" class="btn-primary-red" onclick={closeAIModal}>Close</button>
+                            </div>
+                        </div>
+                    </section>
+                </template>
+
+            </template>
+        </template>
+
+    </div>
+</template>

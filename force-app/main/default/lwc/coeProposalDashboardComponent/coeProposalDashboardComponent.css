@@ -1,0 +1,156 @@
+/* 🚫 Remove ALL Lightning Card native styling */
+.no-style.slds-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* 🚫 Remove lightning-card header wrapper completely */
+.no-style .slds-card__header {
+    display: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+/* 🚫 Remove lightning-card body wrapper background & padding */
+.no-style .slds-card__body {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* 🌟 EMBOSSED MAIN COMPONENT WRAPPER */
+.emboss-wrapper {
+    background: #ffffe5;                  /* your yellowish background */
+    border-radius: 14px;
+    padding: 1rem 1.5rem;
+    position: relative;
+
+    /* ---- Emboss Effect ---- */
+    box-shadow:
+        4px 4px 10px rgba(0,0,0,0.20),     /* bottom-right darker */
+        0px 0px 0px rgba(0,0,0,0.0),       
+        -3px -3px 6px rgba(255,255,255,0.7); /* top-left subtle highlight */
+}
+
+
+/* change background of entire card body */
+.custom-card .custom-body {
+    background-color: #ffffe5;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+
+/* 🌈 Dashboard Grid Layout */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    padding: 0.5rem;
+}
+
+/* 📱 Responsive */
+@media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+}
+
+/* Centered Title */
+.dashboard-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: #c2252b;
+    letter-spacing: 0.5px;
+    text-transform: capitalize;
+}
+
+/* 🟩 Card Base */
+.card {
+    border-radius: 16px;
+    padding: 1.25rem 1rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+/* 🟧 Odd Cards — Deep Orange Gradient */
+.card:nth-child(odd) {
+    background: linear-gradient(
+        to bottom,
+        #ff7d42,   /* lighter top glow */
+        #f2672a    /* original base */
+    );
+    color: #ffffff;
+}
+
+/* 🟨 Even Cards — Orange Gradient */
+.card:nth-child(even) {
+    background: linear-gradient(
+        to bottom,
+        #ff9c3c,   /* lighter top glow */
+        #f68721    /* original base */
+    );
+    color: #000000;
+}
+
+
+
+/* 🧡 Alternating Colors */
+.card:nth-child(odd) {
+    background-color: #f2672a;  /* deep red f2672a bf2026 */
+    color: #ffffff;             /* white text */
+}
+
+.card:nth-child(even) {
+    background-color: #f68721;  /* orange */
+    color: #000000;             /* black text */
+}
+
+/* Header */
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    line-height: 1.3;
+}
+
+.corner-icon {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.card-count {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-top: 0.5rem;
+    text-align: right;
+}

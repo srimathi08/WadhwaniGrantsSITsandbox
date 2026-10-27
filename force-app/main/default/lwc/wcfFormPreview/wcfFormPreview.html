@@ -1,0 +1,1274 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="wg-loading">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            <p class="wg-loading-text">Loading application…</p>
+        </div>
+    </template>
+
+    <template if:false={isLoading}>
+        <template if:true={hasRecord}>
+
+            <!-- Action Toolbar -->
+            <div class="rv-action-toolbar">
+                <span class="rv-action-toolbar-title">Application preview</span>
+                <div class="rv-action-toolbar-actions">
+                    <template if:true={isPdfGenerating}>
+                        <lightning-spinner alternative-text="Generating PDF" size="x-small"
+                            class="rv-pdf-spinner"></lightning-spinner>
+                    </template>
+                    <lightning-button variant="brand" label="Download as PDF" icon-name="utility:download"
+                        disabled={isPdfGenerating} onclick={handleDownloadPDF}>
+                    </lightning-button>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SECTION 1 — ABOUT YOUR ORGANISATION (Q1 - Q10)
+            ════════════════════════════════════════════════════════════ -->
+            <div class="rv-section">
+                <div class="rv-section-head">
+                    <span class="rv-section-step">{section1StepLabel}</span>
+                    <span class="rv-section-title">About Your Organization</span>
+                </div>
+
+                <!-- Q1: Selected Tracks -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q1}</span>
+                        <span class="rv-lbl-text">Organizational Area(s) for Funding/Investment</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-track-badge-list">
+                            <template for:each={selectedTrackBadges} for:item="trk">
+                                <span key={trk.label} class={trk.class}>{trk.label}</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Q2: Organizational Identifying Information -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q2}</span>
+                        <span class="rv-lbl-text">Organizational Identifying Information</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-info-grid">
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Organizational Name</div>
+                                <div class="rv-info-value">{orgName}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Headquarters City and Country</div>
+                                <div class="rv-info-value">{hqCity}</div>
+                            </div>
+                            <div class="rv-info-cell full-width">
+                                <div class="rv-info-label">Primary Service Regions</div>
+                                <div class="rv-info-value">{primaryServiceRegions}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Leader Name</div>
+                                <div class="rv-info-value">{leaderName}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Leader Title</div>
+                                <div class="rv-info-value">{leaderTitle}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Leader Tenure</div>
+                                <div class="rv-info-value">{leaderTenure}</div>
+                            </div>
+                            <template if:true={hasCustomQuestionsQ2}>
+                                <template for:each={customQuestionsQ2} for:item="cq">
+                                    <div key={cq.key} class="rv-info-cell">
+                                        <div class="rv-info-label">{cq.label}</div>
+                                        <div class="rv-info-value">{cq.displayValue}</div>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Q3: Submitter Contact Information -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q3}</span>
+                        <span class="rv-lbl-text">Submitter Contact Information</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-info-grid">
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Name</div>
+                                <div class="rv-info-value">{piName}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Title</div>
+                                <div class="rv-info-value">{piDesignation}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Email Address</div>
+                                <div class="rv-info-value">{piEmail}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Phone Number</div>
+                                <div class="rv-info-value">{phoneDisplay}</div>
+                            </div>
+                            <template if:true={hasCustomQuestionsQ3}>
+                                <template for:each={customQuestionsQ3} for:item="cq">
+                                    <div key={cq.key} class="rv-info-cell">
+                                        <div class="rv-info-label">{cq.label}</div>
+                                        <div class="rv-info-value">{cq.displayValue}</div>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Q4: Legal Structure -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q4}</span>
+                        <span class="rv-lbl-text">Legal Structure</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-info-grid rv-info-grid-3">
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Type</div>
+                                <div class="rv-info-value">{legalType}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Registration Jurisdiction</div>
+                                <div class="rv-info-value">{registrationJurisdiction}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Incorporation Date</div>
+                                <div class="rv-info-value">{incorporationDate}</div>
+                            </div>
+                            <template if:true={hasCustomQuestionsQ4}>
+                                <template for:each={customQuestionsQ4} for:item="cq">
+                                    <div key={cq.key} class="rv-info-cell">
+                                        <div class="rv-info-label">{cq.label}</div>
+                                        <div class="rv-info-value">{cq.displayValue}</div>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+
+                        <!-- FIX: "Other — Specified" boxes moved OUT of the 3-column grid
+                             so they no longer take a grid cell and push fields around -->
+                        <template if:true={showLegalTypeOther}>
+                            <div class="rv-rich-box">
+                                <div class="rv-rich-label">Legal Type: Specified</div>
+                                <div class="rv-val-bold">{legalTypeOtherSpecified}</div>
+                            </div>
+                        </template>
+                        <template if:true={showRegistrationJurisdictionOther}>
+                            <div class="rv-rich-box">
+                                <div class="rv-rich-label">Registration Jurisdiction: Specified</div>
+                                <div class="rv-val-bold">{registrationJurisdictionOtherSpecified}</div>
+                            </div>
+                        </template>
+                        <template if:true={legalDescription}>
+                            <div class="rv-rich-box">
+                                <div class="rv-rich-label">Brief Description of Legal Structure</div>
+                                <lightning-formatted-rich-text value={legalDescription}></lightning-formatted-rich-text>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Q5: Legal and Tax Compliance -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q5}</span>
+                        <span class="rv-lbl-text">Legal and Tax Compliance</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-info-grid">
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">501(c)(3) Status in US</div>
+                                <div class="rv-info-value">{has501c3}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Equivalency Determination (ED)</div>
+                                <div class="rv-info-value">{hasEquivalencyDetermination}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">FCRA Registered (India)</div>
+                                <div class="rv-info-value">{isFcraRegistered}</div>
+                            </div>
+                            <div class="rv-info-cell">
+                                <div class="rv-info-label">Willing to Pursue ED</div>
+                                <div class="rv-info-value">{openToEquivalencyDetermination}</div>
+                            </div>
+                            <template if:true={hasCustomQuestionsQ5}>
+                                <template for:each={customQuestionsQ5} for:item="cq">
+                                    <div key={cq.key} class="rv-info-cell">
+                                        <div class="rv-info-label">{cq.label}</div>
+                                        <div class="rv-info-value">{cq.displayValue}</div>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Q6: Fiscal Year End Date -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q6}</span>
+                        <span class="rv-lbl-text">Fiscal Year End Date</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-val-bold">{fiscalYearEnd}</div>
+                        <template if:true={hasCustomQuestionsQ6}>
+                            <div class="rv-info-grid rv-info-grid-spaced">
+                                <template for:each={customQuestionsQ6} for:item="cq">
+                                    <div key={cq.key} class="rv-info-cell">
+                                        <div class="rv-info-label">{cq.label}</div>
+                                        <div class="rv-info-value">{cq.displayValue}</div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Q7: Top 3 Most Prominent Funders -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q7}</span>
+                        <span class="rv-lbl-text">Top 3 Most Prominent Funders <span
+                                class="rv-opt-tag">Optional</span></span>
+                    </div>
+                    <div class="rv-val">
+                        <template if:true={hasFunders}>
+                            <template for:each={funders} for:item="funder">
+                                <div key={funder.key} class="rv-funder-block">
+                                    <div class="rv-funder-header">{funder.header}</div>
+                                    <div class="rv-funder-grid">
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Name</span>
+                                            <span class="rv-funder-value">{funder.name}</span>
+                                        </div>
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Amount (USD)</span>
+                                            <span class="rv-funder-value">{funder.amount}</span>
+                                        </div>
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Period</span>
+                                            <span class="rv-funder-value">{funder.period}</span>
+                                        </div>
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Type</span>
+                                            <span class="rv-funder-value">{funder.type}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasFunders}>
+                            <div class="rv-val-bold">—</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Q8: References for Outreach -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q8}</span>
+                        <span class="rv-lbl-text">References for Outreach <span
+                                class="rv-opt-tag">Optional</span></span>
+                    </div>
+                    <div class="rv-val">
+                        <template if:true={hasReferences}>
+                            <template for:each={references} for:item="ref">
+                                <div key={ref.key} class="rv-funder-block">
+                                    <div class="rv-funder-header">{ref.header}</div>
+                                    <div class="rv-funder-grid">
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Name</span>
+                                            <span class="rv-funder-value">{ref.name}</span>
+                                        </div>
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Organisation / Role</span>
+                                            <span class="rv-funder-value">{ref.organisation}</span>
+                                        </div>
+                                        <div class="rv-funder-cell">
+                                            <span class="rv-funder-label">Email</span>
+                                            <span class="rv-funder-value">{ref.email}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasReferences}>
+                            <div class="rv-val-bold">—</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Q9: Historical Financial Data -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q9}</span>
+                        <span class="rv-lbl-text">Historical Financial Data</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-table-subhead">Three prior fiscal years</div>
+                        <div class="rv-table-wrap">
+                            <table class="rv-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>{fyLabel3}</th>
+                                        <th>{fyLabel2}</th>
+                                        <th>{fyLabel1}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Balance at Start of Year</td>
+                                        <td>{historicalData.balanceStartFY3}</td>
+                                        <td>{historicalData.balanceStartFY2}</td>
+                                        <td>{historicalData.balanceStartFY1}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Revenue</td>
+                                        <td>{historicalData.revenueFY3}</td>
+                                        <td>{historicalData.revenueFY2}</td>
+                                        <td>{historicalData.revenueFY1}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Capital Expenditure</td>
+                                        <td>{historicalData.capitalExpFY3}</td>
+                                        <td>{historicalData.capitalExpFY2}</td>
+                                        <td>{historicalData.capitalExpFY1}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Operating Expenditure</td>
+                                        <td>{historicalData.operatingExpFY3}</td>
+                                        <td>{historicalData.operatingExpFY2}</td>
+                                        <td>{historicalData.operatingExpFY1}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Balance at End of Year</td>
+                                        <td>{historicalData.balanceEndFY3}</td>
+                                        <td>{historicalData.balanceEndFY2}</td>
+                                        <td>{historicalData.balanceEndFY1}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Q10: Current Fiscal Year Data -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q10}</span>
+                        <span class="rv-lbl-text">Current Fiscal Year Data</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-table-subhead">Current fiscal year (CFY)</div>
+                        <div class="rv-table-wrap">
+                            <table class="rv-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Budget</th>
+                                        <th>Projection</th>
+                                        <th>Deviation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Revenue</td>
+                                        <td>{fiscalData.revenueBudget}</td>
+                                        <td>{fiscalData.revenueProjection}</td>
+                                        <td>{fiscalData.revenueVariance}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Capital Expenditure</td>
+                                        <td>{fiscalData.capitalExpBudget}</td>
+                                        <td>{fiscalData.capitalExpProjection}</td>
+                                        <td>{fiscalData.capitalExpVariance}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Operating Expenditure</td>
+                                        <td>{fiscalData.operatingExpBudget}</td>
+                                        <td>{fiscalData.operatingExpProjection}</td>
+                                        <td>{fiscalData.operatingExpVariance}</td>
+                                    </tr>
+                                    <tr class="rv-row-total">
+                                        <td>Revenue &minus; Expense Net</td>
+                                        <td>{fiscalData.netBudget}</td>
+                                        <td>{fiscalData.netProjection}</td>
+                                        <td>{fiscalData.netVariance}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <template if:true={showCFYExplanation}>
+                            <div class="rv-rich-box">
+                                <div class="rv-rich-label">Explanation of Deviation</div>
+                                <lightning-formatted-rich-text
+                                    value={cfyVarianceExplanation}></lightning-formatted-rich-text>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Dynamic Custom Questions for About Org -->
+                <template if:true={hasCustomQuestionsAboutOrg}>
+                    <template for:each={customQuestionsAboutOrg} for:item="cq">
+                        <div key={cq.key} class="rv-row">
+                            <div class="rv-lbl">
+                                <span class="rv-q-num">{cq.displayNumber}</span>
+                                <span class="rv-lbl-text">{cq.label}</span>
+                            </div>
+                            <div class="rv-val">
+                                <span>{cq.displayValue}</span>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SECTION 2 — TRACK 1: JOB FULFILLMENT (Q11 - Q14)
+            ════════════════════════════════════════════════════════════ -->
+            <template if:true={isJobFulfillment}>
+                <div class="rv-section">
+                    <div class="rv-section-head">
+                        <span class="rv-section-step">{sectionJfStepLabel}</span>
+                        <span class="rv-section-title">Track 1: Job Fulfillment</span>
+                    </div>
+
+                    <!-- Q11: Skilling Approach -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q11}</span>
+                            <span class="rv-lbl-text">Your Skilling Approach <span class="rv-tag rv-tag-jf">Job
+                                    Fulfillment</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <lightning-formatted-rich-text value={skillingApproach}></lightning-formatted-rich-text>
+                        </div>
+                    </div>
+
+                    <!-- Q12: Skilling Domains Offered -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q12}</span>
+                            <span class="rv-lbl-text">Skilling Domains Offered <span class="rv-tag rv-tag-jf">Job
+                                    Fulfillment</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <template if:true={hasSkillingDomains}>
+                                <div class="rv-table-wrap">
+                                    <table class="rv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Domain / Program Name</th>
+                                                <th>Hours of Training</th>
+                                                <th>Duration (Months)</th>
+                                                <th>When Started</th>
+                                                <th>Annual Enrollment</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={skillingDomains} for:item="row">
+                                                <tr key={row.idx}>
+                                                    <td>{row.domain}</td>
+                                                    <td>{row.hours}</td>
+                                                    <td>{row.duration}</td>
+                                                    <td>{row.startDate}</td>
+                                                    <td>{row.yearlyEnrolment}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasSkillingDomains}>
+                                <div class="rv-empty-note">No skilling domains provided.</div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Q13: Job Fulfillment Outcomes (Actuals) -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q13}</span>
+                            <span class="rv-lbl-text">Job Fulfillment Outcomes: Last 3 Fiscal Years (Actuals) <span
+                                    class="rv-tag rv-tag-jf">Job Fulfillment</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <div class="rv-table-wrap">
+                                <table class="rv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>{fyLabel3}</th>
+                                            <th>{fyLabel2}</th>
+                                            <th>{fyLabel1}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td># Learner Enrolments</td>
+                                            <td>{outcomeData.learnerEnrolFY3}</td>
+                                            <td>{outcomeData.learnerEnrolFY2}</td>
+                                            <td>{outcomeData.learnerEnrolFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td># of learner placements</td>
+                                            <td>{outcomeData.learnerPlaceFY3}</td>
+                                            <td>{outcomeData.learnerPlaceFY2}</td>
+                                            <td>{outcomeData.learnerPlaceFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Placement %</td>
+                                            <td>{outcomeData.placePctFY3}</td>
+                                            <td>{outcomeData.placePctFY2}</td>
+                                            <td>{outcomeData.placePctFY1}</td>
+                                        </tr>
+                                        <tr class="rv-cost-row rv-cost-row-manual">
+                                            <td>Avg Cost per Placement</td>
+                                            <td>{outcomeData.manualCostPerPlaceFY3}</td>
+                                            <td>{outcomeData.manualCostPerPlaceFY2}</td>
+                                            <td>{outcomeData.manualCostPerPlaceFY1}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Q14: Job Fulfillment Outcomes (Projections) -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q14}</span>
+                            <span class="rv-lbl-text">Job Fulfillment Outcomes: Current FY Projections <span
+                                    class="rv-tag rv-tag-jf">Job Fulfillment</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <div class="rv-table-wrap">
+                                <table class="rv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>FY-2026 (CFY): Projection</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td># Learner Enrolments</td>
+                                            <td>{outcomeData.learnerEnrolCFY}</td>
+                                        </tr>
+                                        <tr>
+                                            <td># of learner placements</td>
+                                            <td>{outcomeData.learnerPlaceCFY}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Placement %</td>
+                                            <td>{outcomeData.placePctCFY}</td>
+                                        </tr>
+                                        <tr class="rv-cost-row rv-cost-row-manual">
+                                            <td>Avg Cost per Placement</td>
+                                            <td>{outcomeData.manualCostPerPlaceCFY}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Custom Questions for Job Fulfillment -->
+                    <template if:true={hasCustomQuestionsJobFulfillment}>
+                        <template for:each={customQuestionsJobFulfillment} for:item="cq">
+                            <div key={cq.key} class="rv-row">
+                                <div class="rv-lbl">
+                                    <span class="rv-q-num">{cq.displayNumber}</span>
+                                    <span class="rv-lbl-text">{cq.label}</span>
+                                </div>
+                                <div class="rv-val">
+                                    <span>{cq.displayValue}</span>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SECTION 3 — TRACK 2: JOB CREATION (Q15 - Q18)
+            ════════════════════════════════════════════════════════════ -->
+            <template if:true={isJobCreation}>
+                <div class="rv-section">
+                    <div class="rv-section-head">
+                        <span class="rv-section-step">{sectionJcStepLabel}</span>
+                        <span class="rv-section-title">Track 2: Job Creation / Entrepreneurship</span>
+                    </div>
+
+                    <!-- Q15: Job Creation Approach -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q15}</span>
+                            <span class="rv-lbl-text">Your Job Creation Approach <span class="rv-tag rv-tag-jc">Job
+                                    Creation</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <lightning-formatted-rich-text value={jobCreationApproach}></lightning-formatted-rich-text>
+                        </div>
+                    </div>
+
+                    <!-- Q16: Business Sectors Served -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q16}</span>
+                            <span class="rv-lbl-text">Business Sectors Served <span class="rv-tag rv-tag-jc">Job
+                                    Creation</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <template if:true={hasBusinessSectors}>
+                                <div class="rv-table-wrap">
+                                    <table class="rv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Business Sector</th>
+                                                <th>When Support Began</th>
+                                                <th>Type of Support Provided</th>
+                                                <th>Yearly Enrolment</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={businessSectors} for:item="sec">
+                                                <tr key={sec.idx}>
+                                                    <td>{sec.sector}</td>
+                                                    <td>{sec.supportBegin}</td>
+                                                    <td>{sec.supportTypesLabel}</td>
+                                                    <td>{sec.yearlyEnrolment}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasBusinessSectors}>
+                                <div class="rv-empty-note">No business sectors provided.</div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Q17: Job Creation Outcomes (Actuals) -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q17}</span>
+                            <span class="rv-lbl-text">Job Creation Outcomes: Last 3 Fiscal Years (Actuals) <span
+                                    class="rv-tag rv-tag-jc">Job Creation</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <div class="rv-table-wrap">
+                                <table class="rv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>{fyLabel3}</th>
+                                            <th>{fyLabel2}</th>
+                                            <th>{fyLabel1}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td># New Businesses Started</td>
+                                            <td>{outcomeData.newBizFY3}</td>
+                                            <td>{outcomeData.newBizFY2}</td>
+                                            <td>{outcomeData.newBizFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td># jobs created by new businesses</td>
+                                            <td>{outcomeData.jobsNewBizFY3}</td>
+                                            <td>{outcomeData.jobsNewBizFY2}</td>
+                                            <td>{outcomeData.jobsNewBizFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Existing Businesses Supported</td>
+                                            <td>{outcomeData.growBizFY3}</td>
+                                            <td>{outcomeData.growBizFY2}</td>
+                                            <td>{outcomeData.growBizFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td># jobs created by existing businesses</td>
+                                            <td>{outcomeData.jobsGrowBizFY3}</td>
+                                            <td>{outcomeData.jobsGrowBizFY2}</td>
+                                            <td>{outcomeData.jobsGrowBizFY1}</td>
+                                        </tr>
+                                        <tr class="rv-cost-row rv-cost-row-manual">
+                                            <td>Total Avg Cost per Job Created</td>
+                                            <td>{outcomeData.manualCostPerJobFY3}</td>
+                                            <td>{outcomeData.manualCostPerJobFY2}</td>
+                                            <td>{outcomeData.manualCostPerJobFY1}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Q18: Job Creation Outcomes (Projections) -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q18}</span>
+                            <span class="rv-lbl-text">Job Creation Outcomes: Current FY Projections <span
+                                    class="rv-tag rv-tag-jc">Job Creation</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <div class="rv-table-wrap">
+                                <table class="rv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>CFY (projected)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td># New Businesses Started</td>
+                                            <td>{outcomeData.newBizCFY}</td>
+                                        </tr>
+                                        <tr>
+                                            <td># jobs created by new businesses</td>
+                                            <td>{outcomeData.jobsNewBizCFY}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Existing Businesses Supported</td>
+                                            <td>{outcomeData.growBizCFY}</td>
+                                        </tr>
+                                        <tr>
+                                            <td># jobs created by existing businesses</td>
+                                            <td>{outcomeData.jobsGrowBizCFY}</td>
+                                        </tr>
+                                        <tr class="rv-cost-row rv-cost-row-manual">
+                                            <td>Total Avg Cost per Job Created</td>
+                                            <td>{outcomeData.manualCostPerJobCFY}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Custom Questions for Job Creation -->
+                    <template if:true={hasCustomQuestionsJobCreation}>
+                        <template for:each={customQuestionsJobCreation} for:item="cq">
+                            <div key={cq.key} class="rv-row">
+                                <div class="rv-lbl">
+                                    <span class="rv-q-num">{cq.displayNumber}</span>
+                                    <span class="rv-lbl-text">{cq.label}</span>
+                                </div>
+                                <div class="rv-val">
+                                    <span>{cq.displayValue}</span>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SECTION 4 — TRACK 3: LIVELIHOOD UPLIFTMENT (Q19 - Q23)
+            ════════════════════════════════════════════════════════════ -->
+            <template if:true={isLivelihood}>
+                <div class="rv-section">
+                    <div class="rv-section-head">
+                        <span class="rv-section-step">{sectionLivStepLabel}</span>
+                        <span class="rv-section-title">Track 3: Livelihood Upliftment</span>
+                    </div>
+
+                    <!-- Q19: Livelihood Approach -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q19}</span>
+                            <span class="rv-lbl-text">Your Livelihood Upliftment Approach <span
+                                    class="rv-tag rv-tag-liv">Livelihood</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <lightning-formatted-rich-text value={livelihoodApproach}></lightning-formatted-rich-text>
+                        </div>
+                    </div>
+
+                    <!-- Q20: Key Programs / Initiatives -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q20}</span>
+                            <span class="rv-lbl-text">Key Programs / Initiatives <span
+                                    class="rv-tag rv-tag-liv">Livelihood</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <template if:true={hasLivelihoodPrograms}>
+                                <div class="rv-table-wrap">
+                                    <table class="rv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Program / Initiative Name</th>
+                                                <th>Type of Support Provided</th>
+                                                <th>Duration (Man-Hours)</th>
+                                                <th>Annual Enrollment</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={livelihoodPrograms} for:item="row">
+                                                <tr key={row.idx}>
+                                                    <td>{row.name}</td>
+                                                    <td>{row.supportType}</td>
+                                                    <td>{row.manHours}</td>
+                                                    <td>{row.enrollment}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasLivelihoodPrograms}>
+                                <div class="rv-empty-note">No programs provided.</div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Q21: Communities that you work in -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q21}</span>
+                            <span class="rv-lbl-text">Communities that you work in <span
+                                    class="rv-tag rv-tag-liv">Livelihood</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <template if:true={hasCommunities}>
+                                <div class="rv-table-wrap">
+                                    <table class="rv-table">
+                                        <thead>
+                                            <tr>
+                                                <th>State</th>
+                                                <th>District / Area</th>
+                                                <th>{fyLabel3}</th>
+                                                <th>{fyLabel2}</th>
+                                                <th>{fyLabel1}</th>
+                                                <th>CFY (projected)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={communities} for:item="row">
+                                                <tr key={row.idx}>
+                                                    <td>{row.state}</td>
+                                                    <td>{row.district}</td>
+                                                    <td>{row.fy3}</td>
+                                                    <td>{row.fy2}</td>
+                                                    <td>{row.fy1}</td>
+                                                    <td>{row.proj}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <template if:false={hasCommunities}>
+                                <div class="rv-empty-note">No communities provided.</div>
+                            </template>
+                        </div>
+                    </div>
+
+
+                    <!-- Q22: Livelihood Outcomes (Actuals) -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q22}</span>
+                            <span class="rv-lbl-text">Livelihood Outcomes (Actuals) <span
+                                    class="rv-tag rv-tag-liv">Livelihood</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <div class="rv-table-wrap">
+                                <table class="rv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>{fyLabel3}</th>
+                                            <th>{fyLabel2}</th>
+                                            <th>{fyLabel1}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Beneficiaries served during the year</td>
+                                            <td>{outcomeData.livServedFY3}</td>
+                                            <td>{outcomeData.livServedFY2}</td>
+                                            <td>{outcomeData.livServedFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Beneficiaries newly enrolled during the year</td>
+                                            <td>{outcomeData.livEnrollFY3}</td>
+                                            <td>{outcomeData.livEnrollFY2}</td>
+                                            <td>{outcomeData.livEnrollFY1}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Beneficiaries meeting outcome criteria</td>
+                                            <td>{outcomeData.livOutcomeFY3}</td>
+                                            <td>{outcomeData.livOutcomeFY2}</td>
+                                            <td>{outcomeData.livOutcomeFY1}</td>
+                                        </tr>
+                                        <tr class="rv-cost-row rv-cost-row-manual">
+                                            <td>Avg. cost per outcome (USD)</td>
+                                            <td>{outcomeData.livCostManualFY3}</td>
+                                            <td>{outcomeData.livCostManualFY2}</td>
+                                            <td>{outcomeData.livCostManualFY1}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Q23: Livelihood Outcomes (Projections) -->
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">{qNum.Q23}</span>
+                            <span class="rv-lbl-text">Livelihood Outcomes, Current FY Projections <span
+                                    class="rv-tag rv-tag-liv">Livelihood</span></span>
+                        </div>
+                        <div class="rv-val">
+                            <div class="rv-table-wrap">
+                                <table class="rv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>CFY (projected)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Beneficiaries served during the year (projected)</td>
+                                            <td>{outcomeData.livServedProj}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Beneficiaries newly enrolled during the year (projected)</td>
+                                            <td>{outcomeData.livEnrollProj}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Beneficiaries expected to meet outcome criteria (projected)</td>
+                                            <td>{outcomeData.livOutcomeProj}</td>
+                                        </tr>
+                                        <tr class="rv-cost-row rv-cost-row-manual">
+                                            <td>Avg. cost per outcome (USD) - projected</td>
+                                            <td>{outcomeData.livCostManualProj}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Custom Questions for Livelihood Upliftment -->
+                    <template if:true={hasCustomQuestionsLivelihood}>
+                        <template for:each={customQuestionsLivelihood} for:item="cq">
+                            <div key={cq.key} class="rv-row">
+                                <div class="rv-lbl">
+                                    <span class="rv-q-num">{cq.displayNumber}</span>
+                                    <span class="rv-lbl-text">{cq.label}</span>
+                                </div>
+                                <div class="rv-val">
+                                    <span>{cq.displayValue}</span>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SECTION 5 — WHY WADHWANI GRANTS & SUSTAINABILITY (Q24 - Q28)
+            ════════════════════════════════════════════════════════════ -->
+            <div class="rv-section">
+                <div class="rv-section-head">
+                    <span class="rv-section-step">{sectionWhyStepLabel}</span>
+                    <span class="rv-section-title">Why Wadhwani Grants &amp; Organizational Sustainability</span>
+                </div>
+
+                <!-- Q24: Independent Verification of Your Outcomes -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q24}</span>
+                        <span class="rv-lbl-text">Independent Verification of Your Outcomes</span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-sub-q-label">Outcomes verified by a third party?</div>
+                        <span class={q24BadgeClass}>{q24Verified}</span>
+                        <template if:true={isQ24VerifiedYes}>
+                            <div class="rv-sub-answer">
+                                <div class="rv-sub-answer-header">Verification process / details</div>
+                                <div class="rv-sub-answer-body">{detailsOfEthicalReceived}</div>
+                            </div>
+                            <template if:true={hasQ24Documents}>
+                                <div class="rv-doc-heading">Verification reports</div>
+                                <template for:each={q24Documents} for:item="f">
+                                    <div key={f.documentId} class="rv-doc-card">
+                                        <lightning-icon icon-name={f.iconName} size="small"
+                                            alternative-text={f.typeLabel} class="rv-doc-icon"></lightning-icon>
+                                        <div class="rv-doc-main">
+                                            <button type="button" class="rv-file-link rv-doc-name" title={f.name}
+                                                data-docid={f.documentId} data-versionid={f.versionId}
+                                                onclick={handlePreview}>{f.name}</button>
+                                            <div class="rv-doc-meta">{f.metaLine}</div>
+                                        </div>
+                                        <lightning-button label="Open" variant="base" data-docid={f.documentId}
+                                            data-versionid={f.versionId} onclick={handlePreview}
+                                            class="rv-doc-open"></lightning-button>
+                                    </div>
+                                </template>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Q25: Sustainability Plan -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q25}</span>
+                        <span class="rv-lbl-text">Sustainability Plan</span>
+                    </div>
+                    <div class="rv-val">
+                        <lightning-formatted-rich-text value={orgSustainability}></lightning-formatted-rich-text>
+                    </div>
+                </div>
+
+                <!-- Q26: Direction for Additional Funding -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q26}</span>
+                        <span class="rv-lbl-text">Direction for Additional Funding</span>
+                    </div>
+                    <div class="rv-val">
+                        <lightning-formatted-rich-text value={additionalFunding}></lightning-formatted-rich-text>
+                    </div>
+                </div>
+
+                <!-- Q27: Operational Synergies — GenieAI -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q27}</span>
+                        <span class="rv-lbl-text">Operational Synergies &mdash; GenieAI <span
+                                class="rv-opt-tag">Optional</span></span>
+                    </div>
+                    <div class="rv-val">
+                        <div class="rv-genie-interest">
+                            <span class="rv-genie-label">Interest level</span>
+                            <span class={genieInterestBadgeClass}>{genieInterestLevel}</span>
+                        </div>
+                        <template if:true={showSynergies}>
+                            <div class="rv-sub-answer rv-sub-answer-purple">
+                                <div class="rv-sub-answer-header">How GenieAI could contribute</div>
+                                <div class="rv-sub-answer-body">
+                                    <lightning-formatted-rich-text
+                                        value={synergiesValue}></lightning-formatted-rich-text>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Q28: Supporting Documents -->
+                <div class="rv-row">
+                    <div class="rv-lbl">
+                        <span class="rv-q-num">{qNum.Q28}</span>
+                        <span class="rv-lbl-text">Supporting Documents <span class="rv-opt-tag">Optional</span></span>
+                    </div>
+                    <div class="rv-val">
+                        <template for:each={supportingDocuments} for:item="f">
+                            <div key={f.documentId} class="rv-doc-card">
+                                <lightning-icon icon-name={f.iconName} size="small" alternative-text={f.typeLabel}
+                                    class="rv-doc-icon"></lightning-icon>
+                                <div class="rv-doc-main">
+                                    <button type="button" class="rv-file-link rv-doc-name" title={f.name}
+                                        data-docid={f.documentId} data-versionid={f.versionId}
+                                        onclick={handlePreview}>{f.name}</button>
+                                    <div class="rv-doc-meta">{f.metaLine}</div>
+                                </div>
+                                <lightning-button label="Open" variant="base" data-docid={f.documentId}
+                                    data-versionid={f.versionId} onclick={handlePreview}
+                                    class="rv-doc-open"></lightning-button>
+                            </div>
+                        </template>
+                        <template if:false={hasSupportingDocuments}>
+                            <div class="rv-val-bold">—</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Dynamic Custom Questions for Why Wadhwani -->
+                <template if:true={hasCustomQuestionsWhyWadhwani}>
+                    <template for:each={customQuestionsWhyWadhwani} for:item="cq">
+                        <div key={cq.key} class="rv-row">
+                            <div class="rv-lbl">
+                                <span class="rv-q-num">{cq.displayNumber}</span>
+                                <span class="rv-lbl-text">{cq.label}</span>
+                            </div>
+                            <div class="rv-val">
+                                <span>{cq.displayValue}</span>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ADDENDUM: REVIEWER ADDITIONAL INFO REQUESTED
+            ════════════════════════════════════════════════════════════ -->
+            <template if:true={hasAdditionalInfoFiles}>
+                <div class="rv-section">
+                    <div class="rv-section-head">
+                        <span class="rv-section-step">Addendum</span>
+                        <span class="rv-section-title">Additional Information Requested by Reviewer</span>
+                    </div>
+
+                    <div class="rv-row">
+                        <div class="rv-lbl">
+                            <span class="rv-q-num">A1</span>
+                            <span class="rv-lbl-text">
+                                Additional Documentation Provided
+                                <span class="rv-tag rv-tag-navy">Reviewer request</span>
+                            </span>
+                        </div>
+                        <div class="rv-val">
+                            <p class="rv-empty-note rv-addendum-note">
+                                The applicant uploaded the following document(s) in response to the Reviewer's request.
+                            </p>
+                            <template for:each={additionalInfoFiles} for:item="f">
+                                <div key={f.documentId} class="rv-doc-card">
+                                    <lightning-icon icon-name={f.iconName} size="small" alternative-text={f.typeLabel}
+                                        class="rv-doc-icon"></lightning-icon>
+                                    <div class="rv-doc-main">
+                                        <button type="button" class="rv-file-link rv-doc-name" title={f.name}
+                                            data-docid={f.documentId} data-versionid={f.versionId}
+                                            onclick={handleOpenAdditionalInfoFile}>{f.name}</button>
+                                        <div class="rv-doc-meta">{f.metaLine}</div>
+                                    </div>
+                                    <lightning-button label="Open" variant="base" data-docid={f.documentId}
+                                        data-versionid={f.versionId} onclick={handleOpenAdditionalInfoFile}
+                                        class="rv-doc-open"></lightning-button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ATTESTATION & CONFIRMATION OF ACCURACY
+            ════════════════════════════════════════════════════════════ -->
+            <div class="rv-section rv-attestation">
+                <div class="rv-attest-inner">
+                    <div class="rv-attest-icon">
+                        <lightning-icon icon-name="utility:check" size="x-small" alternative-text=""></lightning-icon>
+                    </div>
+                    <div class="rv-attest-content">
+                        <div class="rv-attest-title">Attestation: Confirmation of accuracy</div>
+                        <div class="rv-attest-grid">
+                            <div class="rv-attest-cell">
+                                <div class="rv-attest-cell-label">Attesting user</div>
+                                <div class="rv-attest-cell-value">{attestingName}</div>
+                            </div>
+                            <div class="rv-attest-cell">
+                                <div class="rv-attest-cell-label">Title</div>
+                                <div class="rv-attest-cell-value">{attestingTitle}</div>
+                            </div>
+                            <div class="rv-attest-cell">
+                                <div class="rv-attest-cell-label">Submission date &amp; time</div>
+                                <div class="rv-attest-cell-value rv-attest-date">{attestingDate}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </template>
+
+        <template if:false={hasRecord}>
+            <div class="error-banner rv-load-error" role="alert">
+                <lightning-icon icon-name="utility:error" size="x-small" variant="error"
+                    alternative-text=""></lightning-icon>
+                <div class="wg-banner-body">Could not load application record.</div>
+            </div>
+        </template>
+
+        <!-- Office Document Preview Modal -->
+        <template if:true={isOfficePreviewOpen}>
+            <section role="dialog" aria-modal="true" aria-label={officePreviewTitle}
+                class="slds-modal slds-fade-in-open office-preview-modal">
+                <div class="slds-modal__container rv-office-container">
+                    <header class="slds-modal__header rv-office-header">
+                        <h2 class="rv-office-title">{officePreviewTitle}</h2>
+                        <div class="rv-office-actions">
+                            <lightning-button label="Download file" variant="neutral" icon-name="utility:download"
+                                onclick={handleDownloadCurrentOfficeDoc}>
+                            </lightning-button>
+                            <lightning-button-icon icon-name="utility:close" variant="bare" size="large"
+                                alternative-text="Close" title="Close" onclick={closeOfficePreview}>
+                            </lightning-button-icon>
+                        </div>
+                    </header>
+                    <div class="slds-modal__content rv-office-content">
+                        <div data-id="office-preview-body" lwc:dom="manual" class="office-preview-body"></div>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open" onclick={closeOfficePreview}></div>
+        </template>
+
+        <!-- Large Attachments Omitted Modal -->
+        <template if:true={isOmittedModalOpen}>
+            <section role="dialog" aria-modal="true" aria-label="Large Attachments Excluded from ZIP"
+                class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container" style="max-width: 540px;">
+                    <header class="slds-modal__header" style="background: #fff8f5; border-bottom: 1px solid #fbdcd0;">
+                        <button class="slds-button slds-button_icon slds-modal__close" onclick={closeOmittedModal} title="Close">✕</button>
+                        <h2 class="slds-text-heading_medium" style="color: #b54708; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span>⚠️</span> Note: Large Attachments Excluded from ZIP
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" style="font-size: 0.875rem; color: #344054;">
+                        <p style="margin-bottom: 10px;">
+                            The application summary PDF and smaller documents were downloaded successfully in the ZIP archive.
+                        </p>
+                        <p style="margin-bottom: 8px; font-weight: 600; color: #1d2939;">
+                            The following file(s) exceeded the ZIP transfer limit and could not be bundled:
+                        </p>
+                        <ul style="list-style: disc; padding-left: 20px; margin-bottom: 14px; color: #475467;">
+                            <template for:each={omittedFileList} for:item="f">
+                                <li key={f.name} style="margin-bottom: 4px;">
+                                    <strong>{f.name}</strong> <span style="color: #667085;">({f.sizeLabel})</span>
+                                </li>
+                            </template>
+                        </ul>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; font-size: 0.8125rem; color: #475467;">
+                            ℹ️ <strong>How to view these files:</strong> You can open or download each of these files individually at any time by clicking on them directly in the <strong>Verification Report</strong> and <strong>Supporting Documents</strong> sections of the preview.
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer" style="background: #fff; border-top: 1px solid #f2f4f7;">
+                        <lightning-button variant="brand" label="Understood" onclick={closeOmittedModal}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open" onclick={closeOmittedModal}></div>
+        </template>
+
+    </template>
+</template>

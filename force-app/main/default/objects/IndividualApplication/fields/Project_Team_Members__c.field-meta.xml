@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Project_Team_Members__c</fullName>
+    <inlineHelpText>Details of Team Members / Mentors / Advisers involved in the project (name, affiliation and expertise)</inlineHelpText>
+    <label>2.3 Project Team Members</label>
+    <length>32768</length>
+    <trackHistory>false</trackHistory>
+    <type>Html</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

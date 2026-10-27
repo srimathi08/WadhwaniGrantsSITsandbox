@@ -1,0 +1,171 @@
+.steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  background-color: #ffffe5; /* ffffe5 f9f9f9*/
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+  margin: 20px;
+}
+
+.step-with-line {
+  position: relative;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.step-with-line:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.step-container {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.circle {
+  background-color: #bf2026;
+  color: white;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  text-align: center;
+  line-height: 36px;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  margin-right: 15px;
+  background-image: linear-gradient(to bottom right, #bf2026, #9e191f);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.1), 2px 2px 5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-content {
+  flex-grow: 1;
+}
+
+.heading {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+  color: #414042;
+}
+
+.status-line {
+  font-size: 1rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.status-text {
+  margin-left: 4px;
+  color: #6d6e71;
+}
+
+.status-icon {
+  font-size: 1rem;
+  margin-left: 8px;
+  margin-right: 4px;
+  color: #6d6e71;
+}
+
+.register-link {
+  margin-left: 8px;
+  color: #0070d2;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  align-self: flex-start;
+}
+
+.register-link:hover {
+  color: #005cb2;
+  text-decoration: underline;
+}
+
+.line {
+  position: absolute;
+  top: 50%;
+  left: 17px;
+  bottom: -15px;
+  width: 1px;
+  background-color: #ccc;
+  z-index: 0;
+}
+
+/* Styles for Project Proposals (Step 3) */
+.project-summary {
+  margin-top: 10px;
+}
+
+.total-projects {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #414042;
+}
+
+.status-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 15px;
+  align-items: center;
+  margin-bottom: 8px; /* Add margin below the status icons */
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-icon {
+  font-size: 1rem;
+  color: #6d6e71;
+}
+
+.status-label {
+  font-weight: bold;
+  color: #414042;
+}
+
+.new-proposal-link {
+  margin-left: 15px;
+  
+  color: #0070d2;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  align-self: flex-start;
+}
+
+.new-proposal-link:hover {
+  color: #005cb2;
+  text-decoration: underline;
+}
+
+.view-all-link-container {
+  margin-top: 8px;
+}
+
+.view-all-link {
+  color: #0070d2;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  align-self: flex-start;
+  display: block; /* Force to a new line */
+}
+
+.view-all-link:hover {
+  color: #005cb2;
+  text-decoration: underline;
+}

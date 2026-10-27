@@ -1,0 +1,1584 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════════════
+   wcfProposalReviewForm — 7-category reviewer evaluation
+   All colors / fonts / radii come from commonStyleTheme + wcfPortalUi,
+   matching the Validator form. No hex values below by design.
+
+   IMPORTANT: the old file redefined --wg-* tokens on :host (e.g.
+   --wg-info, --wg-bg) with the previous orange palette. Those
+   definitions are removed — they collided with commonStyleTheme's
+   tokens of the same name and would have overridden the brand values.
+
+   Class names are unchanged because the JS builds many of them
+   (seg-sel*, save-*, pip-r*, rec-sel*, recval-*, wc-*, col-l*, …).
+
+   Selection language (same as the Validator form):
+     choice buttons  → red border + pale red tint when selected
+     1–5 rating      → dark grey fill for 5/4/3, amber for 2, red for 1
+═══════════════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+    container-type: inline-size;
+
+    --rf-pad-x: var(--wg-space-6);
+}
+
+.req,
+.wcf-req { color: var(--wg-error); font-weight: var(--wg-weight-bold); margin-left: 2px; }
+
+/* ═══════════════════════════════════════════
+   FORM WRAP
+   FIX: was height:100vh with its own scroll area, which created a
+   second scrollbar inside the container panel and could hide the
+   footer. The form now grows naturally; the footer stays sticky.
+═══════════════════════════════════════════ */
+.form-wrap {
+    display: flex;
+    flex-direction: column;
+    background: var(--wg-surface-page);
+    border-radius: var(--wg-radius-card);
+}
+
+/* ═══════════════════════════════════════════
+   HEADER BAND
+═══════════════════════════════════════════ */
+.formhead {
+    padding: var(--wg-space-5) var(--rf-pad-x) 0;
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    box-sizing: border-box;
+}
+
+.eyebrow {
+    margin: 0 0 var(--wg-space-1);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.form-title {
+    margin: 0 0 var(--wg-space-3);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-bold);
+    line-height: 1.3;
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+.applicant {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--wg-space-2) var(--wg-space-6);
+    margin-bottom: var(--wg-space-3);
+}
+
+.applicant-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+    min-width: 0;
+}
+
+.applicant-label {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.applicant-value {
+    font-weight: var(--wg-weight-semibold);
+    overflow-wrap: break-word;
+}
+
+/* Track badges (classes from JS) — same track colors as every portal screen */
+.track-badge-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+}
+
+.track-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--wg-padding-tag);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.track-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.track-jf { background: var(--wg-info-bg);    color: var(--wg-info-text);    border-color: var(--wg-info); }
+.track-jc { background: var(--wg-warning-bg); color: var(--wg-warning-text); border-color: var(--wg-warning); }
+.track-lu { background: var(--wg-success-bg); color: var(--wg-success);      border-color: var(--wg-success); }
+
+/* ═══════════════════════════════════════════
+   SAVE STATE + PROGRESS
+═══════════════════════════════════════════ */
+.savebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-3) 0;
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+    font-size: var(--wg-font-size-caption);
+    color: var(--wg-text-muted);
+}
+
+.save-idle,
+.save-saving,
+.save-saved,
+.save-error {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+}
+
+.save-idle::before,
+.save-saving::before,
+.save-saved::before,
+.save-error::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--wg-success);
+}
+
+.save-saving               { color: var(--wg-warning-text); }
+.save-saving::before       { background: var(--wg-warning); animation: rf-pulse 1.6s infinite; }
+.save-saved                { color: var(--wg-success); }
+/* FIX: save-error was set by the JS but never styled */
+.save-error                { color: var(--wg-error); font-weight: var(--wg-weight-semibold); }
+.save-error::before        { background: var(--wg-error); }
+
+@keyframes rf-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+
+.step-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+}
+
+.stepnum {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.progress {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+}
+
+.progress span {
+    display: inline-block;
+    width: 28px;
+    height: 6px;
+    border-radius: var(--wg-radius-badge);
+    background: var(--wg-border);
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.progress .done { background: var(--wg-red); }
+.progress .curr { background: var(--wg-red); box-shadow: 0 0 0 2px var(--wg-error-bg); }
+
+/* ═══════════════════════════════════════════
+   BODY
+═══════════════════════════════════════════ */
+.body {
+    padding: var(--wg-space-5) var(--rf-pad-x) var(--wg-space-6);
+    box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════
+   CARDS — step intro, question, S/W, recommendation
+═══════════════════════════════════════════ */
+.step-intro,
+.subq,
+.sw-block,
+.finalrec {
+    margin-bottom: var(--wg-space-5);
+    padding: var(--wg-space-6);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+    box-sizing: border-box;
+}
+
+.dim-head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wg-space-3);
+}
+
+/* Section number — same dark grey circle as the Validator form */
+.dim-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--wg-gray);
+    color: var(--wg-white);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-bold);
+}
+
+.dim-title { flex: 1; min-width: 0; }
+
+.dim-title h3 {
+    margin: 0 0 var(--wg-space-1);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.3;
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+.lede {
+    max-width: 78ch;
+    margin: 0;
+    font-size: var(--wg-font-size-label);
+    line-height: 1.55;
+    color: var(--wg-text-muted);
+}
+
+.dim-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    margin: var(--wg-space-4) 0 0 44px;
+}
+
+/* Rubric toggle */
+.btn-soft {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px var(--wg-space-4);
+    background: var(--wg-white);
+    border: var(--wg-border-width-ghost) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-badge);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.btn-soft:hover,
+.btn-soft-open {
+    border-color: var(--wg-red);
+    background: var(--wg-error-bg);
+    color: var(--wg-red-deep);
+}
+
+.btn-soft .chev      { display: inline-block; transition: transform 0.2s ease; }
+.btn-soft-open .chev { transform: rotate(180deg); }
+
+.qcount {
+    font-size: var(--wg-font-size-caption);
+    font-style: italic;
+    color: var(--wg-text-muted);
+}
+
+.rubric-panel {
+    margin: var(--wg-space-3) 0 0 44px;
+    padding: var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-md);
+}
+
+.rubric-hidden { display: none; }
+
+.rubric-panel h4 {
+    margin: 0 0 var(--wg-space-3);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.rubric-grid {
+    display: flex;
+    overflow: hidden;
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-sm);
+}
+
+.rubric-grid .col {
+    flex: 1;
+    min-width: 0;
+    padding: var(--wg-space-3);
+    border-right: var(--wg-border-width-thin) solid var(--wg-border);
+    font-size: var(--wg-font-size-caption);
+    line-height: 1.5;
+    color: var(--wg-gray);
+}
+
+.rubric-grid .col:last-child { border-right: 0; }
+
+.rubric-grid .col .lvl {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rubric-grid .col .lvl .n {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-body);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+}
+
+.rubric-grid .col p { margin: 0; }
+
+.col-l5 .lvl { color: var(--wg-success); }
+.col-l4 .lvl { color: var(--wg-info-text); }
+.col-l3 .lvl { color: var(--wg-text-muted); }
+.col-l2 .lvl { color: var(--wg-warning-text); }
+.col-l1 .lvl { color: var(--wg-error); }
+
+/* ═══════════════════════════════════════════
+   QUESTION CARD
+═══════════════════════════════════════════ */
+/* Complete = green left edge (card stays white so content reads easily) */
+.subq-complete {
+    border-left: var(--wg-border-width-banner) solid var(--wg-success);
+}
+
+.subq-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--wg-space-2);
+    margin-bottom: var(--wg-space-4);
+}
+
+.subq-q { flex: 1; min-width: 0; }
+
+.qtext {
+    font-size: var(--wg-font-size-body);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.45;
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+.qnum-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 22px;
+    margin-right: var(--wg-space-2);
+    padding: 0 6px;
+    background: var(--wg-gray);
+    border-radius: var(--wg-radius-badge);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-white);
+    vertical-align: 1px;
+}
+
+.qhint {
+    margin-top: var(--wg-space-2);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.55;
+    color: var(--wg-text-muted);
+    overflow-wrap: break-word;
+}
+
+/* Track-specific guidance (was inline styles + emoji) */
+.track-guidance {
+    margin-top: var(--wg-space-3);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-info-bg);
+    border-left: 3px solid var(--wg-info);
+    border-radius: var(--wg-radius-sm);
+}
+
+.track-guidance-title {
+    margin-bottom: var(--wg-space-2);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-info-text);
+}
+
+.track-guidance-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wg-space-2);
+    margin-bottom: var(--wg-space-1);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.45;
+}
+
+.track-guidance-tag {
+    flex-shrink: 0;
+    padding: 1px var(--wg-space-2);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    white-space: nowrap;
+}
+
+.track-guidance-text {
+    font-size: var(--wg-font-size-label);
+    line-height: 1.45;
+}
+
+/* Track tag on the question (class from metadata/JS) */
+.track-tag {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    padding: 1px var(--wg-space-2);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    white-space: nowrap;
+}
+
+.track-tag-jf { background: var(--wg-info-bg);    color: var(--wg-info-text);    border-color: var(--wg-info); }
+.track-tag-jc { background: var(--wg-warning-bg); color: var(--wg-warning-text); border-color: var(--wg-warning); }
+
+/* ═══════════════════════════════════════════
+   RATING (segmented 5 → 1)
+═══════════════════════════════════════════ */
+.rating-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+}
+
+.rating-label,
+.ynl {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.segmented {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    overflow: hidden;
+    background: var(--wg-white);
+    border: var(--wg-border-width-ghost) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+}
+
+.segmented button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 78px;
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: transparent;
+    border: 0;
+    border-right: var(--wg-border-width-thin) solid var(--wg-border);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-caption);
+    line-height: 1.2;
+    color: var(--wg-gray);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.segmented button:last-child { border-right: 0; }
+
+.segmented button:hover:not(.seg-sel):not(.seg-sel-poor):not(.seg-sel-vpoor) {
+    background: var(--wg-error-bg);
+    color: var(--wg-red-deep);
+}
+
+.segmented button:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: -2px;
+}
+
+.segmented button .num {
+    margin-bottom: 2px;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-bold);
+    color: inherit;
+}
+
+.seg-sel       { background: var(--wg-gray) !important;        color: var(--wg-white) !important; }
+.seg-sel-poor  { background: var(--wg-warning-bg) !important;  color: var(--wg-warning-text) !important; box-shadow: inset 0 0 0 2px var(--wg-warning); }
+.seg-sel-vpoor { background: var(--wg-error) !important;       color: var(--wg-white) !important; }
+.seg-sel-yes   { background: var(--wg-success) !important;     color: var(--wg-white) !important; }
+.seg-sel-no    { background: var(--wg-error) !important;       color: var(--wg-white) !important; }
+
+/* Selected level description (was inline styles) */
+.ladder-selected {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wg-space-2);
+    margin: var(--wg-space-2) 0 var(--wg-space-3);
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-success-bg);
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.45;
+}
+
+.ladder-selected-level {
+    flex-shrink: 0;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-success);
+}
+
+/* Ladder accordion */
+.ladder-toggle-wrap { margin: var(--wg-space-3) 0; }
+
+.link-btn {
+    padding: 0;
+    background: none;
+    border: 0;
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-red);
+    cursor: pointer;
+}
+
+.link-btn:hover { color: var(--wg-red-deep); text-decoration: underline; }
+
+.link-btn:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+.ladder-drawer {
+    margin-top: var(--wg-space-2);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) dashed var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+}
+
+.ladder-drawer-title {
+    margin-bottom: var(--wg-space-2);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.ladder-row {
+    display: flex;
+    gap: var(--wg-space-2);
+    margin-bottom: var(--wg-space-1);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.45;
+}
+
+.ladder-row-level {
+    flex-shrink: 0;
+    min-width: 58px;
+    font-weight: var(--wg-weight-bold);
+}
+
+/* ═══════════════════════════════════════════
+   COMMENT + TEXTAREAS
+═══════════════════════════════════════════ */
+.comment {
+    margin-top: var(--wg-space-4);
+    padding-top: var(--wg-space-4);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.clab {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+    margin-bottom: var(--wg-space-2);
+}
+
+.clab .l,
+.subform-row .l {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.help {
+    font-size: var(--wg-font-size-caption);
+    font-style: italic;
+    color: var(--wg-text-muted);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.textarea-wrap { position: relative; }
+
+.lwc-textarea {
+    display: block;
+    width: 100%;
+    min-height: 88px;
+    padding: 10px 12px 28px;
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lwc-textarea:focus {
+    border-color: var(--wg-orange);
+    box-shadow: var(--wg-focus-ring);
+}
+
+.lwc-textarea::placeholder { color: var(--wg-text-muted); }
+
+/* Rated but no justification yet → amber border */
+.lwc-textarea-req { border-color: var(--wg-warning); }
+
+/* Word counter */
+.wc-counter {
+    position: absolute;
+    right: 10px;
+    bottom: 7px;
+    padding: 1px 6px;
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid transparent;
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    pointer-events: none;
+}
+
+.wc-near  { color: var(--wg-warning-text); border-color: var(--wg-warning); }
+.wc-limit { color: var(--wg-error); border-color: var(--wg-error); background: var(--wg-error-bg); }
+
+/* ═══════════════════════════════════════════
+   STRENGTHS / WEAKNESSES
+═══════════════════════════════════════════ */
+.sw-block h4 {
+    margin: 0 0 var(--wg-space-1);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.sw-block .sub {
+    margin: 0 0 var(--wg-space-4);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.55;
+    color: var(--wg-text-muted);
+}
+
+.ranked-row {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-3);
+}
+
+.rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--wg-gray);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-white);
+}
+
+.ranked-row lightning-input { flex: 1; min-width: 0; }
+
+.req-mark {
+    flex: 0 0 14px;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-error);
+}
+
+/* ═══════════════════════════════════════════
+   FINAL RECOMMENDATION
+═══════════════════════════════════════════ */
+.yesno-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-4);
+}
+
+.yesno {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+.yesno button {
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-white);
+    border: var(--wg-border-width-ghost) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-badge);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.yesno button:hover { border-color: var(--wg-red); }
+
+.yesno button:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+/* FIX: the JS sets "rec-sel" / "rec-sel-no", but the old CSS only
+   styled "yesno-yes-sel" / "yesno-no-sel" — so the chosen
+   recommendation never looked selected. */
+.yesno .rec-sel {
+    background: var(--wg-success-bg);
+    border-color: var(--wg-success);
+    color: var(--wg-success);
+}
+
+.yesno .rec-sel-no {
+    background: var(--wg-error-bg);
+    border-color: var(--wg-error);
+    color: var(--wg-error);
+}
+
+.path {
+    margin-bottom: var(--wg-space-4);
+    padding: var(--wg-space-4);
+    border-radius: var(--wg-radius-md);
+    border-left: 3px solid transparent;
+}
+
+.path.yes { background: var(--wg-success-bg); border-left-color: var(--wg-success); }
+.path.no  { background: var(--wg-error-bg);   border-left-color: var(--wg-error); }
+
+.pathlab {
+    margin-bottom: var(--wg-space-3);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.pathlab.good   { color: var(--wg-success); }
+.pathlab.danger { color: var(--wg-error); }
+
+.subform-row { margin-bottom: var(--wg-space-4); }
+
+.subform-row .l {
+    display: block;
+    margin-bottom: var(--wg-space-2);
+}
+
+.rec-placeholder {
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) dashed var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-label);
+    font-style: italic;
+    color: var(--wg-text-muted);
+}
+
+/* Rejection reasons */
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--wg-space-2);
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-white);
+    border: var(--wg-border-width-ghost) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.4;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.checkbox-row:hover { border-color: var(--wg-red); }
+
+.checkbox-row:has(input:checked) {
+    background: var(--wg-error-bg);
+    border-color: var(--wg-red);
+}
+
+.checkbox-row input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 17px;
+    height: 17px;
+    margin: 1px 0 0;
+    accent-color: var(--wg-red);
+    cursor: pointer;
+}
+
+.checkbox-row span { flex: 1; min-width: 0; overflow-wrap: break-word; }
+
+/* ═══════════════════════════════════════════
+   UPLOADS
+═══════════════════════════════════════════ */
+.upload-section {
+    margin-bottom: var(--wg-space-5);
+    padding: var(--wg-space-5);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) dashed var(--wg-input-border);
+    border-radius: var(--wg-radius-card);
+}
+
+.upload-header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+    margin-bottom: var(--wg-space-3);
+}
+
+.upload-title {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.upload-sub,
+.upload-hint {
+    font-size: var(--wg-font-size-label);
+    font-style: italic;
+    color: var(--wg-text-muted);
+}
+
+.upload-hint {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+}
+
+.upload-control-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.upload-dropzone {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-2) var(--wg-space-3);
+    border: var(--wg-border-width-thin) dashed var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    background: var(--wg-surface-subtle);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.upload-dropzone:hover {
+    border-color: var(--wg-red);
+    background: var(--wg-white);
+}
+
+.upload-trigger-btn {
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--wg-space-1);
+}
+
+.upload-icon-prefix {
+    --slds-c-icon-color-foreground-default: inherit;
+}
+
+.upload-dropzone-label {
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+}
+
+.upload-loading-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    margin-top: var(--wg-space-2);
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+    position: relative;
+    padding-left: var(--wg-space-6);
+    min-height: 24px;
+}
+
+.upload-loading-text {
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+}
+
+.uploaded-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wg-space-2);
+    margin-top: var(--wg-space-3);
+}
+
+.uploaded-file {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-label);
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+.file-icon { flex: 0 0 auto; }
+
+.file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: var(--wg-weight-semibold);
+}
+
+.file-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    margin-left: auto;
+    padding: 0;
+    background: transparent;
+    border: var(--wg-border-width-thin) solid transparent;
+    border-radius: var(--wg-radius-sm);
+    cursor: pointer;
+}
+
+/* Keeps the click target on the button itself, so the handler's
+   dataset lookup finds data-id (the icon would otherwise be the target) */
+.file-delete-btn lightning-icon { pointer-events: none; }
+
+.file-delete-btn:hover {
+    background: var(--wg-error-bg);
+    border-color: var(--wg-error);
+    --slds-c-icon-color-foreground-default: var(--wg-error);
+}
+
+/* ═══════════════════════════════════════════
+   REVIEW & SUBMIT
+═══════════════════════════════════════════ */
+.score-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-5);
+    padding: var(--wg-space-5) var(--wg-space-6);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-left: var(--wg-border-width-banner) solid var(--wg-red);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+}
+
+.score-card-label {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.score-card-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+}
+
+.score-card-value {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.score-card-num {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-page-title);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+}
+
+.score-card-of {
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+}
+
+.review-dim,
+.review-other,
+.review-rec {
+    margin-bottom: var(--wg-space-4);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+    overflow: hidden;
+}
+
+.review-dim .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+    padding: var(--wg-space-3) var(--wg-space-5);
+    background: var(--wg-surface-subtle);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.review-dim .head .name {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    min-width: 0;
+}
+
+.review-dim .head .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--wg-gray);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-white);
+}
+
+.review-dim .head .ttl {
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+    overflow-wrap: break-word;
+}
+
+.review-dim .head .mean {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-bold);
+}
+
+.review-dim .head .mean .lab {
+    margin-right: 6px;
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.review-q {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2) var(--wg-space-3);
+    padding: var(--wg-space-3) var(--wg-space-5);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+    font-size: var(--wg-font-size-label);
+}
+
+.review-dim .head + .review-q { border-top: none; }
+
+.review-q .qx {
+    flex: 1 1 220px;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.qx-id {
+    margin-right: var(--wg-space-1);
+    font-weight: var(--wg-weight-bold);
+}
+
+.review-q .rx {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 6px;
+    font-weight: var(--wg-weight-semibold);
+}
+
+.review-q-ladder {
+    flex: 1 1 100%;
+    font-size: var(--wg-font-size-caption);
+    font-style: italic;
+    color: var(--wg-success);
+}
+
+/* Rating pips (classes from JS) */
+.pip {
+    padding: 2px var(--wg-space-2);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+}
+
+.pip-r5 { background: var(--wg-success-bg); color: var(--wg-success);      border-color: var(--wg-success); }
+.pip-r4 { background: var(--wg-info-bg);    color: var(--wg-info-text);    border-color: var(--wg-info); }
+.pip-r3 { background: var(--wg-surface-subtle); color: var(--wg-gray);    border-color: var(--wg-input-border); }
+.pip-r2 { background: var(--wg-warning-bg); color: var(--wg-warning-text); border-color: var(--wg-warning); }
+.pip-r1 { background: var(--wg-error-bg);   color: var(--wg-error);        border-color: var(--wg-error); }
+.pip-empty { border-style: dashed; font-style: italic; }
+
+.review-q-comment {
+    flex: 1 1 100%;
+    margin-top: var(--wg-space-1);
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-surface-subtle);
+    border-left: 3px solid var(--wg-input-border);
+    border-radius: 0 var(--wg-radius-sm) var(--wg-radius-sm) 0;
+    font-size: var(--wg-font-size-label);
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.review-q-comment ul { margin: var(--wg-space-1) 0 0; padding-left: var(--wg-space-5); }
+
+.review-other,
+.review-rec {
+    padding: var(--wg-space-4) var(--wg-space-5);
+}
+
+.review-other h5,
+.review-rec h5 {
+    margin: 0 0 var(--wg-space-2);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.review-other ul {
+    margin: 0;
+    padding-left: var(--wg-space-5);
+    font-size: var(--wg-font-size-label);
+}
+
+.review-other li { margin-bottom: var(--wg-space-1); overflow-wrap: break-word; }
+
+.review-rec-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+}
+
+.review-rec-head h5 { margin: 0; }
+
+.recvalue-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+}
+
+/* FIX: JS sets "recval-yes" / "recval-no"; the old CSS styled
+   "recvalue-yes" / "recvalue-no", so the value was never colored */
+.recval     { font-weight: var(--wg-weight-bold); }
+.recval-yes { color: var(--wg-success); }
+.recval-no  { color: var(--wg-error); }
+
+.strength {
+    padding: var(--wg-padding-tag);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+}
+
+/* ═══════════════════════════════════════════
+   VALIDATION MESSAGE
+═══════════════════════════════════════════ */
+.validate {
+    margin: 0 var(--rf-pad-x) var(--wg-space-3);
+}
+
+/* ═══════════════════════════════════════════
+   FOOTER — sticky, same buttons as the Validator form
+═══════════════════════════════════════════ */
+/* Sticky: stays pinned to the bottom of whatever scrolls the form —
+   the review panel in split view, the page when the RFI is closed.
+   Kept on ONE row (Previous left, step + Save draft + Next right). */
+.footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-3) var(--rf-pad-x);
+    background: var(--wg-white);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+    box-shadow: 0 -3px 10px rgba(65, 64, 65, 0.08);   /* rgb of --wg-gray */
+    border-radius: 0 0 var(--wg-radius-card) var(--wg-radius-card);
+}
+
+.footer .left,
+.footer .right {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--wg-space-2);
+    min-width: 0;
+}
+
+.step-here {
+    margin-right: var(--wg-space-2);
+    font-size: var(--wg-font-size-caption);
+    color: var(--wg-text-muted);
+    white-space: nowrap;
+}
+
+/* The site theme styles plain <button>/.btn globally (bigger font and
+   padding leak into this component on Aura sites). These more specific
+   rules pin the footer buttons to the portal's compact size. */
+.form-wrap .btn {
+    height: var(--wg-button-height);
+    min-height: 0;
+    margin: 0;
+    padding: 0 26px;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-button);
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    box-shadow: none;
+}
+
+.form-wrap .btn-sm {
+    height: 28px;
+    padding: 0 var(--wg-space-3);
+    font-size: var(--wg-font-size-caption);
+}
+
+/* Button classes set in HTML/JS, drawn with the shared button look */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--wg-space-2);
+    height: var(--wg-button-height);
+    padding: 0 26px;
+    border: var(--wg-border-width-thin) solid transparent;
+    border-radius: var(--wg-radius-pill);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-button);
+    font-weight: var(--wg-weight-semibold);
+    white-space: nowrap;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Secondary = neutral outline (Previous, Save draft) */
+.btn-secondary {
+    background: var(--wg-white);
+    border-color: var(--wg-red);
+    color: var(--wg-red);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--wg-surface-subtle);
+    border-color: var(--wg-text-muted);
+}
+
+/* Primary = brand red (Next category, Submit review) */
+.btn-primary,
+.btn-submit {
+    background: var(--wg-red);
+    border-color: var(--wg-red);
+    color: var(--wg-white);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-submit:hover:not(:disabled) {
+    background: var(--wg-red-deep);
+    border-color: var(--wg-red-deep);
+}
+
+.btn-sm {
+    height: 28px;
+    padding: 0 var(--wg-space-3);
+    font-size: var(--wg-font-size-caption);
+}
+
+/* ═══════════════════════════════════════════
+   SUBMITTED STATE
+═══════════════════════════════════════════ */
+.done-state {
+    margin: var(--wg-space-6) var(--rf-pad-x);
+    padding: var(--wg-space-16) var(--wg-space-6) var(--wg-space-8);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+    text-align: center;
+}
+
+.done-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: var(--wg-space-4);
+    border-radius: 50%;
+    background: var(--wg-success);
+    --slds-c-icon-color-foreground-default: var(--wg-white);
+}
+
+.done-state h3 {
+    margin: 0 0 var(--wg-space-2);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+}
+
+.done-state p {
+    max-width: 60ch;
+    margin: 0 auto var(--wg-space-5);
+    color: var(--wg-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONTAINER-RESPONSIVE LAYOUT (panel width, not viewport)
+   :host can't be targeted by its own container query, so the padding
+   variable is overridden on the elements that use it.
+═══════════════════════════════════════════════════════════════════ */
+@container (max-width: 820px) {
+    .formhead, .body, .footer, .validate, .done-state { --rf-pad-x: var(--wg-space-4); }
+
+    .step-intro, .subq, .sw-block, .finalrec { padding: var(--wg-space-5) var(--wg-space-4); }
+    .dim-tools, .rubric-panel { margin-left: 0; }
+
+    .rubric-grid { flex-direction: column; }
+    .rubric-grid .col { border-right: 0; border-bottom: var(--wg-border-width-thin) solid var(--wg-border); }
+    .rubric-grid .col:last-child { border-bottom: 0; }
+
+    .checkbox-grid { grid-template-columns: 1fr; }
+}
+
+@container (max-width: 620px) {
+    .formhead, .body, .footer, .validate, .done-state { --rf-pad-x: var(--wg-space-3); }
+
+    .form-title   { font-size: var(--wg-font-size-sub-heading); }
+    .dim-title h3 { font-size: var(--wg-font-size-sub-heading); }
+    .dim-num      { width: 28px; height: 28px; font-size: var(--wg-font-size-caption); }
+
+    .step-intro, .subq, .sw-block, .finalrec { padding: var(--wg-space-4) var(--wg-space-3); margin-bottom: var(--wg-space-4); }
+    .path     { padding: var(--wg-space-3); }
+    .subq-top { flex-wrap: wrap; }
+
+    .segmented button { min-width: 64px; padding: var(--wg-space-2); }
+
+    .progress span { width: 16px; }
+
+    /* Stay on one row; the step count is already shown in the header */
+    .step-here { display: none; }
+}
+
+@container (max-width: 440px) {
+    .segmented button { min-width: 56px; }
+
+    /* Very narrow: compact buttons, still one row */
+    .form-wrap .btn { padding: 0 var(--wg-space-2); font-size: var(--wg-font-size-button); }
+    .footer         { gap: var(--wg-space-2); }
+}
+
+/* Viewport fallback for true mobile devices */
+@media (max-width: 768px) {
+    .dim-tools, .rubric-panel { margin-left: 0; }
+    .checkbox-grid { grid-template-columns: 1fr; }
+}
+
+/* ══ MOTION ═══════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    .save-saving::before { animation: none; }
+
+    .progress span,
+    .btn-soft,
+    .btn-soft .chev,
+    .segmented button,
+    .yesno button,
+    .checkbox-row,
+    .lwc-textarea,
+    .btn { transition: none; }
+}
+
+/* Remove this old rule — the bottom banner element is gone:
+.validate {
+    margin: 0 var(--rf-pad-x) var(--wg-space-3);
+}
+*/
+
+/* ═══════════════════════════════════════════
+   INLINE FIELD VALIDATION
+   Replaces the old bottom "Cannot continue" banner.
+   Highlights the specific control in red and shows
+   a short message directly beneath it.
+═══════════════════════════════════════════ */
+.field-error-text {
+    margin-top: var(--wg-space-2);
+    margin-bottom: var(--wg-space-2);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-error);
+}
+
+.field-error-indent {
+    margin-left: 44px;
+}
+
+.segmented-error {
+    border-color: var(--wg-error);
+    box-shadow: 0 0 0 1px var(--wg-error);
+}
+
+.lwc-textarea-error {
+    border-color: var(--wg-error) !important;
+    box-shadow: 0 0 0 1px var(--wg-error);
+}
+
+/* lightning-input doesn't accept normal border overrides from outside
+   its shadow DOM — use its SLDS styling hooks instead */
+.ranked-row-error lightning-input,
+lightning-input.wcf-input-error {
+    --slds-c-input-color-border: var(--wg-error);
+    --slds-c-input-shadow-focus: 0 0 0 1px var(--wg-error);
+}
+
+.yesno-row-error .yesno button {
+    border-color: var(--wg-error);
+}
+
+.checkbox-grid-error {
+    outline: 1px solid var(--wg-error);
+    outline-offset: 4px;
+    border-radius: var(--wg-radius-sm);
+}

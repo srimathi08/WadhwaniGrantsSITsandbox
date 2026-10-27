@@ -1,0 +1,158 @@
+/* 🚫 Remove ALL Lightning Card native styling */
+.no-style.slds-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* 🚫 Remove lightning-card header wrapper completely */
+.no-style .slds-card__header {
+    display: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+/* 🚫 Remove lightning-card body wrapper background & padding */
+.no-style .slds-card__body {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* 🌟 EMBOSSED MAIN COMPONENT WRAPPER */
+.emboss-wrapper {
+    background: #ffffe5;                  /* your yellowish background */
+    border-radius: 14px;
+    padding: 1rem 1.5rem;
+    position: relative;
+
+    /* ---- Emboss Effect ---- */
+    box-shadow:
+        4px 4px 10px rgba(0,0,0,0.20),     /* bottom-right darker */
+        0px 0px 0px rgba(0,0,0,0.0),       
+        -3px -3px 6px rgba(255,255,255,0.7); /* top-left subtle highlight */
+}
+
+
+/* change background of entire card body */
+.custom-card .custom-body {
+    background-color: #ffffe5;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+
+
+/* 🧭 Dashboard Title */
+.lightning-card .slds-card__header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+   
+}
+
+.lightning-card .slds-card__header-title h2 {
+    color: #c2252b;
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* 📊 Section Titles */
+.section-title {
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin: 1.2rem 0 0.8rem 0;
+    color: #c2252b;
+}
+
+/* Grid Layout */
+.section-wrapper {
+    padding: 0 0.5rem 1.5rem 0.5rem;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 0.5rem;
+}
+@media (max-width: 1200px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+    .grid { grid-template-columns: 1fr; }
+}
+
+/* 📇 Card Base */
+.card {
+    border-radius: 1rem;
+    padding: 1rem;
+    min-height: 130px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 🟧 Odd Cards — Deep Orange Gradient */
+.card:nth-child(odd) {
+    background: linear-gradient(
+        to bottom,
+        #ff7d42,   /* lighter top glow */
+        #f2672a    /* original base */
+    );
+    color: #ffffff;
+}
+
+/* 🟨 Even Cards — Orange Gradient */
+.card:nth-child(even) {
+    background: linear-gradient(
+        to bottom,
+        #ff9c3c,   /* lighter top glow */
+        #f68721    /* original base */
+    );
+    color: #000000;
+}
+
+/* 🎨 Alternating Colors */
+.card:nth-child(odd) {
+    background-color: #f2672a; /* Red  939598   bf2026*/
+    color: #ffffff; /* White text */
+}
+
+.card:nth-child(even) {
+    background-color: #f68721; /* Orange f68721 ffffe5 939598 f68721*/
+    color: #000000; /* Black text */
+}
+
+/* Card Header */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.card-title {
+    font-size: 1.0rem;
+    font-weight: 600;
+}
+.corner-icon {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+.card-count {
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin-top: 0.5rem;
+    text-align: right;
+}

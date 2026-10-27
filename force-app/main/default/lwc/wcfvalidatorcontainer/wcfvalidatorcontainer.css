@@ -1,0 +1,247 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   wcfValidatorContainer — list view + split-pane shell
+   Visuals come from commonStyleTheme + wcfPortalUi.
+   This file holds the split-pane layout only. No hex values.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+
+    /* Height of the site header above this component.
+       The split pane fills the rest of the viewport.
+       Adjust this ONE value if the pane is too tall/short. */
+    --wcf-split-offset: 110px;   /* same as the Reviewer container (--rc-offset) */
+}
+
+/* ══ LIST MODE ═════════════════════════════════════════════════ */
+.wcf-list-mode {
+    background: var(--wg-surface-page);
+}
+
+.wcf-filter-banner {
+    align-items: center;
+    margin: var(--wg-space-4) var(--wg-gutter) 0;
+    --slds-c-icon-color-foreground-default: var(--wg-info);
+}
+
+/* ══ SPLIT SHELL ═══════════════════════════════════════════════ */
+.wcf-split-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: calc(100vh - var(--wcf-split-offset));
+    overflow: hidden;
+    background: var(--wg-surface-page);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    color: var(--wg-gray);
+    box-sizing: border-box;
+}
+
+/* ── Top bar ── */
+.wcf-split-topbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-4);
+    flex-shrink: 0;
+    padding: var(--wg-space-3) var(--wg-space-6);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    box-sizing: border-box;
+}
+
+.wcf-split-title {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    flex: 1;
+    min-width: 0;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    --slds-c-icon-color-foreground-default: var(--wg-red);
+}
+
+.wcf-split-title-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wcf-split-title strong {
+    font-weight: var(--wg-weight-bold);
+}
+
+/* ── Body ── */
+.wcf-split-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* ── Panels ── */
+.wcf-left-panel,
+.wcf-right-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--wg-white);
+    transition: flex-basis 0.15s ease, max-width 0.15s ease;
+}
+
+.wcf-left-panel {
+    width: 55%;
+    min-width: 280px;
+    flex-shrink: 0;
+}
+
+.wcf-right-panel {
+    flex: 1;
+}
+
+/* ── Panel header strip ── */
+.wcf-panel-header {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    box-sizing: border-box;
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+.wcf-panel-hint {
+    margin-left: auto;
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-regular);
+    color: var(--wg-text-muted);
+    white-space: nowrap;
+}
+
+.wcf-pane-toggle {
+    flex-shrink: 0;
+}
+
+/* ── Panel scroll body ── */
+.wcf-panel-body {
+    flex: 1;
+    min-height: 0;
+    background: var(--wg-surface-page);
+}
+
+.wcf-panel-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.wcf-panel-scroll::-webkit-scrollbar       { width: 8px; }
+.wcf-panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.wcf-panel-scroll::-webkit-scrollbar-thumb {
+    background: var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+}
+.wcf-panel-scroll::-webkit-scrollbar-thumb:hover { background: var(--wg-text-muted); }
+
+/* ── Draggable divider — neutral at rest, brand red on hover ── */
+.wcf-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 6px;
+    background: var(--wg-border);
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+    transition: background 0.15s ease;
+}
+
+.wcf-divider:hover {
+    background: var(--wg-red);
+}
+
+.wcf-divider-handle {
+    width: 2px;
+    height: 32px;
+    background: var(--wg-input-border);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.wcf-divider:hover .wcf-divider-handle {
+    background: var(--wg-white);
+}
+
+/* ══ COLLAPSIBLE PANES (never both collapsed) ══════════════════ */
+.wcf-left-panel.wcf-pane-collapsed,
+.wcf-right-panel.wcf-pane-collapsed {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    max-width: 44px !important;
+    min-width: 44px !important;
+    overflow: hidden;
+    border-right: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.wcf-split-body:has(.wcf-left-panel.wcf-pane-collapsed) .wcf-right-panel:not(.wcf-pane-collapsed),
+.wcf-split-body:has(.wcf-right-panel.wcf-pane-collapsed) .wcf-left-panel:not(.wcf-pane-collapsed) {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    max-width: none !important;
+}
+
+.wcf-pane-collapsed .wcf-panel-header {
+    flex-direction: column;
+    padding: var(--wg-space-3) var(--wg-space-1);
+    border-bottom: none;
+}
+
+.wcf-pane-collapsed .wcf-panel-label-text {
+    display: none;
+}
+
+/* ══ RESPONSIVE — stack panels on narrow screens ═══════════════ */
+@media (max-width: 860px) {
+    .wcf-split-shell { height: auto; }
+
+    .wcf-split-body { flex-direction: column; }
+
+    .wcf-left-panel {
+        width: 100% !important;   /* overrides any width left by dragging */
+        max-height: 50vh;
+        border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    }
+
+    .wcf-right-panel { width: 100%; }
+
+    .wcf-divider { display: none; }
+
+    .wcf-split-topbar { padding: var(--wg-space-3) var(--wg-space-4); }
+}
+
+/* ══ MOTION ════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    .wcf-left-panel,
+    .wcf-right-panel,
+    .wcf-divider {
+        transition: none;
+    }
+}

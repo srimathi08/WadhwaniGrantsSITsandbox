@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>NDA is sent to reviewer for signing</description>
+    <encodingKey>UTF-8</encodingKey>
+    <letterhead>WIN</letterhead>
+    <name>NDA Signing</name>
+    <style>freeForm</style>
+    <subject>Action Required: Sign NDA to complete onboarding</subject>
+    <type>html</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

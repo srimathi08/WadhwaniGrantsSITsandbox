@@ -1,0 +1,31 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   Approver Dashboard
+   Identical structure to the Validator and Reviewer dashboards.
+   All visuals come from commonStyleTheme + wcfPortalUi; the local
+   token copy is gone. Layout only. No hex values below by design.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+}
+
+.ad-page {
+    min-height: 100vh;
+}
+
+/* Tile grid comes from wcfPortalUi (.wg-dash-stats) — identical on all dashboards:
+   3 equal tiles per row (7 tiles → 3 + 3 + 1) */
+
+.ad-table {
+    min-width: 760px;
+}
+
+.ad-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+}

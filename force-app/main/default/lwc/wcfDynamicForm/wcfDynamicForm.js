@@ -1,0 +1,7846 @@
+import { LightningElement, api, track } from 'lwc';
+import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
+import WIN_LOGO from '@salesforce/resourceUrl/WIN_Logo';
+import flagTelpicker from '@salesforce/resourceUrl/flagTelpicker';
+import JSPDF from '@salesforce/resourceUrl/downloadjs';
+import AUTO_TABLE from '@salesforce/resourceUrl/autotable';
+import searchHQLocation from '@salesforce/apex/OpenStreetMapService.searchLocation';
+import getFormMetadata from '@salesforce/apex/WCFFormMetadataController.getFormMetadata';
+import getDynamicDraft from '@salesforce/apex/WCFFormEngineController.getDynamicDraft';
+import saveDynamicDraft from '@salesforce/apex/WCFFormEngineController.saveDynamicDraft';
+import submitDynamicApplication from '@salesforce/apex/WCFFormEngineController.submitDynamicApplication';
+import deleteUploadedFile from '@salesforce/apex/WCFFormEngineController.deleteUploadedFile';
+import upsertAIFeedback from '@salesforce/apex/WCFFormController.upsertAIFeedback';
+import getAIFeedbackRecord from '@salesforce/apex/WCFFormController.getAIFeedbackRecord';
+import WCF_FOCUS_STYLES from '@salesforce/resourceUrl/wcfFormFocusStyles';
+import getUploadedFileDetails from '@salesforce/apex/WCFFormEngineController.getUploadedFileDetails';
+import { preparePdfDoc, plainTextToHtml } from 'c/wcfPdfFonts';
+
+function calculateEndingBalance(startBalance, revenue, expense) {
+    const start = Number(String(startBalance).replace(/,/g, '')) || 0;
+    const rev = Number(String(revenue).replace(/,/g, '')) || 0;
+    const exp = Number(String(expense).replace(/,/g, '')) || 0;
+    return start + rev - exp;
+}
+
+function cleanTitle(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/^(\*?\s*Q\d+\s*:\s*|\*?\s*\d+\.\s*|\*\s*)/i, '').trim();
+}
+
+export default class WcfDynamicForm extends LightningElement {
+    _recordId;
+    _hasLoadedDraft = false;
+    @api
+    get recordId() {
+        return this._recordId;
+    }
+    set recordId(val) {
+        const oldVal = this._recordId;
+        this._recordId = val;
+        if (val && val !== oldVal && this.isConnected && !this._hasLoadedDraft) {
+            this._hasLoadedDraft = true;
+            this.loadDraftData();
+        }
+    }
+    @api selectedLanguage = 'en_US';
+
+    winLogoUrl = WIN_LOGO; // Set logo URL from static resource
+
+    @track isLoading = false;
+    // In-component replacement for native ShowToastEvent — see showBanner()/
+    // closeBanner() below. Renders using commonStyleTheme's existing
+    // .error-banner/.warning-banner/.success-banner/.info-banner classes
+    // so notifications match brand styling instead of the platform's
+    // default SLDS toast (solid-fill, not tokenized, can't be restyled
+    // from component CSS since it renders outside this shadow tree).
+    @track bannerVisible = false;
+    @track bannerVariant = 'info'; // 'error' | 'warning' | 'success' | 'info'
+    @track bannerTitle = '';
+    @track bannerMessage = '';
+    _bannerTimeout;
+    _liveValidationTimeout = null;
+    @track currentScreen = 'screen1'; // Screen 1 is Track Selection & FAQ (2nd Image is first page)
+    @track activeTabId = 'tabAboutOrg';
+
+    @track selectedTracks = []; // No auto-selected track by default
+
+    get isNextDisabled() {
+        return !this.selectedTracks || this.selectedTracks.length === 0;
+    }
+
+
+    @track formValues = {
+        Fiscal_Month__c: '03',
+        Fiscal_Day__c: '31',
+        Organization_Name__c: '',
+        Headquarters_City_and_Country__c: '',
+        Primary_Service_Regions__c: '',
+        Leader_Name__c: '',
+        Leader_Title__c: '',
+        Leader_Tenure__c: '',
+        Submitter_Name__c: '',
+        Job_Title__c: '',
+        Work_Email_ID__c: '',
+        Phone__c: '',
+        WG_Phone_Country_Code__c: '+91',
+        Legal_Type__c: '',
+        Legal_Type_Other__c: '',
+        Registration_Jurisdiction__c: '',
+        Registration_Jurisdiction_Other__c: '',
+        Incorporation_Date__c: '',
+        Legal_Structure__c: '',
+        Has_501c3_Status__c: '',
+        Has_Equivalency_Determination__c: '',
+        Is_FCRA_Registered__c: '',
+        Willing_to_Pursue_ED__c: '',
+        Funder_1_Name__c: '',
+        Funder_1_Amount__c: '',
+        Funder_1_Period_Start__c: '',
+        Funder_1_Period_End__c: '',
+        Funder_1_Type__c: '',
+        Funder_2_Name__c: '',
+        Funder_2_Amount__c: '',
+        Funder_2_Period_Start__c: '',
+        Funder_2_Period_End__c: '',
+        Funder_2_Type__c: '',
+        Funder_3_Name__c: '',
+        Funder_3_Amount__c: '',
+        Funder_3_Period_Start__c: '',
+        Funder_3_Period_End__c: '',
+        Funder_3_Type__c: '',
+        Reference_1_Name__c: '',
+        Reference_1_Role__c: '',
+        Reference_1_Email__c: '',
+        Reference_2_Name__c: '',
+        Reference_2_Role__c: '',
+        Reference_2_Email__c: '',
+        START_FY3: '',
+        REV_FY3: '',
+        REV_FY2: '',
+        REV_FY1: '',
+        CAP_FY3: '',
+        CAP_FY2: '',
+        CAP_FY1: '',
+        OP_FY3: '',
+        OP_FY2: '',
+        OP_FY1: '',
+        CFY_REV_BUDGET: '',
+        CFY_REV_PROJ: '',
+        CFY_CAP_BUDGET: '',
+        CFY_CAP_PROJ: '',
+        CFY_OP_BUDGET: '',
+        CFY_OP_PROJ: '',
+        Revenue_Explanation__c: '',
+        Skilling_Approach__c: '',
+        Job_Creation_Approach__c: '',
+        Livelihood_Approach__c: '',
+        Organizational_Sustainability__c: '',
+        Use_of_Additional_Funding__c: '',
+        GenieAI_Interest_Level__c: '',
+        Operational_Synergies_with_WOF__c: '',
+        Q24_VERIFIED: '',
+        Details_of_Ethical_Received__c: '',
+        Attesting_User_Name__c: '',
+        Attesting_User_Title__c: ''
+    };
+
+    @track fiscalYears = {};
+
+    // ── Dynamic Child Grids & File State ─────────────────────────────────
+    @track skillingDomainRows = [
+        { id: 1, name: '', hours: '', duration: '', whenStarted: '', enrollment: '', displayWhenStarted: '' }
+    ];
+    @track businessSectorRows = [
+        { id: 1, sector: '', sectorOther: '', supportTypes: [], supportTypeOther: '', whenBegan: '', enterprises: '', jobs: '', displayWhenBegan: '' }
+    ];
+    @track livelihoodProgramRows = [
+        { id: 1, name: '', supportType: '', manHours: '', enrollment: '' }
+    ];
+    @track communityRows = [
+        { id: 1, state: '', district: '', fy3: '', fy2: '', fy1: '', proj: '' }
+    ];
+    @track docRows = [];
+    @track q24UploadedFiles = [];
+    @track q28UploadedFiles = [];
+
+    // ── Funder & Reference Toggle State (Q7 & Q8) ─────────────────────────
+    @track showFunder2 = false;
+    @track showFunder3 = false;
+    @track showReference2 = false;
+
+    // ── Rich Text & Word Count State ─────────────────────────────────────
+    @track legalStructureWordCount = 0;
+    @track deviationExplanationWordCount = 0;
+    @track skillingApproachWordCount = 0;
+    @track jobCreationApproachWordCount = 0;
+    @track livelihoodApproachWordCount = 0;
+    @track sustainabilityWordCount = 0;
+    @track useOfFundingWordCount = 0;
+    activeField = null;
+
+    // ── AI Feedback Modal State ──────────────────────────────────────────
+    @track isAIModalOpen = false;
+    @track aiModalTitle = 'AI Feedback';
+    @track isAiLoading = false;
+    @track aiResponse = '';
+
+    // ── Phone ITI & Validation State ─────────────────────────────────────
+    _phoneIti = null;
+    _phoneItiInitialized = false;
+    _phoneScriptsLoaded = false;
+    _invalidElements = [];
+    @track phoneNumberError = '';
+
+    // ── HQ Autocomplete State ─────────────────────────────────────────────
+    @track hqSearchKey = '';
+    @track hqResults = [];
+    @track hqIsLoading = false;
+    @track hqShowNoResults = false;
+    hqDelayTimeout;
+    _liveValidationTimeout = null;
+
+    PHONE_LENGTH_BY_COUNTRY_CODE = {
+        '+1': { min: 10, max: 10, example: '2025551234' },
+        '+20': { min: 9, max: 10, example: '1001234567' },
+        '+234': { min: 10, max: 10, example: '8031234567' },
+        '+27': { min: 9, max: 9, example: '821234567' },
+        '+31': { min: 9, max: 9, example: '612345678' },
+        '+33': { min: 9, max: 9, example: '612345678' },
+        '+34': { min: 9, max: 9, example: '612345678' },
+        '+39': { min: 9, max: 10, example: '3123456789' },
+        '+41': { min: 9, max: 9, example: '781234567' },
+        '+44': { min: 10, max: 10, example: '7123456789' },
+        '+49': { min: 7, max: 11, example: '15123456789' },
+        '+52': { min: 10, max: 10, example: '5512345678' },
+        '+54': { min: 10, max: 11, example: '91123456789' },
+        '+55': { min: 10, max: 11, example: '11987654321' },
+        '+60': { min: 9, max: 10, example: '123456789' },
+        '+61': { min: 9, max: 9, example: '412345678' },
+        '+63': { min: 10, max: 10, example: '9171234567' },
+        '+64': { min: 8, max: 10, example: '211234567' },
+        '+65': { min: 8, max: 8, example: '81234567' },
+        '+7': { min: 10, max: 10, example: '9123456789' },
+        '+81': { min: 10, max: 10, example: '9012345678' },
+        '+82': { min: 9, max: 10, example: '1012345678' },
+        '+86': { min: 11, max: 11, example: '13123456789' },
+        '+91': { min: 10, max: 10, example: '9812345678' },
+        '+966': { min: 9, max: 9, example: '512345678' },
+        '+971': { min: 9, max: 9, example: '501234567' },
+    };
+
+    @track isDirty = false;
+    _beforeUnloadHandler = null;
+
+    @track labels = {};
+    _metadataQuestionsMap = new Map();
+    _metadataSectionsMap = new Map();
+    _customQuestionsDef = {
+        q2: [],
+        q3: [],
+        q4: [],
+        q5: [],
+        q6: [],
+        q7: [],
+        q8: [],
+        aboutOrg: [],
+        jf: [],
+        jc: [],
+        liv: [],
+        why: []
+    };
+    _sectionQuestionsDef = {
+        q2: null,
+        q3: null,
+        q4: null,
+        q4Gov: null,
+        q5: null,
+        q6: null
+    };
+
+    _getDefaultLabels() {
+        return {
+            // Screen 1 & Track Selection
+            TRACK_SELECTION_TITLE: 'Which of these does your work cover?',
+            TRACK_SELECTION_SUBTITLE: 'Select all that apply. Your answer sets which questions you get later in the form.',
+
+            // Overview & FAQ
+            OVERVIEW_TITLE: 'APPLICATION OVERVIEW · SECTIONS 2 & 3',
+            OVERVIEW_SEC2_TAG: 'SECTION 2',
+            OVERVIEW_SEC2_HEADING: 'What You Do',
+            OVERVIEW_SEC2_DESC: 'Tell us about your work: your top programs, your approach, and what makes it different.',
+            OVERVIEW_SEC3_TAG: 'SECTION 3',
+            OVERVIEW_SEC3_HEADING: 'What You\'ve Delivered',
+            OVERVIEW_SEC3_DESC: 'Tell us what you\'ve achieved: your results for the last three years, plus your estimate for this year.',
+            FAQ_SECTION_TITLE: 'FREQUENTLY ASKED QUESTIONS · WHAT THE TRACKS MEAN',
+            FAQ_JF_TITLE: 'Job Fulfillment (Skilling and Placement)',
+            FAQ_JC_TITLE: 'Job Creation (SME / Enterprise Support)',
+            FAQ_LIV_TITLE: 'Livelihood Upliftment',
+
+            // Section Titles & Subtitles
+            SEC_ABOUT_ORG: '1. About Your Organization',
+            SEC_JOB_FULFILLMENT: '2. What You Do',
+            SEC_JOB_CREATION: '3. Job Creation',
+            SEC_LIVELIHOOD: '4. Livelihood Upliftment',
+            SEC_OUTCOMES: '3. What You Have Delivered',
+            SEC_WHY_WADHWANI: '4. Why Wadhwani Grants',
+            SEC_REVIEW_SUBMIT: '5. Review and Submit',
+
+            // Section Cards (Q2 - Q6)
+            SEC2_TITLE: 'Organizational Identifying Information',
+            SEC2_DESC: 'A few details so we know who we\'re talking to.',
+            SEC3_TITLE: 'Submitter Contact Information',
+            SEC3_DESC: 'Who is filling out this form? You\'ll be the initial point of contact for your organization.',
+            SEC4_TITLE: 'Legal Structure',
+            SEC4_DESC: 'Tell us how your organization is legally constituted and where it\'s registered.',
+            SEC5_TITLE: 'Legal and Tax Compliance',
+            SEC5_DESC: 'Wadhwani Grants disburses from a US entity, so cross-border grants require certain compliance credentials. Tell us what your organization holds today. If you hold none yet, the last question simply asks whether you would be open to pursuing an Equivalency Determination (ED), a process Wadhwani Grants supports for selected partners. This is for our compliance planning; it does not affect how we read the rest of your application.',
+            SEC6_TITLE: 'Fiscal Year End Date',
+            SEC6_DESC: 'When does your fiscal year close? This helps us align all financial and outcome metrics. (DD/MM/YYYY)',
+
+            // Tab 1 / Category 1 Flat Questions
+            Q1_SELECTED_TRACKS: 'Selected Track',
+            Q2_ORG_NAME: 'Organization Name',
+            Q2_HQ_LOCATION: 'Headquarters City and Country',
+            Q2_PRIMARY_REGIONS: 'Primary Service Regions (countries, then regions within them, in priority order)',
+            Q2_LEADER_NAME: 'Leader Name',
+            Q2_LEADER_TITLE: 'Leader Designation / Title',
+            Q2_LEADER_TENURE: 'Leader Tenure, years in role (Optional)',
+
+            Q3_SUBMITTER_NAME: 'Submitter Name',
+            Q3_JOB_TITLE: 'Job Title',
+            Q3_WORK_EMAIL: 'Work Email',
+            Q3_PHONE: 'Phone Number (country code + number)',
+
+            Q4_LEGAL_TYPE: 'Entity Type',
+            Q4_JURISDICTION: 'Registration Jurisdiction (country)',
+            Q4_INCORP_DATE: 'Registration / Incorporation Date (DD/MM/YYYY)',
+            Q4_GOVERNANCE_DESC: 'Brief description (<100 words): governance and operational structure: board, leadership, key affiliations.',
+            Q4_GOVERNANCE_HELPER: 'Briefly describe your governance and operational structure: board, leadership, key affiliations (<100 words).',
+
+            Q5_US_501C3: 'Do you have 501(c)(3) status or equivalent US tax-exempt determination?',
+            Q5_ED_STATUS: 'Do you currently hold an active Equivalency Determination (ED) certificate?',
+            Q5_FCRA_STATUS: 'Do you have a valid FCRA registration?',
+            Q5_WILLING_ED: 'Are you willing to pursue an Equivalency Determination (ED) if selected?',
+
+            Q6_FISCAL_MONTH: 'Fiscal Year End Month',
+            Q6_FISCAL_DAY: 'Fiscal Year End Day',
+            Q6_FISCAL_DATE: 'Fiscal Year End Date',
+
+            Q7_TOP_FUNDERS: 'Top 3 Prominent Funders',
+            Q7_TOP_FUNDERS_DESC: 'Optionally share up to three of your most prominent funders: the backers whose support is most material or most recognisable. All amounts in USD.',
+            Q8_REFERENCES: 'Reference Contacts for Outreach',
+            Q8_REFERENCES_DESC: 'Sharing 1-2 contacts who can speak to your work (funders, board members, partners, or peer leaders) gives us a valuable external reference point. This is optional; it is not required and will not affect your application.',
+
+            // Financials & Outcomes (Q9 & Q10)
+            Q9_HIST_FINANCIALS: 'Historical Financial Performance',
+            Q9_HIST_FINANCIALS_DESC: 'Enter your historical figures across the three prior fiscal years. Starting balance for the earliest year and revenue/expense are inputs; year-end balances are computed automatically.',
+            Q10_CURRENT_FY: 'Current Fiscal Year Budget & Projections',
+            Q10_CURRENT_FY_DESC: 'Your current fiscal year budget, latest projection, and explanation of any deviation.',
+            Q10_EXPLANATION_LABEL: 'Explanation of deviation',
+            Q10_EXPLANATION_DESC: 'Required if total deviation is non-zero (combined revenue + expense; <200 words).',
+
+            // Track Questions
+            Q11_SKILLING_APPROACH: 'Your Skilling Approach',
+            Q11_SKILLING_APPROACH_DESC: 'Tell us about your skilling work in roughly 500 words. If you run named programs, walk us through your top three (names, what they teach, who they serve). Cover your theory of change, the journey from learner enrollment to placement, and what makes your approach different from others.',
+            Q12_SKILLING_DOMAINS: 'Skilling Domains Offered',
+            Q12_SKILLING_DOMAINS_DESC: 'List the skilling domains your organization offers (one row each, minimum 1). For each: typical training hours, duration in months, when you started running it, and your annual enrollment.',
+            Q13_JF_HIST_OUTCOMES: 'Job Fulfillment Outcomes: Last 3 Fiscal Years (Actuals)',
+            Q13_JF_HIST_OUTCOMES_DESC: 'Enter your enrolment, placement actuals and average cost per placement across the three most recent fiscal years. Placement % are computed for you.',
+            Q14_JF_PROJ_OUTCOMES: 'Job Fulfillment Outcomes: Current FY Projections',
+            Q14_JF_PROJ_OUTCOMES_DESC: 'Enter your projected enrolment and placement numbers for the current fiscal year. These are forward-looking estimates. No verification block: projections aren\'t verifiable at submission.',
+
+            Q15_JOB_CREATION_APPROACH: 'Your Job Creation Approach',
+            Q15_JOB_CREATION_APPROACH_DESC: 'Tell us about your job creation work in roughly 500 words. Cover (i) your support model (capital, mentorship, business advisory, sector-specific TA, market linkages, etc.); (ii) your theory of change, the journey from engagement through to jobs created and sustained; (iii) what makes your approach different from others.',
+            Q16_BUSINESS_SECTORS: 'Business Sectors Served',
+            Q16_BUSINESS_SECTORS_DESC: 'List the business sectors in which you support entrepreneurs / Micro, Small, and Medium Enterprises. For each, tell us what type of support you provide, when you started supporting that sector, and your annual enrolment number.',
+            Q17_JC_HIST_OUTCOMES: 'Job Creation Outcomes: Last 3 Fiscal Years (Actuals)',
+            Q17_JC_HIST_OUTCOMES_DESC: 'Enter your business creation, job creation actuals and Total avg cost per job across the three most recent fiscal years. Current FY projections are captured separately below.',
+            Q18_JC_PROJ_OUTCOMES: 'Job Creation Outcomes: Current FY Projections',
+            Q18_JC_PROJ_OUTCOMES_DESC: 'Enter projected business and job-creation numbers for the current fiscal year. Forward-looking estimates; historical actuals are in the previous section.',
+
+            Q19_LIVELIHOOD_APPROACH: 'Your Livelihood Upliftment Approach',
+            Q19_LIVELIHOOD_APPROACH_DESC: 'Tell us about this work in roughly 500 words. Cover (i) who the beneficiary is and how they come to you; (ii) Describe your intervention either to help start a new business (and sustain it) or in helping grow their existing business towards helping them get family-sustaining incomes; (iii) the support that continues after any initial training, such as mentoring, market access, credit linkage or aggregation; (iv) what makes your approach different.',
+            Q20_LIVELIHOOD_PROGRAMS: 'Your Key Programs / Initiatives',
+            Q20_LIVELIHOOD_PROGRAMS_DESC: 'Tell us about your flagship programs and the type of interventions you offer. For each program / initative provide a view on what are the different interventions, how many man-hours do you spend with each beneficiary and how many beneficiaries typically enroll each year for each program.',
+            Q21_COMMUNITIES_SERVED: 'Communities that you work in',
+            Q21_COMMUNITIES_SERVED_DESC: 'Tell us where this program runs and how many beneficiaries it reaches. Use the figures you already keep; we are not asking you to build anything new for this form.',
+            Q22_LIVELIHOOD_ACTUALS: 'Livelihood Outcomes (Actuals)',
+            Q23_LIVELIHOOD_PROJ: 'Livelihood Outcomes, Current FY Projections',
+            Q23_LIVELIHOOD_PROJ_DESC: 'Projected figures for the current fiscal year. Forward-looking estimates; historical actuals are in the previous section.',
+
+            // Section 4 & Category 1 Questions (Q24, Q25, Q26, Q27, Q28)
+            Q24_INDEPENDENT_VERIFICATION: 'Independent Verification of Your Outcomes',
+            Q24_INDEPENDENT_VERIFICATION_DESC: 'This applies to every applicant, whichever track you completed. If a third party has independently verified or evaluated the outcomes you reported, you must upload the verification report. If not, we will discuss verification together at the next stage.',
+            Q24_OPERATIONAL_SYNERGIES: 'Operational Synergies',
+            Q25_SUSTAINABILITY_PLAN: 'Sustainability Plan',
+            Q25_SUSTAINABILITY_PLAN_DESC: 'How is your organization positioned to sustain its work over time? In about 100 words cover: (1) funding mix, main revenue sources; (2) programmatic resilience, dependence on any single program or contract; (3) funder concentration, reliance on one funder and how you manage that risk. A plain-language picture is all we need.',
+            Q26_ADDITIONAL_FUNDING: 'Direction for Additional Funding',
+            Q26_ADDITIONAL_FUNDING_DESC: 'Then, in words. If you were given a grant of USD 1 million a year, what would you do with it? In about 200 words, tell us how you would deploy it to scale your impact: program expansion, geographic scaling, new offerings, capacity-building, technology investment, and so on. Treat the figure as approximate; scale it to your own situation. We will work out specifics together at the next stage, so no detailed budget or M&E plan is needed here.',
+            Q27_GENIE_AI: 'Operational Synergies with GenieAI (Optional)',
+            Q27_GENIE_AI_DESC: 'GenieAI is Wadhwani Foundation\'s AI platform for skilling, entrepreneurship, and government services. This is fully optional and never disqualifying: we want your honest signal. If you\'re open to exploring synergy, tell us how it could fit. If not, that\'s a complete and acceptable answer.',
+            Q28_SUPPORTING_DOCS: 'Supporting Documents (Optional)',
+            Q28_SUPPORTING_DOCS_DESC: 'If there\'s anything else you\'d like to share in support of your application, you may upload it here.',
+
+            // Review & Submit
+            REVIEW_SUBMIT_TITLE: 'Review & Submit',
+            REVIEW_SUBMIT_DESC: 'Take a final look at what you\'ve entered. Go back to any previous section to make edits before submitting.',
+            REVIEW_SEC_ABOUT_ORG: 'ABOUT YOUR ORGANIZATION',
+            REVIEW_SEC_JOB_FULFILLMENT: 'JOB FULFILLMENT',
+            REVIEW_SEC_JOB_CREATION: 'JOB CREATION',
+            REVIEW_SEC_LIVELIHOOD: 'LIVELIHOOD UPLIFTMENT',
+            REVIEW_SEC_WHY_WADHWANI: 'WHY WADHWANI GRANTS'
+        };
+    }
+
+    _computeLabels() {
+        const d = this._getDefaultLabels();
+        return {
+            // Screen 1 & Track Selection
+            TRACK_SELECTION_TITLE: this.getQuestionLabel('TRACK_SELECTION_TITLE', d.TRACK_SELECTION_TITLE),
+            TRACK_SELECTION_SUBTITLE: this.getQuestionLabel('TRACK_SELECTION_SUBTITLE', d.TRACK_SELECTION_SUBTITLE),
+
+            // Overview & FAQ
+            OVERVIEW_TITLE: this.getQuestionLabel('OVERVIEW_TITLE', d.OVERVIEW_TITLE),
+            OVERVIEW_SEC2_TAG: 'SECTION 2',
+            OVERVIEW_SEC2_HEADING: this.getQuestionLabel('OVERVIEW_SEC2_HEADING', d.OVERVIEW_SEC2_HEADING),
+            OVERVIEW_SEC2_DESC: this.getQuestionLabel('OVERVIEW_SEC2_DESC', d.OVERVIEW_SEC2_DESC),
+            OVERVIEW_SEC3_TAG: 'SECTION 3',
+            OVERVIEW_SEC3_HEADING: this.getQuestionLabel('OVERVIEW_SEC3_HEADING', d.OVERVIEW_SEC3_HEADING),
+            OVERVIEW_SEC3_DESC: this.getQuestionLabel('OVERVIEW_SEC3_DESC', d.OVERVIEW_SEC3_DESC),
+            FAQ_SECTION_TITLE: this.getQuestionLabel('FAQ_SECTION_TITLE', d.FAQ_SECTION_TITLE),
+            FAQ_JF_TITLE: this.getQuestionLabel('FAQ_JF_TITLE', d.FAQ_JF_TITLE),
+            FAQ_JC_TITLE: this.getQuestionLabel('FAQ_JC_TITLE', d.FAQ_JC_TITLE),
+            FAQ_LIV_TITLE: this.getQuestionLabel('FAQ_LIV_TITLE', d.FAQ_LIV_TITLE),
+
+            // Section Titles & Subtitles
+            SEC_ABOUT_ORG: this.getSectionTitle('SEC_ABOUT_ORG', d.SEC_ABOUT_ORG),
+            SEC_JOB_FULFILLMENT: this.getSectionTitle('SEC_JOB_FULFILLMENT', d.SEC_JOB_FULFILLMENT),
+            SEC_JOB_CREATION: this.getSectionTitle('SEC_JOB_CREATION', d.SEC_JOB_CREATION),
+            SEC_LIVELIHOOD: this.getSectionTitle('SEC_LIVELIHOOD', d.SEC_LIVELIHOOD),
+            SEC_OUTCOMES: this.getSectionTitle('SEC_OUTCOMES', d.SEC_OUTCOMES),
+            SEC_WHY_WADHWANI: this.getSectionTitle('SEC_WHY_WADHWANI', d.SEC_WHY_WADHWANI),
+            SEC_REVIEW_SUBMIT: this.getSectionTitle('SEC_REVIEW_SUBMIT', d.SEC_REVIEW_SUBMIT),
+
+            // Section Cards (Q2 - Q6)
+            SEC2_TITLE: this.getQuestionLabel('SEC2_TITLE', d.SEC2_TITLE),
+            SEC2_DESC: this.getQuestionLabel('SEC2_DESC', d.SEC2_DESC),
+            SEC3_TITLE: this.getQuestionLabel('SEC3_TITLE', d.SEC3_TITLE),
+            SEC3_DESC: this.getQuestionLabel('SEC3_DESC', d.SEC3_DESC),
+            SEC4_TITLE: this.getQuestionLabel('SEC4_TITLE', d.SEC4_TITLE),
+            SEC4_DESC: this.getQuestionLabel('SEC4_DESC', d.SEC4_DESC),
+            SEC5_TITLE: this.getQuestionLabel('SEC5_TITLE', d.SEC5_TITLE),
+            SEC5_DESC: this.getQuestionLabel('SEC5_DESC', d.SEC5_DESC),
+            SEC6_TITLE: this.getQuestionLabel('SEC6_TITLE', d.SEC6_TITLE),
+            SEC6_DESC: this.getQuestionLabel('SEC6_DESC', d.SEC6_DESC),
+
+            // Tab 1 / Category 1 Flat Questions
+            Q1_SELECTED_TRACKS: this.getQuestionLabel('Q1_SELECTED_TRACKS', d.Q1_SELECTED_TRACKS),
+            Q2_ORG_NAME: this.getQuestionLabel('Q2_ORG_NAME', d.Q2_ORG_NAME),
+            Q2_HQ_LOCATION: this.getQuestionLabel('Q2_HQ_LOCATION', d.Q2_HQ_LOCATION),
+            Q2_PRIMARY_REGIONS: this.getQuestionLabel('Q2_PRIMARY_REGIONS', d.Q2_PRIMARY_REGIONS),
+            Q2_LEADER_NAME: this.getQuestionLabel('Q2_LEADER_NAME', d.Q2_LEADER_NAME),
+            Q2_LEADER_TITLE: this.getQuestionLabel('Q2_LEADER_TITLE', d.Q2_LEADER_TITLE),
+            Q2_LEADER_TENURE: this.getQuestionLabel('Q2_LEADER_TENURE', d.Q2_LEADER_TENURE),
+
+            Q3_SUBMITTER_NAME: this.getQuestionLabel('Q3_SUBMITTER_NAME', d.Q3_SUBMITTER_NAME),
+            Q3_JOB_TITLE: this.getQuestionLabel('Q3_JOB_TITLE', d.Q3_JOB_TITLE),
+            Q3_WORK_EMAIL: this.getQuestionLabel('Q3_WORK_EMAIL', d.Q3_WORK_EMAIL),
+            Q3_PHONE: this.getQuestionLabel('Q3_PHONE', d.Q3_PHONE),
+
+            Q4_LEGAL_TYPE: this.getQuestionLabel('Q4_LEGAL_TYPE', d.Q4_LEGAL_TYPE),
+            Q4_JURISDICTION: this.getQuestionLabel('Q4_JURISDICTION', d.Q4_JURISDICTION),
+            Q4_INCORP_DATE: this.getQuestionLabel('Q4_INCORP_DATE', d.Q4_INCORP_DATE),
+            Q4_GOVERNANCE_DESC: this.getQuestionLabel('Q4_GOVERNANCE_DESC', d.Q4_GOVERNANCE_DESC),
+            Q4_GOVERNANCE_HELPER: this.getQuestionLabel('Q4_GOVERNANCE_HELPER', d.Q4_GOVERNANCE_HELPER),
+
+            Q5_US_501C3: this.getQuestionLabel('Q5_US_501C3', d.Q5_US_501C3),
+            Q5_ED_STATUS: this.getQuestionLabel('Q5_ED_STATUS', d.Q5_ED_STATUS),
+            Q5_FCRA_STATUS: this.getQuestionLabel('Q5_FCRA_STATUS', d.Q5_FCRA_STATUS),
+            Q5_WILLING_ED: this.getQuestionLabel('Q5_WILLING_ED', d.Q5_WILLING_ED),
+
+            Q6_FISCAL_MONTH: this.getQuestionLabel('Q6_FISCAL_MONTH', d.Q6_FISCAL_MONTH),
+            Q6_FISCAL_DAY: this.getQuestionLabel('Q6_FISCAL_DAY', d.Q6_FISCAL_DAY),
+            Q6_FISCAL_DATE: this.getQuestionLabel('Q6_FISCAL_DATE', d.Q6_FISCAL_DATE),
+
+            Q7_TOP_FUNDERS: this.getQuestionLabel('Q7_TOP_FUNDERS', d.Q7_TOP_FUNDERS),
+            Q7_TOP_FUNDERS_DESC: this.getQuestionLabel('Q7_TOP_FUNDERS_DESC', d.Q7_TOP_FUNDERS_DESC),
+            Q8_REFERENCES: this.getQuestionLabel('Q8_REFERENCES', d.Q8_REFERENCES),
+            Q8_REFERENCES_DESC: this.getQuestionLabel('Q8_REFERENCES_DESC', d.Q8_REFERENCES_DESC),
+
+            // Financials & Outcomes (Q9 & Q10)
+            Q9_HIST_FINANCIALS: this.getQuestionLabel('Q9_HIST_FINANCIALS', d.Q9_HIST_FINANCIALS),
+            Q9_HIST_FINANCIALS_DESC: this.getQuestionLabel('Q9_HIST_FINANCIALS_DESC', d.Q9_HIST_FINANCIALS_DESC),
+            Q10_CURRENT_FY: this.getQuestionLabel('Q10_CURRENT_FY', d.Q10_CURRENT_FY),
+            Q10_CURRENT_FY_DESC: this.getQuestionLabel('Q10_CURRENT_FY_DESC', d.Q10_CURRENT_FY_DESC),
+            Q10_EXPLANATION_LABEL: this.getQuestionLabel('Q10_EXPLANATION_LABEL', d.Q10_EXPLANATION_LABEL),
+            Q10_EXPLANATION_DESC: this.getQuestionLabel('Q10_EXPLANATION_DESC', d.Q10_EXPLANATION_DESC),
+
+            // Track Questions
+            Q11_SKILLING_APPROACH: this.getQuestionLabel('Q11_SKILLING_APPROACH', d.Q11_SKILLING_APPROACH),
+            Q11_SKILLING_APPROACH_DESC: this.getQuestionLabel('Q11_SKILLING_APPROACH_DESC', d.Q11_SKILLING_APPROACH_DESC),
+            Q12_SKILLING_DOMAINS: this.getQuestionLabel('Q12_SKILLING_DOMAINS', d.Q12_SKILLING_DOMAINS),
+            Q12_SKILLING_DOMAINS_DESC: this.getQuestionLabel('Q12_SKILLING_DOMAINS_DESC', d.Q12_SKILLING_DOMAINS_DESC),
+            Q13_JF_HIST_OUTCOMES: this.getQuestionLabel('Q13_JF_HIST_OUTCOMES', d.Q13_JF_HIST_OUTCOMES),
+            Q13_JF_HIST_OUTCOMES_DESC: this.getQuestionLabel('Q13_JF_HIST_OUTCOMES_DESC', d.Q13_JF_HIST_OUTCOMES_DESC),
+            Q14_JF_PROJ_OUTCOMES: this.getQuestionLabel('Q14_JF_PROJ_OUTCOMES', d.Q14_JF_PROJ_OUTCOMES),
+            Q14_JF_PROJ_OUTCOMES_DESC: this.getQuestionLabel('Q14_JF_PROJ_OUTCOMES_DESC', d.Q14_JF_PROJ_OUTCOMES_DESC),
+
+            Q15_JOB_CREATION_APPROACH: this.getQuestionLabel('Q15_JOB_CREATION_APPROACH', d.Q15_JOB_CREATION_APPROACH),
+            Q15_JOB_CREATION_APPROACH_DESC: this.getQuestionLabel('Q15_JOB_CREATION_APPROACH_DESC', d.Q15_JOB_CREATION_APPROACH_DESC),
+            Q16_BUSINESS_SECTORS: this.getQuestionLabel('Q16_BUSINESS_SECTORS', d.Q16_BUSINESS_SECTORS),
+            Q16_BUSINESS_SECTORS_DESC: this.getQuestionLabel('Q16_BUSINESS_SECTORS_DESC', d.Q16_BUSINESS_SECTORS_DESC),
+            Q17_JC_HIST_OUTCOMES: this.getQuestionLabel('Q17_JC_HIST_OUTCOMES', d.Q17_JC_HIST_OUTCOMES),
+            Q17_JC_HIST_OUTCOMES_DESC: this.getQuestionLabel('Q17_JC_HIST_OUTCOMES_DESC', d.Q17_JC_HIST_OUTCOMES_DESC),
+            Q18_JC_PROJ_OUTCOMES: this.getQuestionLabel('Q18_JC_PROJ_OUTCOMES', d.Q18_JC_PROJ_OUTCOMES),
+            Q18_JC_PROJ_OUTCOMES_DESC: this.getQuestionLabel('Q18_JC_PROJ_OUTCOMES_DESC', d.Q18_JC_PROJ_OUTCOMES_DESC),
+
+            Q19_LIVELIHOOD_APPROACH: this.getQuestionLabel('Q19_LIVELIHOOD_APPROACH', d.Q19_LIVELIHOOD_APPROACH),
+            Q19_LIVELIHOOD_APPROACH_DESC: this.getQuestionLabel('Q19_LIVELIHOOD_APPROACH_DESC', d.Q19_LIVELIHOOD_APPROACH_DESC),
+            Q20_LIVELIHOOD_PROGRAMS: this.getQuestionLabel('Q20_LIVELIHOOD_PROGRAMS', d.Q20_LIVELIHOOD_PROGRAMS),
+            Q20_LIVELIHOOD_PROGRAMS_DESC: this.getQuestionLabel('Q20_LIVELIHOOD_PROGRAMS_DESC', d.Q20_LIVELIHOOD_PROGRAMS_DESC),
+            Q21_COMMUNITIES_SERVED: this.getQuestionLabel('Q21_COMMUNITIES_SERVED', d.Q21_COMMUNITIES_SERVED),
+            Q21_COMMUNITIES_SERVED_DESC: this.getQuestionLabel('Q21_COMMUNITIES_SERVED_DESC', d.Q21_COMMUNITIES_SERVED_DESC),
+            Q22_LIVELIHOOD_ACTUALS: this.getQuestionLabel('Q22_LIVELIHOOD_ACTUALS', d.Q22_LIVELIHOOD_ACTUALS),
+            Q23_LIVELIHOOD_PROJ: this.getQuestionLabel('Q23_LIVELIHOOD_PROJ', d.Q23_LIVELIHOOD_PROJ),
+            Q23_LIVELIHOOD_PROJ_DESC: this.getQuestionLabel('Q23_LIVELIHOOD_PROJ_DESC', d.Q23_LIVELIHOOD_PROJ_DESC),
+
+            // Section 4 & Category 1 Questions (Q24, Q25, Q26, Q27, Q28)
+            Q24_INDEPENDENT_VERIFICATION: this.getQuestionLabel('Q24_INDEPENDENT_VERIFICATION', d.Q24_INDEPENDENT_VERIFICATION),
+            Q24_INDEPENDENT_VERIFICATION_DESC: this.getQuestionLabel('Q24_INDEPENDENT_VERIFICATION_DESC', d.Q24_INDEPENDENT_VERIFICATION_DESC),
+            Q24_OPERATIONAL_SYNERGIES: this.getQuestionLabel('Q24_OPERATIONAL_SYNERGIES', d.Q24_OPERATIONAL_SYNERGIES),
+            Q25_SUSTAINABILITY_PLAN: this.getQuestionLabel('Q25_SUSTAINABILITY_PLAN', d.Q25_SUSTAINABILITY_PLAN),
+            Q25_SUSTAINABILITY_PLAN_DESC: this.getQuestionLabel('Q25_SUSTAINABILITY_PLAN_DESC', d.Q25_SUSTAINABILITY_PLAN_DESC),
+            Q26_ADDITIONAL_FUNDING: this.getQuestionLabel('Q26_ADDITIONAL_FUNDING', d.Q26_ADDITIONAL_FUNDING),
+            Q26_ADDITIONAL_FUNDING_DESC: this.getQuestionLabel('Q26_ADDITIONAL_FUNDING_DESC', d.Q26_ADDITIONAL_FUNDING_DESC),
+            Q27_GENIE_AI: this.getQuestionLabel('Q27_GENIE_AI', d.Q27_GENIE_AI),
+            Q27_GENIE_AI_DESC: this.getQuestionLabel('Q27_GENIE_AI_DESC', d.Q27_GENIE_AI_DESC),
+            Q28_SUPPORTING_DOCS: this.getQuestionLabel('Q28_SUPPORTING_DOCS', d.Q28_SUPPORTING_DOCS),
+            Q28_SUPPORTING_DOCS_DESC: this.getQuestionLabel('Q28_SUPPORTING_DOCS_DESC', d.Q28_SUPPORTING_DOCS_DESC),
+
+            // Review & Submit
+            REVIEW_SUBMIT_TITLE: this.getQuestionLabel('REVIEW_SUBMIT_TITLE', d.REVIEW_SUBMIT_TITLE),
+            REVIEW_SUBMIT_DESC: this.getQuestionLabel('REVIEW_SUBMIT_DESC', d.REVIEW_SUBMIT_DESC),
+            REVIEW_SEC_ABOUT_ORG: this.getSectionTitle('SEC_ABOUT_ORG', d.REVIEW_SEC_ABOUT_ORG),
+            REVIEW_SEC_JOB_FULFILLMENT: this.getSectionTitle('SEC_JOB_FULFILLMENT', d.REVIEW_SEC_JOB_FULFILLMENT),
+            REVIEW_SEC_JOB_CREATION: this.getSectionTitle('SEC_JOB_CREATION', d.REVIEW_SEC_JOB_CREATION),
+            REVIEW_SEC_LIVELIHOOD: this.getSectionTitle('SEC_LIVELIHOOD', d.REVIEW_SEC_LIVELIHOOD),
+            REVIEW_SEC_WHY_WADHWANI: this.getSectionTitle('SEC_WHY_WADHWANI', d.REVIEW_SEC_WHY_WADHWANI)
+        };
+    }
+
+    connectedCallback() {
+        this.labels = this._getDefaultLabels();
+        this._partitionSectionQuestions();
+        try {
+            this._beforeUnloadHandler = (event) => {
+                if (this.isDirty) {
+                    event.preventDefault();
+                    event.returnValue = '';
+                    return '';
+                }
+            };
+            window.addEventListener('beforeunload', this._beforeUnloadHandler);
+        } catch (e) {
+            // Sandboxed iframe safety
+        }
+
+        this.loadMetadata();
+        this._loadPdfLibraries();
+        loadStyle(this, WCF_FOCUS_STYLES).catch(err => console.warn('Focus style load warning:', err));
+        this.loadDraftData();
+    }
+
+    renderedCallback() {
+        this._managePhoneIti();
+        if (this.formValues.Headquarters_City_and_Country__c && !this.hqSearchKey) {
+            this.hqSearchKey = this.formValues.Headquarters_City_and_Country__c;
+        }
+
+        // Sync rich text contenteditable divs with loaded formValues
+        const richTextElements = this.template.querySelectorAll('div[contenteditable="true"]');
+        richTextElements.forEach(el => {
+            const field = el.dataset?.field || el.dataset?.id || el.dataset?.key;
+            if (field && this.formValues[field] !== undefined && document.activeElement !== el) {
+                if (el.innerHTML !== this.formValues[field]) {
+                    el.innerHTML = this.formValues[field];
+                }
+            }
+        });
+
+        this._setupFileUploadObservers();
+    }
+
+    disconnectedCallback() {
+        this._destroyPhoneIti();
+        if (this._q24FileObserver) {
+            this._q24FileObserver.disconnect();
+            this._q24FileObserver = null;
+        }
+        if (this._q28FileObserver) {
+            this._q28FileObserver.disconnect();
+            this._q28FileObserver = null;
+        }
+        try {
+            if (this._beforeUnloadHandler) {
+                window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+            }
+        } catch (e) { }
+    }
+
+    @track metadataQuestions = [];
+    @track metadataTracks = [];
+    @track metadataSections = [];
+    @track labelMap = {};
+
+    _buildMetadataLookups() {
+        this._metadataQuestionsMap.clear();
+        if (this.metadataQuestions && this.metadataQuestions.length) {
+            for (let i = 0; i < this.metadataQuestions.length; i++) {
+                const q = this.metadataQuestions[i];
+                if (q.key) this._metadataQuestionsMap.set(q.key, q);
+                if (q.targetField) this._metadataQuestionsMap.set(q.targetField, q);
+                if (q.Question_Code__c) this._metadataQuestionsMap.set(q.Question_Code__c, q);
+                if (q.Field_API_Name__c) this._metadataQuestionsMap.set(q.Field_API_Name__c, q);
+            }
+        }
+        this._metadataSectionsMap.clear();
+        if (this.metadataSections && this.metadataSections.length) {
+            for (let i = 0; i < this.metadataSections.length; i++) {
+                const s = this.metadataSections[i];
+                if (s.code) this._metadataSectionsMap.set(s.code, s);
+            }
+        }
+    }
+
+    _partitionSectionQuestions() {
+        const defaultsQ2 = [
+            { key: 'Q2_ORG_NAME', targetField: 'Organization_Name__c', label: 'Organization Name', displayType: 'Text', isRequired: true, sequence: 1 },
+            { key: 'Q2_HQ_LOCATION', targetField: 'Headquarters_City_and_Country__c', label: 'Headquarters City and Country', displayType: 'Text', isRequired: true, sequence: 2 },
+            { key: 'Q2_PRIMARY_REGIONS', targetField: 'Primary_Service_Regions__c', label: 'Primary Service Regions (countries, then regions within them, in priority order)', displayType: 'Text', isRequired: true, sequence: 3 },
+            { key: 'Q2_LEADER_NAME', targetField: 'Leader_Name__c', label: 'Leader Name', displayType: 'Text', isRequired: true, sequence: 4 },
+            { key: 'Q2_LEADER_TITLE', targetField: 'Leader_Title__c', label: 'Leader Designation / Title', displayType: 'Text', isRequired: true, sequence: 5 },
+            { key: 'Q2_LEADER_TENURE', targetField: 'Leader_Tenure__c', label: 'Leader Tenure, years in role (Optional)', displayType: 'Number', isRequired: false, sequence: 6 }
+        ];
+        const defaultsQ3 = [
+            { key: 'Q3_SUBMITTER_NAME', targetField: 'Submitter_Name__c', label: 'Submitter Name', displayType: 'Text', isRequired: true, sequence: 1 },
+            { key: 'Q3_JOB_TITLE', targetField: 'Job_Title__c', label: 'Job Title', displayType: 'Text', isRequired: true, sequence: 2 },
+            { key: 'Q3_PHONE', targetField: 'Phone__c', label: 'Phone Number (country code + number)', displayType: 'Phone', isRequired: true, sequence: 3 },
+            { key: 'Q3_WORK_EMAIL', targetField: 'Work_Email_ID__c', label: 'Work Email', displayType: 'Email', isRequired: true, sequence: 4 }
+        ];
+        const defaultsQ4 = [
+            { key: 'Q4_LEGAL_TYPE', targetField: 'Legal_Type__c', label: 'Entity Type', displayType: 'Picklist', isRequired: true, sequence: 1 },
+            { key: 'Q4_JURISDICTION', targetField: 'Registration_Jurisdiction__c', label: 'Registration Jurisdiction (country)', displayType: 'Picklist', isRequired: true, sequence: 2 },
+            { key: 'Q4_INCORP_DATE', targetField: 'Incorporation_Date__c', label: 'Registration / Incorporation Date (DD/MM/YYYY)', displayType: 'Date', isRequired: true, sequence: 3 }
+        ];
+        const defaultsQ4Gov = [
+            { key: 'Q4_GOVERNANCE_DESC', targetField: 'Legal_Structure__c', label: 'Brief description (<100 words): governance and operational structure: board, leadership, key affiliations.', displayType: 'TextArea', isRequired: true, sequence: 4 }
+        ];
+        const defaultsQ5 = [
+            { key: 'Q5_US_501C3', targetField: 'Has_501c3_Status__c', label: 'Do you have 501(c)(3) status in the US?', displayType: 'Picklist', isRequired: true, sequence: 1 },
+            { key: 'Q5_ED_STATUS', targetField: 'Has_Equivalency_Determination__c', label: 'Do you have an Equivalency Determination (ED) in place?', displayType: 'Picklist', isRequired: true, sequence: 2 },
+            { key: 'Q5_FCRA_STATUS', targetField: 'Is_FCRA_Registered__c', label: 'If you operate in India, are you FCRA-registered?', displayType: 'Picklist', isRequired: true, sequence: 3 },
+            { key: 'Q5_WILLING_ED', targetField: 'Willing_to_Pursue_ED__c', label: 'If none of the above apply, would you be willing to pursue ED certification if selected?', displayType: 'Picklist', isRequired: true, sequence: 4 }
+        ];
+        const defaultsQ6 = [
+            { key: 'Q6_FISCAL_MONTH', targetField: 'Fiscal_Month__c', label: 'Month', displayType: 'Picklist', isRequired: true, sequence: 1 },
+            { key: 'Q6_FISCAL_DAY', targetField: 'Fiscal_Day__c', label: 'Day', displayType: 'Picklist', isRequired: true, sequence: 2 }
+        ];
+
+        const getList = (sectionCode, keyPrefix, defaults, extraFilterFn) => {
+            let list = [];
+            if (this.metadataQuestions && this.metadataQuestions.length) {
+                const matched = this.metadataQuestions.filter(q => {
+                    const qKey = q.key || q.Question_Code__c || q.DeveloperName || '';
+                    const qSec = q.sectionCode || q.Section_Code__c || '';
+                    const matchesKey = qKey && qKey.toUpperCase().startsWith(keyPrefix.toUpperCase());
+                    const matchesSection = qSec === sectionCode || qSec.toUpperCase() === keyPrefix.toUpperCase();
+                    const passes = matchesKey || matchesSection;
+                    return passes && (extraFilterFn ? extraFilterFn(q) : true);
+                });
+                if (matched.length > 0) {
+                    list = [...matched].sort((a, b) => (a.sequence || 99) - (b.sequence || 99));
+                }
+            }
+            return (list.length > 0) ? list : defaults;
+        };
+
+        this._sectionQuestionsDef = {
+            q2: getList('SEC_ABOUT_ORG', 'Q2_', defaultsQ2),
+            q3: getList('SEC_ABOUT_ORG', 'Q3_', defaultsQ3),
+            q4: getList('SEC_ABOUT_ORG', 'Q4_', defaultsQ4, q => {
+                const k = q.key || q.Question_Code__c || '';
+                const f = q.targetField || q.Field_API_Name__c || '';
+                return k !== 'Q4_GOVERNANCE_DESC' && f !== 'Legal_Structure__c';
+            }),
+            q4Gov: getList('SEC_ABOUT_ORG', 'Q4_GOVERNANCE', defaultsQ4Gov, q => {
+                const k = q.key || q.Question_Code__c || '';
+                const f = q.targetField || q.Field_API_Name__c || '';
+                return k === 'Q4_GOVERNANCE_DESC' || f === 'Legal_Structure__c';
+            }),
+            q5: getList('SEC_ABOUT_ORG', 'Q5_', defaultsQ5),
+            q6: getList('SEC_ABOUT_ORG', 'Q6_', defaultsQ6)
+        };
+    }
+
+    _partitionCustomQuestions() {
+        if (!this.metadataQuestions || !this.metadataQuestions.length) {
+            this._customQuestionsDef = { q2: [], q3: [], q4: [], q5: [], q6: [], q7: [], q8: [], aboutOrg: [], jf: [], jc: [], liv: [], why: [] };
+            return;
+        }
+        const custom = this.metadataQuestions.filter(q => q.isCustom);
+        const q2 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q2' || q.sectionCode === 'Q2'
+        ) && (
+                (q.key && q.key.toUpperCase().startsWith('Q2_')) ||
+                (q.targetField && q.targetField.toLowerCase() === 'annual_volunteer_count__c')
+            ));
+        const q3 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q3' || q.sectionCode === 'Q3'
+        ) && q.key && q.key.toUpperCase().startsWith('Q3_'));
+        const q4 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q4' || q.sectionCode === 'Q4'
+        ) && q.key && q.key.toUpperCase().startsWith('Q4_'));
+        const q5 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q5' || q.sectionCode === 'Q5'
+        ) && q.key && q.key.toUpperCase().startsWith('Q5_'));
+        const q6 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q6' || q.sectionCode === 'Q6'
+        ) && q.key && q.key.toUpperCase().startsWith('Q6_'));
+        const q7 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q7' || q.sectionCode === 'Q7'
+        ) && q.key && q.key.toUpperCase().startsWith('Q7_'));
+        const q8 = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'SEC_ABOUT_ORG_Q8' || q.sectionCode === 'Q8'
+        ) && q.key && q.key.toUpperCase().startsWith('Q8_'));
+
+        const renderedKeySet = new Set();
+        [...q2, ...q3, ...q4, ...q5, ...q6, ...q7, ...q8].forEach(q => {
+            if (q.key) renderedKeySet.add(q.key);
+            if (q.targetField) renderedKeySet.add(q.targetField);
+        });
+
+        const aboutOrg = custom.filter(q => (
+            q.sectionCode === 'SEC_ABOUT_ORG' || q.sectionCode === 'ABOUT_ORG'
+        ) && !renderedKeySet.has(q.key) && !renderedKeySet.has(q.targetField));
+
+        const jf = custom.filter(q => (
+            q.sectionCode === 'SEC_JOB_FULFILLMENT' || q.sectionCode === 'SEC_WHAT_YOU_DO' || q.sectionCode === 'JOB_FULFILLMENT'
+        ));
+        const jc = custom.filter(q => (
+            q.sectionCode === 'SEC_JOB_CREATION' || q.sectionCode === 'JOB_CREATION'
+        ));
+        const liv = custom.filter(q => (
+            q.sectionCode === 'SEC_LIVELIHOOD' || q.sectionCode === 'LIVELIHOOD'
+        ));
+        const why = custom.filter(q => (
+            q.sectionCode === 'SEC_WHY_WADHWANI' || q.sectionCode === 'SEC_WHY_WCF' || q.sectionCode === 'WHY_WADHWANI'
+        ));
+
+        this._customQuestionsDef = { q2, q3, q4, q5, q6, q7, q8, aboutOrg, jf, jc, liv, why };
+    }
+
+    loadMetadata() {
+        getFormMetadata({
+            languageCode: this.selectedLanguage || 'en_US',
+            fiscalMonth: this.formValues.Fiscal_Month__c || '03',
+            fiscalDay: this.formValues.Fiscal_Day__c || '31'
+        })
+            .then(result => {
+                if (result && result.questions) {
+                    this.metadataQuestions = result.questions;
+                }
+                if (result && result.tracks) {
+                    this.metadataTracks = result.tracks;
+                }
+                if (result && result.sections) {
+                    this.metadataSections = result.sections;
+                }
+                if (result && result.fiscalYears) {
+                    this.fiscalYears = result.fiscalYears;
+                }
+                if (result && result.labelMap) {
+                    this.labelMap = result.labelMap;
+                }
+                this._buildMetadataLookups();
+                this._partitionSectionQuestions();
+                this._partitionCustomQuestions();
+                this.labels = this._computeLabels();
+            })
+            .catch(err => {
+                console.warn('Metadata load warning:', err);
+            });
+    }
+
+    getQuestionLabel(key, defaultVal) {
+        let raw = defaultVal;
+        if (this.labelMap && this.labelMap[key]) {
+            raw = this.labelMap[key];
+        } else if (this._metadataQuestionsMap.has(key)) {
+            const found = this._metadataQuestionsMap.get(key);
+            if (found && found.label) raw = found.label;
+        } else if (this.metadataQuestions && this.metadataQuestions.length) {
+            const found = this.metadataQuestions.find(q => q.key === key || q.targetField === key);
+            if (found && found.label) raw = found.label;
+        }
+        return cleanTitle(raw);
+    }
+
+    getSectionTitle(code, defaultVal) {
+        let raw = defaultVal;
+        if (this.labelMap && this.labelMap[code]) {
+            raw = this.labelMap[code];
+        } else if (this._metadataSectionsMap.has(code)) {
+            const found = this._metadataSectionsMap.get(code);
+            if (found && found.title) raw = found.title;
+        } else if (this.metadataSections && this.metadataSections.length) {
+            const found = this.metadataSections.find(s => s.code === code);
+            if (found && found.title) raw = found.title;
+        }
+        return cleanTitle(raw);
+    }
+
+    _buildQuestionItem(q) {
+        const key = q.key || q.Question_Code__c || q.DeveloperName || q.targetField;
+        const targetField = q.targetField || q.Field_API_Name__c || key;
+        const label = this.getQuestionLabel(key, q.label || q.Label__c || q.MasterLabel || key);
+        const dt = (q.displayType || q.Display_Type__c || 'Text').toLowerCase();
+
+        let val = this.formValues[targetField];
+        if (val === undefined && targetField) {
+            const targetLower = targetField.toLowerCase();
+            const matchedKey = Object.keys(this.formValues).find(k => k.toLowerCase() === targetLower);
+            if (matchedKey) val = this.formValues[matchedKey];
+        }
+        if (val === undefined) val = '';
+
+        let isRequired = q.isRequired !== undefined ? q.isRequired : true;
+        if (key === 'Q2_LEADER_TENURE' || targetField === 'Leader_Tenure__c') {
+            isRequired = false;
+        }
+
+        const isHqSearch = key === 'Q2_HQ_LOCATION' || targetField === 'Headquarters_City_and_Country__c';
+        const isPhoneInput = key === 'Q3_PHONE' || targetField === 'Phone__c' || dt === 'phone';
+        const isEmail = (key === 'Q3_WORK_EMAIL' || targetField === 'Work_Email_ID__c' || dt === 'email') && !isPhoneInput;
+        const isNumber = (key === 'Q2_LEADER_TENURE' || targetField === 'Leader_Tenure__c' || dt === 'number' || dt === 'currency' || dt === 'percent') && !isPhoneInput;
+
+        const isLegalType = key === 'Q4_LEGAL_TYPE' || targetField === 'Legal_Type__c';
+        const isJurisdiction = key === 'Q4_JURISDICTION' || targetField === 'Registration_Jurisdiction__c';
+        const isIncorpDate = key === 'Q4_INCORP_DATE' || targetField === 'Incorporation_Date__c';
+        const isGovernanceRichText = key === 'Q4_GOVERNANCE_DESC' || targetField === 'Legal_Structure__c';
+
+        const isCompliancePicklist = (key && key.startsWith('Q5_')) || (targetField && (targetField.includes('501c3') || targetField.includes('Equivalency') || targetField.includes('FCRA') || targetField.includes('Willing')));
+        const isFiscalMonth = key === 'Q6_FISCAL_MONTH' || targetField === 'Fiscal_Month__c';
+        const isFiscalDay = key === 'Q6_FISCAL_DAY' || targetField === 'Fiscal_Day__c';
+
+        const isPicklist = (dt === 'picklist' || dt === 'combobox') && !isLegalType && !isJurisdiction && !isCompliancePicklist && !isFiscalMonth && !isFiscalDay;
+        const isDate = (dt === 'date' || dt === 'datetime') && !isIncorpDate;
+        const isTextArea = (dt === 'textarea' || dt === 'richtext') && !isGovernanceRichText;
+        const isCheckbox = (dt === 'checkbox' || dt === 'boolean');
+        const isText = !isHqSearch && !isPhoneInput && !isEmail && !isNumber && !isLegalType && !isJurisdiction && !isIncorpDate && !isGovernanceRichText && !isCompliancePicklist && !isFiscalMonth && !isFiscalDay && !isPicklist && !isDate && !isTextArea && !isCheckbox;
+
+        let options = [];
+        if (isLegalType) {
+            options = this.legalTypeOptions;
+        } else if (isJurisdiction) {
+            options = this.countryOptions;
+        } else if (key === 'Q5_FCRA_STATUS') {
+            options = this.yesNoNotApplicableOptions;
+        } else if (isCompliancePicklist) {
+            options = this.yesNoOptions;
+        } else if (isFiscalMonth) {
+            options = this.fiscalMonthOptions;
+        } else if (isFiscalDay) {
+            options = this.fiscalDayOptions;
+        } else if (q.options && q.options.length) {
+            options = q.options;
+        } else if (q.picklistOptions && q.picklistOptions.length) {
+            options = q.picklistOptions;
+        }
+
+        let wrapperClass = 'modern-field';
+        if (key === 'Q2_PRIMARY_REGIONS' || targetField === 'Primary_Service_Regions__c' || isTextArea) {
+            wrapperClass = 'modern-field full-width';
+        } else if (key === 'Q2_LEADER_TENURE' || targetField === 'Leader_Tenure__c') {
+            wrapperClass = 'modern-field optional-field';
+        }
+
+        let helpText = q.helpText;
+        if (!helpText && (key === 'Q4_GOVERNANCE_DESC' || targetField === 'Legal_Structure__c')) {
+            helpText = this.getQuestionLabel('Q4_GOVERNANCE_HELPER', 'Briefly describe your governance and operational structure: board, leadership, key affiliations (<100 words).');
+        }
+
+        return {
+            key,
+            targetField,
+            label,
+            value: val,
+            isRequired,
+            helpText: helpText,
+            placeholder: q.placeholder || '',
+            wrapperClass,
+            isHqSearch,
+            isPhoneInput,
+            isEmail,
+            isNumber,
+            isLegalType,
+            isJurisdiction,
+            isIncorpDate,
+            isGovernanceRichText,
+            isCompliancePicklist,
+            isFiscalMonth,
+            isFiscalDay,
+            isPicklist,
+            isDate,
+            isTextArea,
+            isCheckbox,
+            isText,
+            options
+        };
+    }
+
+    get q2Questions() {
+        const list = this._sectionQuestionsDef?.q2 || [];
+        return list.map(q => this._buildQuestionItem(q));
+    }
+
+    get q3Questions() {
+        const list = this._sectionQuestionsDef?.q3 || [];
+        return list.map(q => this._buildQuestionItem(q));
+    }
+
+    get q4Questions() {
+        const list = this._sectionQuestionsDef?.q4 || [];
+        return list.map(q => this._buildQuestionItem(q));
+    }
+
+    get q4GovernanceQuestions() {
+        const list = this._sectionQuestionsDef?.q4Gov || [];
+        return list.map(q => this._buildQuestionItem(q));
+    }
+
+    get q5Questions() {
+        const list = this._sectionQuestionsDef?.q5 || [];
+        return list.map(q => this._buildQuestionItem(q));
+    }
+
+    get q6Questions() {
+        const list = this._sectionQuestionsDef?.q6 || [];
+        return list.map(q => this._buildQuestionItem(q));
+    }
+
+    _mapCustomQuestions(items, basePrefix) {
+        if (!items || !items.length) return [];
+        return items.map((q, idx) => {
+            let val = undefined;
+            if (q.targetField) {
+                val = this.formValues[q.targetField];
+                if (val === undefined) {
+                    const targetLower = q.targetField.toLowerCase();
+                    const matchedKey = Object.keys(this.formValues).find(k => k.toLowerCase() === targetLower);
+                    if (matchedKey) {
+                        val = this.formValues[matchedKey];
+                    }
+                }
+            }
+            if (val === undefined && q.key) {
+                val = this.formValues[q.key];
+            }
+            const dt = (q.displayType || 'Text').toLowerCase();
+            let displayVal = val;
+            if (val === undefined || val === null || val === '') {
+                displayVal = '—';
+            } else if (typeof val === 'boolean' || dt === 'checkbox' || dt === 'boolean') {
+                displayVal = (val === true || val === 'true') ? 'Yes' : 'No';
+            }
+            const rawOpts = q.options || q.picklistOptions || [];
+            const options = rawOpts.map(opt => {
+                if (typeof opt === 'string') {
+                    const cleanOpt = opt.trim();
+                    return { label: cleanOpt, value: cleanOpt };
+                }
+                return opt;
+            });
+            const keyVal = q.key || q.targetField || `cq-${idx}`;
+            return {
+                ...q,
+                key: keyVal,
+                displayNumber: basePrefix ? `${basePrefix}.${idx + 1}` : `${idx + 1}`,
+                value: (val !== undefined && val !== null) ? val : '',
+                displayValue: String(displayVal),
+                isText: dt === 'text' || dt === 'string' || dt === 'phone' || dt === 'email',
+                isTextArea: dt === 'textarea' || dt === 'richtext',
+                isNumber: dt === 'number' || dt === 'currency' || dt === 'percent',
+                isDate: dt === 'date' || dt === 'datetime',
+                isCheckbox: dt === 'checkbox' || dt === 'boolean',
+                isPicklist: (dt === 'picklist' || dt === 'combobox') && options.length > 0,
+                options: options,
+                wrapperClass: (dt === 'textarea' || dt === 'richtext') ? 'modern-field full-width' : 'modern-field'
+            };
+        });
+    }
+
+    _getCustomQuestions(filterFn, basePrefix) {
+        if (!this.metadataQuestions || !this.metadataQuestions.length) return [];
+        const filtered = this.metadataQuestions.filter(q => q.isCustom && (filterFn ? filterFn(q) : true));
+        return this._mapCustomQuestions(filtered, basePrefix);
+    }
+
+    // Sub-section 2: Organizational Identifying Information (e.g. Q2_VOLUNTEER_COUNT, Annual_Volunteer_Count__c)
+    get customQuestionsQ2() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q2, '2');
+    }
+    get hasCustomQuestionsQ2() {
+        return (this._customQuestionsDef?.q2?.length || 0) > 0;
+    }
+
+    // Sub-section 3: Submitter Contact Information
+    get customQuestionsQ3() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q3, '3');
+    }
+    get hasCustomQuestionsQ3() {
+        return (this._customQuestionsDef?.q3?.length || 0) > 0;
+    }
+
+    // Sub-section 4: Legal & Governance Structure
+    get customQuestionsQ4() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q4, '4');
+    }
+    get hasCustomQuestionsQ4() {
+        return (this._customQuestionsDef?.q4?.length || 0) > 0;
+    }
+
+    // Sub-section 5: Legal & Tax Compliance
+    get customQuestionsQ5() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q5, '5');
+    }
+    get hasCustomQuestionsQ5() {
+        return (this._customQuestionsDef?.q5?.length || 0) > 0;
+    }
+
+    // Sub-section 6: Fiscal Year
+    get customQuestionsQ6() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q6, '6');
+    }
+    get hasCustomQuestionsQ6() {
+        return (this._customQuestionsDef?.q6?.length || 0) > 0;
+    }
+
+    // Sub-section 7: Top Funders
+    get customQuestionsQ7() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q7, '7');
+    }
+    get hasCustomQuestionsQ7() {
+        return (this._customQuestionsDef?.q7?.length || 0) > 0;
+    }
+
+    // Sub-section 8: References
+    get customQuestionsQ8() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.q8, '8');
+    }
+    get hasCustomQuestionsQ8() {
+        return (this._customQuestionsDef?.q8?.length || 0) > 0;
+    }
+
+    // General Custom Questions for Tab 1 (About Org) - remaining ones
+    get customQuestionsAboutOrg() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.aboutOrg, '10');
+    }
+    get hasCustomQuestionsAboutOrg() {
+        return (this._customQuestionsDef?.aboutOrg?.length || 0) > 0;
+    }
+
+    get customQuestionsJobFulfillment() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.jf, `Q${this.qNum?.Q14 || '14'}`);
+    }
+    get hasCustomQuestionsJobFulfillment() {
+        return (this._customQuestionsDef?.jf?.length || 0) > 0;
+    }
+
+    get customQuestionsJobCreation() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.jc, `Q${this.qNum?.Q18 || '18'}`);
+    }
+    get hasCustomQuestionsJobCreation() {
+        return (this._customQuestionsDef?.jc?.length || 0) > 0;
+    }
+
+    get customQuestionsLivelihood() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.liv, `Q${this.qNum?.Q23 || '23'}`);
+    }
+    get hasCustomQuestionsLivelihood() {
+        return (this._customQuestionsDef?.liv?.length || 0) > 0;
+    }
+
+    get customQuestionsWhyWadhwani() {
+        return this._mapCustomQuestions(this._customQuestionsDef?.why, `Q${this.qNum?.Q28 || '28'}`);
+    }
+    get hasCustomQuestionsWhyWadhwani() {
+        return (this._customQuestionsDef?.why?.length || 0) > 0;
+    }
+
+    loadDraftData() {
+        this.isLoading = true;
+        getDynamicDraft({ recordId: this.recordId })
+            .then(result => {
+                if (result && result.isSuccess) {
+                    if (result.recordId) {
+                        this.recordId = result.recordId;
+                    }
+
+                    // 1. Tracks & Screen
+                    if (result.selectedTracks && result.selectedTracks.length > 0) {
+                        this.selectedTracks = [...result.selectedTracks];
+                        this.currentScreen = 'screen2'; // Jump directly to the form screen
+                    }
+
+                    // 2. Active Tab
+                    if (result.activeTabId) {
+                        this.activeTabId = result.activeTabId;
+                    }
+
+                    // 3. Form Values
+                    if (result.formValues) {
+                        this.formValues = {
+                            ...this.formValues,
+                            ...result.formValues
+                        };
+
+                        if (this.formValues.Headquarters_City_and_Country__c) {
+                            this.hqSearchKey = this.formValues.Headquarters_City_and_Country__c;
+                        }
+
+                        // Non-blank saved value = user chose it. Blank = keep following the submitter.
+                        this._attestNameEdited = !!String(this.formValues.Attesting_User_Name__c || '').trim();
+                        this._attestTitleEdited = !!String(this.formValues.Attesting_User_Title__c || '').trim();
+
+                        // Sync native phone input DOM if ITI is already initialized
+                        const phoneInput = this.template.querySelector('input[data-id="phone"]');
+                        if (phoneInput && this._phoneIti && this.formValues.Phone__c) {
+                            const storedDial = this._extractDialCode(this.formValues.WG_Phone_Country_Code__c) || this._currentDialCode();
+                            if (storedDial) {
+                                try { this._phoneIti.setNumber(storedDial + this.formValues.Phone__c); }
+                                catch (e) { /* ignore */ }
+                            }
+                            phoneInput.value = this._normalizeNationalNumber(
+                                this.formValues.Phone__c,
+                                storedDial || this._currentDialCode()
+                            );
+                        }
+
+                        // Sync funder visibility toggles
+                        if (result.formValues.Funder_2_Name__c || result.formValues.Funder_2_Amount__c) {
+                            this.showFunder2 = true;
+                        }
+                        if (result.formValues.Funder_3_Name__c || result.formValues.Funder_3_Amount__c) {
+                            this.showFunder3 = true;
+                        }
+
+                        // Sync reference visibility toggle
+                        if (result.formValues.Reference_2_Name__c || result.formValues.Reference_2_Email__c) {
+                            this.showReference2 = true;
+                        }
+
+                        // Recalculate word counts for loaded text
+                        this._recalculateAllWordCounts();
+                    }
+
+                    // 4. Dynamic Grids
+                    if (result.skillingDomains && result.skillingDomains.length > 0) {
+                        this.skillingDomainRows = result.skillingDomains.map(d => ({
+                            ...d,
+                            displayWhenStarted: d.whenStarted ? this._formatDateDDMMYYYY(d.whenStarted) : ''
+                        }));
+                    }
+
+                    if (result.businessSectors && result.businessSectors.length > 0) {
+                        this.businessSectorRows = result.businessSectors.map(s => ({
+                            ...s,
+                            displayWhenBegan: s.whenBegan ? this._formatDateDDMMYYYY(s.whenBegan) : ''
+                        }));
+                    }
+
+                    if (result.livelihoodPrograms && result.livelihoodPrograms.length > 0) {
+                        this.livelihoodProgramRows = [...result.livelihoodPrograms];
+                    }
+
+                    if (result.communities && result.communities.length > 0) {
+                        this.communityRows = [...result.communities];
+                    }
+
+                    if (result.documents && result.documents.length > 0) {
+                        this.docRows = [...result.documents];
+                    }
+
+                    // 5. Uploaded Files
+                    if (result.q24Files && result.q24Files.length > 0) {
+                        this.q24UploadedFiles = [...result.q24Files];
+                    }
+                    if (result.q28Files && result.q28Files.length > 0) {
+                        this.q28UploadedFiles = [...result.q28Files];
+                    }
+
+                    // Refresh metadata for fiscal calendar
+                    this.loadMetadata();
+                }
+            })
+            .catch(err => {
+                console.error('Error loading dynamic draft:', err);
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+    _recalculateAllWordCounts() {
+        const fields = [
+            'Legal_Structure__c',
+            'Revenue_Explanation__c',
+            'Skilling_Approach__c',
+            'Job_Creation_Approach__c',
+            'Livelihood_Approach__c',
+            'Organizational_Sustainability__c',
+            'Use_of_Additional_Funding__c'
+        ];
+        fields.forEach(f => {
+            const val = this.formValues[f] || '';
+            const plain = this.stripHtml(val).trim();
+            const words = plain ? plain.split(/\s+/).filter(w => w.length > 0).length : 0;
+            this._updateWordCountForField(f, words);
+        });
+    }
+
+    // ── Screen Navigation ────────────────────────────────────────────────
+    get isScreen1() {
+        return this.currentScreen === 'screen1';
+    }
+
+    showBanner(variant, title, message, duration = 6000) {
+        if (this._bannerTimeout) {
+            clearTimeout(this._bannerTimeout);
+        }
+        this.bannerVariant = variant;
+        this.bannerTitle = title;
+        this.bannerMessage = message;
+        this.bannerVisible = true;
+        this._bannerTimeout = setTimeout(() => {
+            this.bannerVisible = false;
+        }, duration);
+    }
+
+    closeBanner() {
+        if (this._bannerTimeout) {
+            clearTimeout(this._bannerTimeout);
+        }
+        this.bannerVisible = false;
+    }
+
+    get isBannerError() { return this.bannerVariant === 'error'; }
+    get isBannerWarning() { return this.bannerVariant === 'warning'; }
+    get isBannerSuccess() { return this.bannerVariant === 'success'; }
+    get isBannerInfo() { return this.bannerVariant === 'info'; }
+    get bannerClass() {
+        return 'wg-toast-banner ' + this.bannerVariant + '-banner';
+    }
+
+    handleGoToForm() {
+        if (this.isNextDisabled) {
+            this.showBanner('warning', 'Track Selection Required', 'Please select at least one track that your work covers.');
+            return;
+        }
+        this.currentScreen = 'screen2';
+        this.activeTabId = 'tabAboutOrg';
+        this.loadMetadata();
+    }
+
+    handleBackToTrackSelection() {
+        this.currentScreen = 'screen1';
+    }
+
+    scrollToFaq(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const faqElement = this.template.querySelector('[data-id="faq-section"]') ||
+            this.template.querySelector('.faq-section-target') ||
+            this.template.querySelector('c-wcf-application-faq-modal');
+        if (faqElement) {
+            faqElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // ── Track Choice Cards (2nd Image) ───────────────────────────────────
+    get trackCards() {
+        let allTracks = [];
+        if (this.metadataTracks && this.metadataTracks.length > 0) {
+            allTracks = this.metadataTracks.map(trk => ({
+                code: trk.code,
+                label: trk.label || trk.code
+            }));
+        } else {
+            allTracks = [
+                { code: 'JOB_FULFILLMENT', label: 'Job Fulfillment' },
+                { code: 'JOB_CREATION', label: 'Job Creation' },
+                { code: 'LIVELIHOOD', label: 'Livelihood upliftment' }
+            ];
+        }
+
+        return allTracks.map(trk => {
+            const isSelected = (this.selectedTracks || []).includes(trk.code);
+            return {
+                ...trk,
+                isSelected,
+                cssClass: isSelected ? 'track-card-option selected' : 'track-card-option'
+            };
+        });
+    }
+
+    handleTrackSelect(event) {
+        const code = event.currentTarget.dataset.code;
+        if (!code) return;
+
+        this.isDirty = true;
+        if (this.selectedTracks.includes(code)) {
+            this.selectedTracks = this.selectedTracks.filter(t => t !== code);
+        } else {
+            this.selectedTracks = [...this.selectedTracks, code];
+        }
+    }
+
+    // ── Dynamic Continuous Question Numbering (1 to N) ───────────────────
+    get qNum() {
+        let currentNumber = 1;
+        const map = {};
+
+        // Q1 is Track Selection on Screen 1
+        map.Q1 = currentNumber++; // 1
+
+        // Section 1: About Your Organization (Q2 - Q10)
+        map.Q2 = currentNumber++; // 2
+        map.Q3 = currentNumber++; // 3
+        map.Q4 = currentNumber++; // 4
+        map.Q5 = currentNumber++; // 5
+        map.Q6 = currentNumber++; // 6
+        map.Q7 = currentNumber++; // 7
+        map.Q8 = currentNumber++; // 8
+        map.Q9 = currentNumber++; // 9
+        map.Q10 = currentNumber++; // 10
+
+        const trks = this.selectedTracks || [];
+
+        // Section 2: Job Fulfillment (Q11 - Q14)
+        if (trks.includes('JOB_FULFILLMENT')) {
+            map.Q11 = currentNumber++;
+            map.Q12 = currentNumber++;
+            map.Q13 = currentNumber++;
+            map.Q14 = currentNumber++;
+        } else {
+            map.Q11 = '11';
+            map.Q12 = '12';
+            map.Q13 = '13';
+            map.Q14 = '14';
+        }
+
+        // Section 2: Job Creation (Q15 - Q18)
+        if (trks.includes('JOB_CREATION')) {
+            map.Q15 = currentNumber++;
+            map.Q16 = currentNumber++;
+            map.Q17 = currentNumber++;
+            map.Q18 = currentNumber++;
+        } else {
+            map.Q15 = '15';
+            map.Q16 = '16';
+            map.Q17 = '17';
+            map.Q18 = '18';
+        }
+
+        // Section 2: Livelihood (Q19 - Q23)
+        if (trks.includes('LIVELIHOOD')) {
+            map.Q19 = currentNumber++;
+            map.Q20 = currentNumber++;
+            map.Q21 = currentNumber++;
+            map.Q22 = currentNumber++;
+            map.Q23 = currentNumber++;
+        } else {
+            map.Q19 = '19';
+            map.Q20 = '20';
+            map.Q21 = '21';
+            map.Q22 = '22';
+            map.Q23 = '23';
+        }
+
+        // Section 3: Why Wadhwani / Deliverables & Synergies (Q24 - Q28)
+        map.Q24 = currentNumber++;
+        map.Q25 = currentNumber++;
+        map.Q26 = currentNumber++;
+        map.Q27 = currentNumber++;
+        map.Q28 = currentNumber++;
+
+        return map;
+    }
+
+    // ── Dynamic Stepper Tabs ──────────────────────────────────────────────
+    get dynamicTabs() {
+        const tabs = [];
+        let step = 1;
+        const trks = this.selectedTracks || [];
+
+        const aboutOrgTitle = this.getSectionTitle('SEC_ABOUT_ORG', 'About Your Organization');
+        const step1 = step++;
+        tabs.push({
+            id: 'tabAboutOrg',
+            stepNum: step1,
+            mainTitle: `${aboutOrgTitle}`,
+            qRange: '',
+            fullTitle: `${aboutOrgTitle.toUpperCase()}`
+        });
+
+        if (trks.includes('JOB_FULFILLMENT')) {
+            const jfTitle = this.getSectionTitle('SEC_JOB_FULFILLMENT', 'Job Fulfillment');
+            const stepJF = step++;
+            tabs.push({
+                id: 'tabJobFulfillment',
+                stepNum: stepJF,
+                mainTitle: `${jfTitle}`,
+                qRange: '',
+                fullTitle: `${jfTitle.toUpperCase()}`
+            });
+        }
+
+        if (trks.includes('JOB_CREATION')) {
+            const jcTitle = this.getSectionTitle('SEC_JOB_CREATION', 'Job Creation');
+            const stepJC = step++;
+            tabs.push({
+                id: 'tabJobCreation',
+                stepNum: stepJC,
+                mainTitle: `${jcTitle}`,
+                qRange: '',
+                fullTitle: `${jcTitle.toUpperCase()}`
+            });
+        }
+
+        if (trks.includes('LIVELIHOOD')) {
+            const livTitle = this.getSectionTitle('SEC_LIVELIHOOD', 'Livelihood Upliftment');
+            const stepLiv = step++;
+            tabs.push({
+                id: 'tabLivelihood',
+                stepNum: stepLiv,
+                mainTitle: `${livTitle}`,
+                qRange: '',
+                fullTitle: `${livTitle.toUpperCase()}`
+            });
+        }
+
+        // Dynamic Custom Track Tabs from Metadata
+        const standardTrackCodes = new Set(['JOB_FULFILLMENT', 'JOB_CREATION', 'LIVELIHOOD']);
+        const customSelectedTracks = trks.filter(t => !standardTrackCodes.has(t));
+        customSelectedTracks.forEach(ctCode => {
+            const matchedSection = (this.metadataSections || []).find(s => s.applicableTracks && s.applicableTracks.includes(ctCode));
+            const secTitle = cleanTitle(matchedSection ? matchedSection.title : ctCode);
+            const tabKey = `tab_${ctCode.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+            const stepCustom = step++;
+
+            tabs.push({
+                id: tabKey,
+                stepNum: stepCustom,
+                trackCode: ctCode,
+                mainTitle: `${secTitle}`,
+                qRange: '',
+                fullTitle: `${secTitle.toUpperCase()}`
+            });
+        });
+
+        const whyTitle = this.getSectionTitle('SEC_WHY_WADHWANI', 'Why Wadhwani Grants');
+        const stepWhy = step++;
+        tabs.push({
+            id: 'tabWhyWadhwani',
+            stepNum: stepWhy,
+            mainTitle: `${whyTitle}`,
+            qRange: '',
+            fullTitle: `${whyTitle.toUpperCase()}`
+        });
+
+        const revTitle = this.getSectionTitle('SEC_REVIEW_SUBMIT', 'Review & Submit');
+        const stepRev = step++;
+        tabs.push({
+            id: 'tabReviewSubmit',
+            stepNum: stepRev,
+            mainTitle: `${revTitle}`,
+            qRange: '',
+            fullTitle: `${revTitle.toUpperCase()}`
+        });
+
+        const total = tabs.length;
+        const activeIdx = tabs.findIndex(t => t.id === this.activeTabId);
+
+        return tabs.map((t, idx) => {
+            const isCompleted = idx < activeIdx;
+            const isActive = idx === activeIdx;
+
+            let bubbleClass = 'tracker-bubble';
+            if (isActive) bubbleClass += ' tracker-bubble--active';
+            else if (isCompleted) bubbleClass += ' tracker-bubble--done';
+
+            let labelClass = 'tracker-label';
+            if (isActive) labelClass += ' tracker-label--active';
+
+            let connectorClass = '';
+            if (idx < total - 1) {
+                connectorClass = 'tracker-connector';
+                if (idx < activeIdx) {
+                    connectorClass += ' tracker-connector--done';
+                }
+            }
+
+            return {
+                ...t,
+                isCompleted,
+                isActive,
+                bubbleClass,
+                labelClass,
+                connectorClass,
+                cssClass: isActive ? 'step-btn active' : 'step-btn'
+            };
+        });
+    }
+
+    get currentTabSubTitle() {
+        const current = this.dynamicTabs.find(t => t.id === this.activeTabId);
+        return current ? current.fullTitle : 'ABOUT YOUR ORGANIZATION';
+    }
+
+    get isTabAboutOrg() { return this.activeTabId === 'tabAboutOrg'; }
+    get isTabJobFulfillment() { return this.activeTabId === 'tabJobFulfillment'; }
+    get isTabJobCreation() { return this.activeTabId === 'tabJobCreation'; }
+    get isTabLivelihood() { return this.activeTabId === 'tabLivelihood'; }
+    get isTabWhyWadhwani() { return this.activeTabId === 'tabWhyWadhwani'; }
+    get isTabReviewSubmit() { return this.activeTabId === 'tabReviewSubmit'; }
+
+    get activeCustomTrackTab() {
+        const tab = (this.dynamicTabs || []).find(t => t.id === this.activeTabId && t.trackCode);
+        if (!tab) return null;
+        const trackCode = tab.trackCode;
+        const questions = this._getCustomQuestions(q => (
+            (q.applicableTracks && q.applicableTracks.includes(trackCode)) ||
+            (q.sectionCode && q.sectionCode.toUpperCase().includes(trackCode.toUpperCase()))
+        ), `${tab.stepNum}`);
+        return {
+            trackCode: trackCode,
+            title: tab.mainTitle,
+            questions: questions,
+            hasQuestions: questions && questions.length > 0
+        };
+    }
+
+    get hasJobFulfillmentTrack() {
+        return this.selectedTracks && this.selectedTracks.includes('JOB_FULFILLMENT');
+    }
+
+    get hasJobCreationTrack() {
+        return this.selectedTracks && this.selectedTracks.includes('JOB_CREATION');
+    }
+
+    get hasLivelihoodTrack() {
+        return this.selectedTracks && this.selectedTracks.includes('LIVELIHOOD');
+    }
+
+    get isFirstTab() { return this.dynamicTabs[0]?.id === this.activeTabId; }
+    get isLastTab() { return this.dynamicTabs[this.dynamicTabs.length - 1]?.id === this.activeTabId; }
+
+    @track isAttested = false;
+    _attestNameEdited = false;   // true only if the user typed it, or it came back from a saved draft
+    _attestTitleEdited = false;
+
+    handleAttestationChange(event) {
+        this.isAttested = event.target?.checked || false;
+    }
+
+    get isSubmitDisabled() {
+        return !this.isAttested || this.isLoading;
+    }
+
+    get attestingUserName() {
+        return (this.formValues.Attesting_User_Name__c && this.formValues.Attesting_User_Name__c.trim() !== '') ? this.formValues.Attesting_User_Name__c : (this.formValues.Submitter_Name__c || '');
+    }
+
+    get attestingUserTitle() {
+        return (this.formValues.Attesting_User_Title__c && this.formValues.Attesting_User_Title__c.trim() !== '') ? this.formValues.Attesting_User_Title__c : (this.formValues.Job_Title__c || '');
+    }
+
+    get reviewOrgName() {
+        return (this.formValues.Organization_Name__c && this.formValues.Organization_Name__c.trim() !== '') ? this.formValues.Organization_Name__c : 'N/A';
+    }
+
+    get reviewHeadquarters() {
+        return (this.formValues.Headquarters_City_and_Country__c && this.formValues.Headquarters_City_and_Country__c.trim() !== '') ? this.formValues.Headquarters_City_and_Country__c : 'N/A';
+    }
+
+    get reviewPrimaryRegions() {
+        return (this.formValues.Primary_Service_Regions__c && this.formValues.Primary_Service_Regions__c.trim() !== '') ? this.formValues.Primary_Service_Regions__c : 'N/A';
+    }
+
+    get reviewLeaderName() {
+        return (this.formValues.Leader_Name__c && this.formValues.Leader_Name__c.trim() !== '') ? this.formValues.Leader_Name__c : 'N/A';
+    }
+
+    get reviewLeaderTitle() {
+        return (this.formValues.Leader_Title__c && this.formValues.Leader_Title__c.trim() !== '') ? this.formValues.Leader_Title__c : 'N/A';
+    }
+
+    get reviewSubmitterName() {
+        return (this.formValues.Submitter_Name__c && this.formValues.Submitter_Name__c.trim() !== '') ? this.formValues.Submitter_Name__c : 'N/A';
+    }
+
+    get reviewSubmitterTitle() {
+        return (this.formValues.Job_Title__c && this.formValues.Job_Title__c.trim() !== '') ? this.formValues.Job_Title__c : 'N/A';
+    }
+
+    get reviewSubmitterEmail() {
+        return (this.formValues.Work_Email_ID__c && this.formValues.Work_Email_ID__c.trim() !== '') ? this.formValues.Work_Email_ID__c : 'N/A';
+    }
+
+    get reviewIncorporationDate() {
+        return this.formValues.Incorporation_Date__c ? this._formatDateDDMMYYYY(this.formValues.Incorporation_Date__c) : 'N/A';
+    }
+
+    get selectedTrackLabelsDisplay() {
+        if (!this.selectedTracks || this.selectedTracks.length === 0) return 'N/A';
+        const labelsMap = {
+            JOB_FULFILLMENT: 'Job Fulfillment',
+            JOB_CREATION: 'Job Creation',
+            LIVELIHOOD: 'Livelihood upliftment'
+        };
+        return this.selectedTracks.map(t => labelsMap[t] || t).join(' and ');
+    }
+
+    get formattedFiscalYearEndReview() {
+        const m = this.formValues.Fiscal_Month__c || '';
+        const d = this.formValues.Fiscal_Day__c || '';
+        if (!m && !d) return 'N/A';
+        const monthNames = {
+            '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+            '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+            '09': 'September', '10': 'October', '11': 'November', '12': 'December',
+            '1': 'January', '2': 'February', '3': 'March', '4': 'April',
+            '5': 'May', '6': 'June', '7': 'July', '8': 'August',
+            '9': 'September'
+        };
+        const mLabel = monthNames[String(m).trim()] || m;
+        return `${d} ${mLabel}`.trim() || 'N/A';
+    }
+
+    _fmtDateDisplay(v) {
+        return this._formatDateDDMMYYYY(v);
+    }
+
+    get previewFunder1Amount() {
+        const amt = this.formValues.Funder_1_Amount__c;
+        if (amt === '' || amt === null || amt === undefined) return '';
+        const n = Number(String(amt).replace(/,/g, ''));
+        return isNaN(n) ? amt : n.toLocaleString('en-US');
+    }
+
+    get previewFunder2Amount() {
+        const amt = this.formValues.Funder_2_Amount__c;
+        if (amt === '' || amt === null || amt === undefined) return '';
+        const n = Number(String(amt).replace(/,/g, ''));
+        return isNaN(n) ? amt : n.toLocaleString('en-US');
+    }
+
+    get previewFunder3Amount() {
+        const amt = this.formValues.Funder_3_Amount__c;
+        if (amt === '' || amt === null || amt === undefined) return '';
+        const n = Number(String(amt).replace(/,/g, ''));
+        return isNaN(n) ? amt : n.toLocaleString('en-US');
+    }
+
+    get hasFunder1Period() {
+        return !!(this.formValues.Funder_1_Period_Start__c || this.formValues.Funder_1_Period_End__c);
+    }
+
+    get hasFunder2Period() {
+        return !!(this.formValues.Funder_2_Period_Start__c || this.formValues.Funder_2_Period_End__c);
+    }
+
+    get hasFunder3Period() {
+        return !!(this.formValues.Funder_3_Period_Start__c || this.formValues.Funder_3_Period_End__c);
+    }
+
+    get previewFunder1Period() {
+        const s = this.formValues.Funder_1_Period_Start__c ? this._fmtDateDisplay(this.formValues.Funder_1_Period_Start__c) : '';
+        const e = this.formValues.Funder_1_Period_End__c ? this._fmtDateDisplay(this.formValues.Funder_1_Period_End__c) : '';
+        if (s && e) return `${s} to ${e}`;
+        return s || e || '';
+    }
+
+    get previewFunder2Period() {
+        const s = this.formValues.Funder_2_Period_Start__c ? this._fmtDateDisplay(this.formValues.Funder_2_Period_Start__c) : '';
+        const e = this.formValues.Funder_2_Period_End__c ? this._fmtDateDisplay(this.formValues.Funder_2_Period_End__c) : '';
+        if (s && e) return `${s} to ${e}`;
+        return s || e || '';
+    }
+
+    get previewFunder3Period() {
+        const s = this.formValues.Funder_3_Period_Start__c ? this._fmtDateDisplay(this.formValues.Funder_3_Period_Start__c) : '';
+        const e = this.formValues.Funder_3_Period_End__c ? this._fmtDateDisplay(this.formValues.Funder_3_Period_End__c) : '';
+        if (s && e) return `${s} to ${e}`;
+        return s || e || '';
+    }
+
+    get reviewFunder1Display() {
+        const f = this.formValues;
+        if (!f.Funder_1_Name__c) return 'N/A';
+        const amt = f.Funder_1_Amount__c ? ` - ${this._formatCurrency(f.Funder_1_Amount__c)}` : '';
+        const type = f.Funder_1_Type__c ? ` (${f.Funder_1_Type__c})` : '';
+        const period = this.previewFunder1Period ? ` · Period: ${this.previewFunder1Period}` : '';
+        return `${f.Funder_1_Name__c}${amt}${type}${period}`;
+    }
+
+    get reviewFunder2Display() {
+        const f = this.formValues;
+        if (!f.Funder_2_Name__c) return 'N/A';
+        const amt = f.Funder_2_Amount__c ? ` - ${this._formatCurrency(f.Funder_2_Amount__c)}` : '';
+        const type = f.Funder_2_Type__c ? ` (${f.Funder_2_Type__c})` : '';
+        const period = this.previewFunder2Period ? ` · Period: ${this.previewFunder2Period}` : '';
+        return `${f.Funder_2_Name__c}${amt}${type}${period}`;
+    }
+
+    get reviewFunder3Display() {
+        const f = this.formValues;
+        if (!f.Funder_3_Name__c) return 'N/A';
+        const amt = f.Funder_3_Amount__c ? ` - ${this._formatCurrency(f.Funder_3_Amount__c)}` : '';
+        const type = f.Funder_3_Type__c ? ` (${f.Funder_3_Type__c})` : '';
+        const period = this.previewFunder3Period ? ` · Period: ${this.previewFunder3Period}` : '';
+        return `${f.Funder_3_Name__c}${amt}${type}${period}`;
+    }
+
+    get reviewReference1Display() {
+        const f = this.formValues;
+        if (!f.Reference_1_Name__c) return 'N/A';
+        const role = f.Reference_1_Role__c ? ` (${f.Reference_1_Role__c})` : '';
+        const email = f.Reference_1_Email__c ? ` - ${f.Reference_1_Email__c}` : '';
+        return `${f.Reference_1_Name__c}${role}${email}`;
+    }
+
+    get reviewReference2Display() {
+        const f = this.formValues;
+        if (!f.Reference_2_Name__c) return 'N/A';
+        const role = f.Reference_2_Role__c ? ` (${f.Reference_2_Role__c})` : '';
+        const email = f.Reference_2_Email__c ? ` - ${f.Reference_2_Email__c}` : '';
+        return `${f.Reference_2_Name__c}${role}${email}`;
+    }
+
+    _hasAnyFormValue(keys) {
+        return keys.some(k => {
+            const v = this.formValues[k];
+            return v !== undefined && v !== null && String(v).trim() !== '';
+        });
+    }
+
+    get showFunder2InReview() {
+        return this._hasAnyFormValue([
+            'Funder_2_Name__c', 'Funder_2_Amount__c', 'Funder_2_Period_Start__c',
+            'Funder_2_Period_End__c', 'Funder_2_Type__c'
+        ]);
+    }
+
+    get showFunder3InReview() {
+        return this._hasAnyFormValue([
+            'Funder_3_Name__c', 'Funder_3_Amount__c', 'Funder_3_Period_Start__c',
+            'Funder_3_Period_End__c', 'Funder_3_Type__c'
+        ]);
+    }
+
+    get showReference2InReview() {
+        return this._hasAnyFormValue([
+            'Reference_2_Name__c', 'Reference_2_Role__c', 'Reference_2_Email__c'
+        ]);
+    }
+
+    get reviewLeaderTenure() {
+        const v = this.formValues.Leader_Tenure__c;
+        return (v !== undefined && v !== null && String(v).trim() !== '') ? `${String(v).trim()} years` : 'N/A';
+    }
+
+    get reviewPhoneWithCode() {
+        const number = this.formValues.Phone__c ? String(this.formValues.Phone__c).trim() : '';
+        if (!number) return 'N/A';
+        if (number.startsWith('+')) return number;
+        const code = this._extractDialCode(this.formValues.WG_Phone_Country_Code__c) || this._currentDialCode();
+        if (!code) return number;
+        return `${code} ${this._normalizeNationalNumber(number, code)}`;
+    }
+
+    get reviewLegalType() {
+        const lt = this.formValues.Legal_Type__c;
+        if (!lt) return 'N/A';
+        if (lt === 'Other' && this.formValues.Legal_Type_Other__c) return `Other: ${this.formValues.Legal_Type_Other__c}`;
+        return lt;
+    }
+
+    get reviewRegistrationJurisdiction() {
+        const rj = this.formValues.Registration_Jurisdiction__c;
+        if (!rj) return 'N/A';
+        if (rj === 'Other' && this.formValues.Registration_Jurisdiction_Other__c) return `Other: ${this.formValues.Registration_Jurisdiction_Other__c}`;
+        return rj;
+    }
+
+    get reviewHas501c3() {
+        return this.formValues.Has_501c3_Status__c || 'N/A';
+    }
+
+    get reviewHasED() {
+        return this.formValues.Has_Equivalency_Determination__c || 'N/A';
+    }
+
+    get reviewIsFCRA() {
+        return this.formValues.Is_FCRA_Registered__c || 'N/A';
+    }
+
+    get reviewWillingED() {
+        return this.formValues.Willing_to_Pursue_ED__c || 'N/A';
+    }
+
+    get reviewQ24Verified() {
+        return this.formValues.Q24_VERIFIED || 'N/A';
+    }
+
+    get reviewDetailsOfEthicalReceived() {
+        return this.formValues.Details_of_Ethical_Received__c || 'N/A';
+    }
+
+    get reviewGenieInterestLevel() {
+        return this.formValues.GenieAI_Interest_Level__c || 'N/A';
+    }
+
+    get reviewOperationalSynergies() {
+        return this.formValues.Operational_Synergies_with_WOF__c || 'N/A';
+    }
+
+    get reviewSupportingDocumentsDisplay() {
+        if (this.q28UploadedFiles && this.q28UploadedFiles.length > 0) {
+            return this.q28UploadedFiles.map(f => f.name).join(', ');
+        }
+        return 'N/A';
+    }
+
+    get reviewVerificationReportsDisplay() {
+        if (this.q24UploadedFiles && this.q24UploadedFiles.length > 0) {
+            return this.q24UploadedFiles.map(f => f.name).join(', ');
+        }
+        return 'N/A';
+    }
+
+    get skillingDomainsForReview() {
+        return (this.skillingDomainRows || [])
+            .filter(r => r && r.name && r.name.trim() !== '')
+            .map(r => ({
+                ...r,
+                displayWhenStarted: r.displayWhenStarted || (r.whenStarted ? this._formatDateDDMMYYYY(r.whenStarted) : 'N/A')
+            }));
+    }
+
+    get hasSkillingDomainsForReview() {
+        return this.skillingDomainsForReview.length > 0;
+    }
+
+    get businessSectorsForReview() {
+        return (this.businessSectorRows || [])
+            .filter(r => r && (r.sector || r.sectorOther))
+            .map(r => {
+                const sectorName = r.sector === 'Other' ? (r.sectorOther || 'Other') : (r.sector || 'N/A');
+                let typesArr = Array.isArray(r.supportTypes) ? [...r.supportTypes] : [];
+                if (typesArr.includes('Other') && r.supportTypeOther) {
+                    typesArr = typesArr.map(t => t === 'Other' ? `Other: ${r.supportTypeOther}` : t);
+                }
+                return {
+                    ...r,
+                    sectorDisplay: sectorName,
+                    supportTypesDisplay: typesArr.length > 0 ? typesArr.join(', ') : 'N/A',
+                    displayWhenBegan: r.displayWhenBegan || (r.whenBegan ? this._formatDateDDMMYYYY(r.whenBegan) : 'N/A')
+                };
+            });
+    }
+
+    get hasBusinessSectorsForReview() {
+        return this.businessSectorsForReview.length > 0;
+    }
+
+    get livelihoodProgramsForReview() {
+        return (this.livelihoodProgramRows || [])
+            .filter(r => r && r.name && r.name.trim() !== '')
+            .map(r => ({
+                ...r,
+                supportType: r.supportType || 'N/A',
+                manHours: (r.manHours !== null && r.manHours !== undefined && r.manHours !== '') ? r.manHours : 'N/A',
+                enrollment: (r.enrollment !== null && r.enrollment !== undefined && r.enrollment !== '') ? r.enrollment : 'N/A'
+            }));
+    }
+
+    get hasLivelihoodProgramsForReview() {
+        return this.livelihoodProgramsForReview.length > 0;
+    }
+
+    get communityRowsForReview() {
+        return (this.communityRows || [])
+            .filter(r => r && (r.state || r.district))
+            .map(r => ({
+                ...r,
+                state: r.state || 'N/A',
+                district: r.district || 'N/A',
+                fy3: (r.fy3 !== null && r.fy3 !== undefined && r.fy3 !== '') ? r.fy3 : 'N/A',
+                fy2: (r.fy2 !== null && r.fy2 !== undefined && r.fy2 !== '') ? r.fy2 : 'N/A',
+                fy1: (r.fy1 !== null && r.fy1 !== undefined && r.fy1 !== '') ? r.fy1 : 'N/A',
+                proj: (r.proj !== null && r.proj !== undefined && r.proj !== '') ? r.proj : 'N/A'
+            }));
+    }
+
+    get hasCommunityRowsForReview() {
+        return this.communityRowsForReview.length > 0;
+    }
+
+    _scriptsInitiated = false;
+    isJsLoaded = false;
+    logoBase64 = null;
+    _logoAspectRatio = null;
+
+    _loadPdfLibraries() {
+        if (this._scriptsInitiated) return;
+        this._scriptsInitiated = true;
+
+        loadScript(this, JSPDF)
+            .then(() => loadScript(this, AUTO_TABLE))
+            .then(() => {
+                this.isJsLoaded = true;
+                console.log('✅ jsPDF and AutoTable loaded successfully in WCF Dynamic Form');
+
+                if (this.winLogoUrl) {
+                    fetch(this.winLogoUrl)
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                this.logoBase64 = reader.result;
+                                const img = new Image();
+                                img.onload = () => {
+                                    if (img.naturalWidth && img.naturalHeight) {
+                                        this._logoAspectRatio = img.naturalWidth / img.naturalHeight;
+                                    }
+                                };
+                                img.src = this.logoBase64;
+                            };
+                            reader.readAsDataURL(blob);
+                        })
+                        .catch(err => console.warn('⚠️ Logo load failed (non-critical):', err));
+                }
+            })
+            .catch(err => {
+                console.error('❌ jsPDF/AutoTable load error:', err);
+                this._scriptsInitiated = false;
+                this.isJsLoaded = false;
+            });
+    }
+
+    async _waitForPdfLibrary(timeout = 8000) {
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+            if (window.jspdf?.jsPDF) return true;
+            await new Promise(r => setTimeout(r, 200));
+        }
+        return Boolean(window.jspdf?.jsPDF);
+    }
+
+    async handleDownloadPDF() {
+        if (!this.isJsLoaded || !window.jspdf?.jsPDF) {
+            this.showBanner('info', 'Preparing PDF', 'Loading PDF library, please wait…');
+            this._scriptsInitiated = false;
+            this._loadPdfLibraries();
+            const ready = await this._waitForPdfLibrary(8000);
+            if (!ready) {
+                window.print();
+                return;
+            }
+        }
+
+        const jsPDFLib = window.jspdf?.jsPDF;
+        if (!jsPDFLib) {
+            window.print();
+            return;
+        }
+
+        try {
+            const RED = [153, 0, 0];       // #990000
+            const NAVY = [27, 42, 74];      // #1B2A4A
+            const LIGHT = [253, 246, 244];  // soft tint
+            const GREY = [112, 110, 107];
+            const BORDER = [240, 232, 230];
+
+            const form = this.formValues;
+            const qn = this.qNum;
+
+            const val = v => (v === null || v === undefined || v === '') ? 'N/A' : String(v);
+            const val$ = v => {
+                if (v === null || v === undefined || v === '') return 'N/A';
+                const clean = String(v).replace(/[,\s$]/g, '').trim();
+                if (clean === '') return 'N/A';
+                const n = Number(clean);
+                if (isNaN(n)) return `$${v}`;
+                const abs = Math.abs(n);
+                const hasCents = Math.round(abs * 100) % 100 !== 0;
+                const body = abs.toLocaleString('en-US', {
+                    minimumFractionDigits: hasCents ? 2 : 0,
+                    maximumFractionDigits: 2
+                });
+                return n < 0 ? `-$${body}` : `$${body}`;
+            };
+            const valNum = v => {
+                if (v === null || v === undefined || v === '') return 'N/A';
+                const clean = String(v).replace(/,/g, '').trim();
+                if (clean === '') return 'N/A';
+                const n = Number(clean);
+                return isNaN(n) ? String(v) : n.toLocaleString('en-US');
+            };
+
+            const doc = new jsPDFLib();
+            const { fontFamily } = await preparePdfDoc(doc);
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const marginX = 15;
+            const contentW = pageWidth - marginX * 2;
+            const labelW = 50;
+            const valueX = marginX + labelW + 4;
+            const valueW = contentW - labelW - 4;
+            let y = 20;
+            let pageCount = 1;
+
+            const addHeader = () => {
+                doc.setFillColor(...NAVY);
+                doc.rect(0, 0, pageWidth, 4, 'F');
+                if (pageCount === 1) {
+                    if (this.logoBase64) {
+                        doc.addImage(this.logoBase64, 'PNG', (pageWidth - 46) / 2, 10, 46, 18);
+                        y = 34;
+                    } else {
+                        y = 16;
+                    }
+                    doc.setFontSize(15);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...NAVY);
+                    doc.text('Wadhwani Grants Application', pageWidth / 2, y, { align: 'center' });
+                    y += 10;
+                } else {
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...RED);
+                    doc.text('WADHWANI GRANTS APPLICATION', marginX, 12);
+                    doc.setDrawColor(...RED);
+                    doc.setLineWidth(0.3);
+                    doc.line(marginX, 15, pageWidth - marginX, 15);
+                    y = 22;
+                }
+                doc.setTextColor(0, 0, 0);
+            };
+
+            const checkPage = (needed = 15) => {
+                if (y + needed >= pageHeight - 18) {
+                    doc.addPage();
+                    pageCount++;
+                    addHeader();
+                }
+            };
+
+            const sectionHeader = (title, stepLabel) => {
+                checkPage(22);
+                y += 3;
+                doc.setFillColor(...NAVY);
+                doc.rect(marginX, y - 6, contentW, 10, 'F');
+                doc.setFillColor(...RED);
+                doc.rect(marginX, y + 3.2, contentW, 0.8, 'F');
+                if (stepLabel) {
+                    doc.setFontSize(7.5);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(255, 150, 130);
+                    doc.text(stepLabel.toUpperCase(), marginX + 6, y - 1.3);
+                }
+                doc.setFontSize(11.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(255, 255, 255);
+                doc.text(title, marginX + (stepLabel ? doc.getTextWidth(stepLabel.toUpperCase()) + 12 : 6), y);
+                y += 10;
+                doc.setFontSize(9.5);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+            };
+
+            const drawQLabel = (num, label, top) => {
+                doc.setFillColor(...RED);
+                doc.circle(marginX + 4, top + 1, 3.1, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'bold');
+                doc.text(String(num), marginX + 4, top + 2.1, { align: 'center' });
+                doc.setTextColor(...NAVY);
+                doc.setFontSize(9.3);
+                doc.setFont(undefined, 'bold');
+                const labelLines = doc.splitTextToSize(label, labelW - 10);
+                labelLines.forEach((l, i) => doc.text(l, marginX + 10, top + 2 + i * 4.2));
+                return labelLines.length * 4.2 + 4;
+            };
+
+            const rowDivider = () => {
+                doc.setDrawColor(...BORDER);
+                doc.setLineWidth(0.2);
+                doc.line(marginX, y, pageWidth - marginX, y);
+                y += 3;
+            };
+
+            const simpleQRow = (num, label, value, bold = false) => {
+                const valStr = (value === null || value === undefined || value === '') ? 'N/A' : String(value);
+                doc.setFontSize(9.5);
+                doc.setFont(undefined, bold ? 'bold' : 'normal');
+                const lines = doc.splitTextToSize(valStr, valueW);
+                const labelLines = doc.splitTextToSize(label, labelW - 10);
+                const rowH = Math.max(lines.length * 4.6, labelLines.length * 4.2) + 8;
+                checkPage(rowH + 4);
+                const top = y;
+                drawQLabel(num, label, top);
+                doc.setTextColor(...(bold ? NAVY : [0, 0, 0]));
+                doc.setFontSize(9.5);
+                doc.setFont(undefined, bold ? 'bold' : 'normal');
+                lines.forEach((l, i) => doc.text(l, valueX, top + 2 + i * 4.6));
+                y = top + rowH;
+                rowDivider();
+            };
+
+            const MIN_FIT_FONT = 7.5;
+
+            const breakToken = (tok, width) => {
+                const parts = tok.split(/(?=@)|(?<=[./\-_])/);
+                const lines = [];
+                let line = '';
+                parts.forEach(p => {
+                    if (line && doc.getTextWidth(line + p) > width) { lines.push(line); line = ''; }
+                    line += p;
+                });
+                if (line) lines.push(line);
+                return lines.flatMap(l => doc.getTextWidth(l) > width ? doc.splitTextToSize(l, width) : [l]);
+            };
+
+            const layoutCell = (text, width, fontSize, style = 'normal') => {
+                const str = String(text);
+                doc.setFont(undefined, style);
+                doc.setFontSize(fontSize);
+
+                const widest = () => Math.max(...str.split(/\s+/).map(w => doc.getTextWidth(w)));
+                if (widest() <= width) return { lines: doc.splitTextToSize(str, width), fontSize };
+
+                let fs = fontSize;
+                while (fs > MIN_FIT_FONT) {
+                    fs = Math.max(MIN_FIT_FONT, +(fs - 0.2).toFixed(1));
+                    doc.setFontSize(fs);
+                    if (widest() <= width) return { lines: doc.splitTextToSize(str, width), fontSize: fs };
+                }
+
+                const prepared = str.split(/(\s+)/)
+                    .map(tok => (tok.trim() && doc.getTextWidth(tok) > width) ? breakToken(tok, width).join('\n') : tok)
+                    .join('');
+                return { lines: doc.splitTextToSize(prepared, width), fontSize: fs };
+            };
+
+            const gridQRow = (num, label, fields, cols = 2) => {
+                const items = fields.map(f => ({
+                    label: f.label,
+                    value: (f.value !== null && f.value !== undefined && f.value !== '') ? String(f.value) : 'N/A'
+                }));
+                if (items.length === 0) return;
+
+                const cellW = (valueW - (cols - 1) * 8) / cols;
+                const cells = items.map(f => layoutCell(f.value, cellW, 9.3));
+
+                const gridRows = [];
+                for (let i = 0; i < cells.length; i += cols) gridRows.push(cells.slice(i, i + cols));
+                let gridHeight = 0;
+                gridRows.forEach(gr => {
+                    const maxLines = Math.max(...gr.map(c => c.lines.length));
+                    gridHeight += 4.3 + maxLines * 4.3 + 4;
+                });
+
+                doc.setFontSize(9.3);
+                doc.setFont(undefined, 'bold');
+                const labelLines = doc.splitTextToSize(label, labelW - 10);
+                const labelHeight = labelLines.length * 4.2 + 4;
+                const rowHeight = Math.max(gridHeight, labelHeight, 14) + 4;
+
+                checkPage(rowHeight + 4);
+                const top = y;
+                drawQLabel(num, label, top);
+
+                let gy = top;
+                let idx = 0;
+                gridRows.forEach(gr => {
+                    const maxLines = Math.max(...gr.map(c => c.lines.length));
+                    gr.forEach((cell, ci) => {
+                        const f = items[idx];
+                        const cx = valueX + ci * (cellW + 8);
+                        doc.setFontSize(7.8);
+                        doc.setFont(undefined, 'bold');
+                        doc.setTextColor(...RED);
+                        doc.text(f.label.toUpperCase(), cx, gy + 2);
+                        doc.setFontSize(cell.fontSize);
+                        doc.setFont(undefined, 'normal');
+                        doc.setTextColor(...NAVY);
+                        cell.lines.forEach((l, li) => doc.text(l, cx, gy + 6.3 + li * 4.3));
+                        idx++;
+                    });
+                    gy += 4.3 + maxLines * 4.3 + 4;
+                });
+
+                y = top + rowHeight;
+                rowDivider();
+            };
+
+            const table = (head, body, colStyles = {}) => {
+                checkPage(40);
+                doc.autoTable({
+                    startY: y,
+                    margin: { left: marginX, right: marginX },
+                    head: [head],
+                    body,
+                    theme: 'striped',
+                    styles: { font: fontFamily, fontSize: 9, cellPadding: 3, textColor: [30, 30, 30] },
+                    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: LIGHT },
+                    columnStyles: { 0: { fontStyle: 'bold', textColor: NAVY }, ...colStyles }
+                });
+                y = doc.lastAutoTable.finalY + 8;
+            };
+
+            const PDF_BOTTOM = pageHeight - 18;
+            const LIST_INDENT = 5;
+            const BULLET_W = 4;
+            const PLAIN = { bold: false, italic: false, underline: false, strike: false };
+            const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TABLE', 'TR', 'SECTION']);
+
+            const newPage = () => { doc.addPage(); pageCount++; addHeader(); };
+            const fontStyleOf = r => (r.bold && r.italic) ? 'bolditalic' : r.bold ? 'bold' : r.italic ? 'italic' : 'normal';
+            const sameStyle = (a, b) => a.bold === b.bold && a.italic === b.italic && a.underline === b.underline && a.strike === b.strike;
+
+            const htmlToParagraphs = (html) => {
+                const raw = (html === null || html === undefined) ? '' : String(html);
+                const dash = [{ prefix: null, level: 0, runs: [{ ...PLAIN, text: 'N/A' }] }];
+                if (!raw.trim() || raw.trim() === '—' || raw.trim() === 'N/A') return dash;
+
+                const paragraphs = [];
+                let current = null;
+                const openPara = (prefix, level) => { current = { prefix, level, runs: [] }; paragraphs.push(current); };
+                const closeParaIfUsed = () => { if (current && current.runs.length) current = null; };
+
+                const styleOf = (el, parent) => {
+                    const s = { ...parent };
+                    const tag = el.nodeName;
+                    if (tag === 'B' || tag === 'STRONG' || /^H[1-6]$/.test(tag)) s.bold = true;
+                    if (tag === 'I' || tag === 'EM') s.italic = true;
+                    if (tag === 'U' || tag === 'INS') s.underline = true;
+                    if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') s.strike = true;
+                    const st = el.style;
+                    if (st) {
+                        const fw = String(st.fontWeight || '');
+                        if (fw === 'bold' || fw === 'bolder' || parseInt(fw, 10) >= 600) s.bold = true;
+                        if (st.fontStyle === 'italic' || st.fontStyle === 'oblique') s.italic = true;
+                        const deco = `${st.textDecoration || ''} ${st.textDecorationLine || ''}`;
+                        if (deco.includes('underline')) s.underline = true;
+                        if (deco.includes('line-through')) s.strike = true;
+                    }
+                    return s;
+                };
+
+                const walk = (node, style, level, listCtx) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const text = node.nodeValue.replace(/\u00a0/g, ' ').replace(/[\r\n\t]+/g, ' ');
+                        const atParaStart = !current || current.runs.length === 0;
+                        if (!text || (atParaStart && !text.trim())) return;
+                        if (!current) openPara(null, level);
+                        current.runs.push({ ...style, text });
+                        return;
+                    }
+                    if (node.nodeType !== Node.ELEMENT_NODE) return;
+                    const tag = node.nodeName;
+
+                    if (tag === 'BR') {
+                        if (!current) openPara(null, level);
+                        current.runs.push({ ...style, br: true });
+                        return;
+                    }
+                    const s = styleOf(node, style);
+
+                    if (tag === 'UL' || tag === 'OL') {
+                        closeParaIfUsed();
+                        const ctx = { ordered: tag === 'OL', index: 0 };
+                        node.childNodes.forEach(ch => walk(ch, s, level + 1, ctx));
+                        current = null;
+                        return;
+                    }
+                    if (tag === 'LI') {
+                        const lvl = Math.max(level, 1);
+                        let prefix = '•';
+                        if (listCtx) { listCtx.index++; if (listCtx.ordered) prefix = `${listCtx.index}.`; }
+                        openPara(prefix, lvl);
+                        node.childNodes.forEach(ch => walk(ch, s, lvl, null));
+                        current = null;
+                        return;
+                    }
+                    if (BLOCK_TAGS.has(tag)) {
+                        closeParaIfUsed();
+                        node.childNodes.forEach(ch => walk(ch, s, level, listCtx));
+                        closeParaIfUsed();
+                        return;
+                    }
+                    node.childNodes.forEach(ch => walk(ch, s, level, listCtx));
+                };
+
+                new DOMParser().parseFromString(raw, 'text/html').body
+                    .childNodes.forEach(ch => walk(ch, PLAIN, 0, null));
+
+                const result = paragraphs.filter(p => p.runs.length);
+                return result.length ? result : dash;
+            };
+
+            const layoutRichText = (html, maxWidth, fontSize) => {
+                doc.setFontSize(fontSize);
+                const measure = (text, run) => { doc.setFont(undefined, fontStyleOf(run)); return doc.getTextWidth(text); };
+                const out = [];
+
+                htmlToParagraphs(html).forEach(p => {
+                    const prefixX = p.level > 0 ? (p.level - 1) * LIST_INDENT : 0;
+                    const textX = p.level > 0 ? prefixX + BULLET_W : 0;
+                    const avail = Math.max(maxWidth - textX, 20);
+                    const lines = [];
+                    let line;
+
+                    const startLine = () => {
+                        line = { segs: [], width: 0, textX, prefixX, prefix: lines.length ? null : p.prefix };
+                        lines.push(line);
+                    };
+                    const pushSeg = (text, run) => {
+                        const w = measure(text, run);
+                        const last = line.segs[line.segs.length - 1];
+                        if (last && sameStyle(last.run, run)) last.text += text;
+                        else line.segs.push({ text, run });
+                        line.width += w;
+                    };
+
+                    const items = [];
+                    let word = null;
+                    p.runs.forEach(r => {
+                        if (r.br) { word = null; items.push({ type: 'br' }); return; }
+                        r.text.split(/(\s+)/).forEach(part => {
+                            if (!part) return;
+                            if (/^\s+$/.test(part)) {
+                                word = null;
+                                if (items.length && items[items.length - 1].type === 'space') return;
+                                items.push({ type: 'space', run: r });
+                            } else {
+                                if (!word) { word = { type: 'word', pieces: [] }; items.push(word); }
+                                word.pieces.push({ text: part, run: r });
+                            }
+                        });
+                    });
+
+                    startLine();
+                    let space = null;
+                    items.forEach(it => {
+                        if (it.type === 'br') { startLine(); space = null; return; }
+                        if (it.type === 'space') { if (line.segs.length) space = it; return; }
+
+                        const wordW = it.pieces.reduce((sum, pc) => sum + measure(pc.text, pc.run), 0);
+                        const spaceW = space ? measure(' ', space.run) : 0;
+                        if (line.segs.length && line.width + spaceW + wordW > avail) { startLine(); space = null; }
+                        if (space && line.segs.length) pushSeg(' ', space.run);
+                        space = null;
+
+                        it.pieces.forEach(pc => {
+                            if (wordW <= avail) { pushSeg(pc.text, pc.run); return; }
+                            for (const ch of pc.text) {
+                                if (line.segs.length && line.width + measure(ch, pc.run) > avail) startLine();
+                                pushSeg(ch, pc.run);
+                            }
+                        });
+                    });
+                    if (lines.length > 1 && !lines[lines.length - 1].segs.length) lines.pop();
+                    out.push(...lines);
+                });
+                return out;
+            };
+
+            const drawRichLine = (line, x, baseY, fontSize, color) => {
+                doc.setFontSize(fontSize);
+                doc.setTextColor(...color);
+                if (line.prefix) {
+                    doc.setFont(undefined, 'normal');
+                    doc.text(line.prefix, x + line.prefixX, baseY);
+                }
+                let cx = x + line.textX;
+                line.segs.forEach(seg => {
+                    doc.setFont(undefined, fontStyleOf(seg.run));
+                    doc.text(seg.text, cx, baseY);
+                    const w = doc.getTextWidth(seg.text);
+                    if (seg.run.underline || seg.run.strike) {
+                        doc.setDrawColor(...color);
+                        doc.setLineWidth(0.2);
+                        if (seg.run.underline) doc.line(cx, baseY + 0.8, cx + w, baseY + 0.8);
+                        if (seg.run.strike) doc.line(cx, baseY - fontSize * 0.11, cx + w, baseY - fontSize * 0.11);
+                    }
+                    cx += w;
+                });
+                doc.setFont(undefined, 'normal');
+            };
+
+            const richQRow = (num, label, html) => {
+                const FS = 9.5, LH = 4.6;
+                const lines = layoutRichText(html, valueW, FS);
+                doc.setFontSize(9.3);
+                doc.setFont(undefined, 'bold');
+                const labelH = doc.splitTextToSize(label, labelW - 10).length * 4.2 + 4;
+
+                checkPage(Math.max(labelH, Math.min(lines.length, 3) * LH) + 8);
+                const top = y;
+                drawQLabel(num, label, top);
+
+                let ly = top + 2, broke = false;
+                lines.forEach(line => {
+                    if (ly > PDF_BOTTOM - 1) { newPage(); ly = y + 2; broke = true; }
+                    drawRichLine(line, valueX, ly, FS, [0, 0, 0]);
+                    ly += LH;
+                });
+                y = broke ? ly + 6 : Math.max(ly + 6, top + labelH + 4);
+                rowDivider();
+            };
+
+            const richBoxUnder = (label, html) => {
+                const FS = 9.3, LH = 4.4;
+                const textX = valueX + 5;
+                const lines = layoutRichText(html, valueW - 8, FS);
+                let i = 0, first = true;
+
+                while (i < lines.length) {
+                    const headH = first ? 10.5 : 6;
+                    const fit = Math.floor((PDF_BOTTOM - y - headH - 4) / LH) + 1;
+                    const minFit = first ? Math.min(2, lines.length) : 1;
+                    if (fit < minFit) { newPage(); continue; }
+
+                    const n = Math.min(fit, lines.length - i);
+                    const boxH = headH + (n - 1) * LH + 4;
+                    doc.setFillColor(...LIGHT); doc.rect(valueX, y, valueW, boxH, 'F');
+                    doc.setFillColor(...RED); doc.rect(valueX, y, 1, boxH, 'F');
+                    if (first) {
+                        doc.setFontSize(7.8);
+                        doc.setFont(undefined, 'bold');
+                        doc.setTextColor(...RED);
+                        doc.text(label.toUpperCase(), textX, y + 5.5);
+                    }
+                    for (let j = 0; j < n; j++) drawRichLine(lines[i + j], textX, y + headH + j * LH, FS, NAVY);
+
+                    y += boxH; i += n; first = false;
+                    if (i < lines.length) newPage();
+                }
+                y += 4;
+                rowDivider();
+            };
+
+            addHeader();
+
+            const totalSections = 2 + (this.hasJobFulfillmentTrack ? 1 : 0) + (this.hasJobCreationTrack ? 1 : 0) + (this.hasLivelihoodTrack ? 1 : 0);
+            let currentSec = 1;
+
+            // ══ SECTION 1 — About Your Organisation ══
+            sectionHeader('About Your Organization', `Section ${currentSec} of ${totalSections}`);
+
+            // Q1: Selected Track
+            simpleQRow(qn.Q1, 'Organizational Area(s) for Funding/Investment', this.selectedTrackLabelsDisplay);
+
+            // Q2: Organizational Identifying Info
+            gridQRow(qn.Q2, 'Organizational Identifying Information', [
+                { label: 'Organizational Name', value: form.Organization_Name__c },
+                { label: 'Headquarters City and Country', value: form.Headquarters_City_and_Country__c },
+                { label: 'Primary Service Regions', value: form.Primary_Service_Regions__c },
+                { label: 'Leader Name', value: form.Leader_Name__c },
+                { label: 'Leader Title', value: form.Leader_Title__c },
+                { label: 'Leader Tenure', value: this.reviewLeaderTenure },
+                ...(this.customQuestionsQ2 || []).map(cq => ({ label: cq.label, value: cq.displayValue || cq.value }))
+            ], 2);
+
+            // Q3: Submitter Contact Information
+            gridQRow(qn.Q3, 'Submitter Contact Information', [
+                { label: 'Name', value: form.Submitter_Name__c },
+                { label: 'Title', value: form.Job_Title__c },
+                { label: 'Email Address', value: form.Work_Email_ID__c },
+                { label: 'Phone Number', value: this.reviewPhoneWithCode },
+                ...(this.customQuestionsQ3 || []).map(cq => ({ label: cq.label, value: cq.displayValue || cq.value }))
+            ], 2);
+
+            // Q4: Legal Structure
+            gridQRow(qn.Q4, 'Legal Structure', [
+                { label: 'Type', value: this.reviewLegalType },
+                { label: 'Registration Jurisdiction', value: this.reviewRegistrationJurisdiction },
+                { label: 'Incorporation Date', value: this.reviewIncorporationDate },
+                ...(this.customQuestionsQ4 || []).map(cq => ({ label: cq.label, value: cq.displayValue || cq.value }))
+            ], 3);
+            if (form.Legal_Structure__c) richBoxUnder('Brief Description of Legal Structure', form.Legal_Structure__c);
+
+            // Q5: Legal and Tax Compliance
+            gridQRow(qn.Q5, 'Legal and Tax Compliance', [
+                { label: '501(c)(3) Status in US', value: this.reviewHas501c3 },
+                { label: 'Equivalency Determination (ED)', value: this.reviewHasED },
+                { label: 'FCRA Registered (India)', value: this.reviewIsFCRA },
+                { label: 'Willing to Pursue ED', value: this.reviewWillingED },
+                ...(this.customQuestionsQ5 || []).map(cq => ({ label: cq.label, value: cq.displayValue || cq.value }))
+            ], 2);
+
+            // Q6: Fiscal Year End Date
+            simpleQRow(qn.Q6, 'Fiscal Year End Date', this.formattedFiscalYearEndReview, true);
+            if (this.hasCustomQuestionsQ6) {
+                this.customQuestionsQ6.forEach(cq => {
+                    simpleQRow(cq.displayNumber, cq.label, cq.displayValue || cq.value);
+                });
+            }
+
+            // Q7: Top 3 Most Prominent Funders
+            const fundersList = [];
+            if (form.Funder_1_Name__c) {
+                fundersList.push([
+                    form.Funder_1_Name__c,
+                    val$(form.Funder_1_Amount__c),
+                    this.previewFunder1Period || 'N/A',
+                    form.Funder_1_Type__c || 'N/A'
+                ]);
+            }
+            if (this.showFunder2InReview && form.Funder_2_Name__c) {
+                fundersList.push([
+                    form.Funder_2_Name__c,
+                    val$(form.Funder_2_Amount__c),
+                    this.previewFunder2Period || 'N/A',
+                    form.Funder_2_Type__c || 'N/A'
+                ]);
+            }
+            if (this.showFunder3InReview && form.Funder_3_Name__c) {
+                fundersList.push([
+                    form.Funder_3_Name__c,
+                    val$(form.Funder_3_Amount__c),
+                    this.previewFunder3Period || 'N/A',
+                    form.Funder_3_Type__c || 'N/A'
+                ]);
+            }
+            if (fundersList.length > 0) {
+                checkPage(10);
+                const topFundersTop = y;
+                drawQLabel(qn.Q7, 'Top 3 Most Prominent Funders', topFundersTop);
+                y = topFundersTop + 10;
+                table(['Funder', 'Amount (USD)', 'Period', 'Type'], fundersList);
+            } else {
+                simpleQRow(qn.Q7, 'Top 3 Most Prominent Funders', 'N/A');
+            }
+
+            // Q8: References for Outreach
+            const refList = [];
+            if (form.Reference_1_Name__c) {
+                refList.push([
+                    form.Reference_1_Name__c,
+                    form.Reference_1_Role__c || 'N/A',
+                    form.Reference_1_Email__c || 'N/A'
+                ]);
+            }
+            if (this.showReference2InReview && form.Reference_2_Name__c) {
+                refList.push([
+                    form.Reference_2_Name__c,
+                    form.Reference_2_Role__c || 'N/A',
+                    form.Reference_2_Email__c || 'N/A'
+                ]);
+            }
+            if (refList.length > 0) {
+                checkPage(10);
+                const refTop = y;
+                drawQLabel(qn.Q8, 'References for Outreach', refTop);
+                y = refTop + 10;
+                table(['Name', 'Organization / Role', 'Email'], refList, { 2: { cellWidth: 'wrap' } });
+            } else {
+                simpleQRow(qn.Q8, 'References for Outreach', 'N/A');
+            }
+
+            // Q9: Historical Financial Data
+            checkPage(10);
+            const finTrackTop = y;
+            drawQLabel(qn.Q9, 'Historical Financial Data', finTrackTop);
+            y = finTrackTop + 10;
+
+            doc.setFontSize(8.5);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...NAVY);
+            doc.text('Historical Financial Data (Three Prior Fiscal Years)', marginX, y);
+            y += 4;
+            table(['Item', val(this.fiscalYears.fy3Label), val(this.fiscalYears.fy2Label), val(this.fiscalYears.fy1Label)], [
+                ['Balance at Start of Year', this.reviewStartFY3, this.reviewStartFY2, this.reviewStartFY1],
+                ['Revenue', this.reviewRevFY3, this.reviewRevFY2, this.reviewRevFY1],
+                ['Capital Expenditure', this.reviewCapFY3, this.reviewCapFY2, this.reviewCapFY1],
+                ['Operating Expenditure', this.reviewOpFY3, this.reviewOpFY2, this.reviewOpFY1],
+                ['Balance at End of Year', this.reviewEndFY3, this.reviewEndFY2, this.reviewEndFY1]
+            ]);
+
+            // Q10: Current Fiscal Year Data
+            checkPage(10);
+            const cfyTop = y;
+            drawQLabel(qn.Q10, 'Current Fiscal Year Data', cfyTop);
+            y = cfyTop + 10;
+
+            doc.setFontSize(8.5);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...NAVY);
+            doc.text('Current Fiscal Year (CFY)', marginX, y);
+            y += 4;
+            table(['Item', 'Budget', 'Projection', 'Deviation'], [
+                ['Revenue', this.reviewCfyRevBudget, this.reviewCfyRevProj, this.reviewRevDeviation],
+                ['Capital Expenditure', this.reviewCfyCapBudget, this.reviewCfyCapProj, this.reviewCapDeviation],
+                ['Operating Expenditure', this.reviewCfyOpBudget, this.reviewCfyOpProj, this.reviewOpDeviation],
+                ['Revenue - Expense Net', this.reviewNetBudget, this.reviewNetProjection, this.reviewNetDeviation]
+            ]);
+            if (form.Revenue_Explanation__c) richBoxUnder('Explanation of Deviation', form.Revenue_Explanation__c);
+
+            if (this.hasCustomQuestionsAboutOrg) {
+                this.customQuestionsAboutOrg.forEach(cq => {
+                    simpleQRow(cq.displayNumber, cq.label, cq.displayValue || cq.value);
+                });
+            }
+
+            // ══ SECTION 2 — Track 1: Job Fulfillment (Q11 - Q14) ══
+            if (this.hasJobFulfillmentTrack) {
+                currentSec++;
+                sectionHeader('Track 1: Job Fulfillment', `Section ${currentSec} of ${totalSections}`);
+
+                richQRow(qn.Q11, 'Your Skilling Approach', form.Skilling_Approach__c);
+
+                if (this.hasSkillingDomainsForReview) {
+                    checkPage(10);
+                    const t12 = y;
+                    drawQLabel(qn.Q12, 'Skilling Domains Offered', t12);
+                    y = t12 + 10;
+                    const domRows = this.skillingDomainsForReview.map(r => [
+                        r.name,
+                        val(r.hours),
+                        val(r.duration),
+                        val(r.displayWhenStarted),
+                        val(r.enrollment)
+                    ]);
+                    table(['Domain / Program Name', 'Hours of Training', 'Duration (Months)', 'When Started', 'Annual Enrollment'], domRows);
+                } else {
+                    simpleQRow(qn.Q12, 'Skilling Domains Offered', 'N/A');
+                }
+
+                checkPage(10);
+                const t13 = y;
+                drawQLabel(qn.Q13, 'Job Fulfillment Outcomes (Actuals)', t13);
+                y = t13 + 10;
+
+                doc.setFontSize(8.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...NAVY);
+                doc.text('Job Fulfillment Outcomes: Last 3 Fiscal Years (Actuals)', marginX, y);
+                y += 4;
+
+                const jfRows = [
+                    ['# Learner Enrolments', valNum(form.JF_ENROLL_FY3), valNum(form.JF_ENROLL_FY2), valNum(form.JF_ENROLL_FY1)],
+                    ['# of learner placements', valNum(form.JF_PLACE_FY3), valNum(form.JF_PLACE_FY2), valNum(form.JF_PLACE_FY1)],
+                    ['Placement %', val(this.reviewJfPlacePctFY3), val(this.reviewJfPlacePctFY2), val(this.reviewJfPlacePctFY1)],
+                    ['Avg Cost per Placement', val$(form.JF_COST_FY3), val$(form.JF_COST_FY2), val$(form.JF_COST_FY1)]
+                ];
+                table(['Item', val(this.fiscalYears.fy3Label), val(this.fiscalYears.fy2Label), val(this.fiscalYears.fy1Label)], jfRows);
+
+                checkPage(10);
+                const t14 = y;
+                drawQLabel(qn.Q14, 'Job Fulfillment Outcomes (Projections)', t14);
+                y = t14 + 10;
+
+                doc.setFontSize(8.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...NAVY);
+                doc.text('Job Fulfillment Outcomes: Current FY Projections', marginX, y);
+                y += 4;
+
+                const jfProjRows = [
+                    ['# Learner Enrolments', valNum(form.JF_ENROLL_PROJ)],
+                    ['# of learner placements', valNum(form.JF_PLACE_PROJ)],
+                    ['Placement %', val(this.reviewJfPlacePctProj)],
+                    ['Avg Cost per Placement', val$(form.JF_COST_PROJ)]
+                ];
+                table(['Item', 'FY-2026 (CFY): Projection'], jfProjRows);
+
+                if (this.hasCustomQuestionsJobFulfillment) {
+                    this.customQuestionsJobFulfillment.forEach(cq => {
+                        simpleQRow(cq.displayNumber, cq.label, cq.displayValue || cq.value);
+                    });
+                }
+            }
+
+            // ══ SECTION 3 — Track 2: Job Creation (Q15 - Q18) ══
+            if (this.hasJobCreationTrack) {
+                currentSec++;
+                sectionHeader('Track 2: Job Creation / Entrepreneurship', `Section ${currentSec} of ${totalSections}`);
+
+                richQRow(qn.Q15, 'Your Job Creation Approach', form.Job_Creation_Approach__c);
+
+                if (this.hasBusinessSectorsForReview) {
+                    checkPage(10);
+                    const t16 = y;
+                    drawQLabel(qn.Q16, 'Business Sectors Served', t16);
+                    y = t16 + 10;
+                    const secRows = this.businessSectorsForReview.map(s => [
+                        s.sectorDisplay,
+                        val(s.displayWhenBegan),
+                        val(s.supportTypesDisplay),
+                        val(s.enrollment)
+                    ]);
+                    table(['Business Sector', 'When Support Began', 'Type of Support Provided', 'Yearly Enrolment'], secRows);
+                } else {
+                    simpleQRow(qn.Q16, 'Business Sectors Served', 'N/A');
+                }
+
+                checkPage(10);
+                const t17 = y;
+                drawQLabel(qn.Q17, 'Job Creation Outcomes (Actuals)', t17);
+                y = t17 + 10;
+
+                doc.setFontSize(8.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...NAVY);
+                doc.text('Job Creation Outcomes: Last 3 Fiscal Years (Actuals)', marginX, y);
+                y += 4;
+
+                const jcRows = [
+                    ['# New Businesses Started', valNum(form.JC_NEW_BIZ_FY3), valNum(form.JC_NEW_BIZ_FY2), valNum(form.JC_NEW_BIZ_FY1)],
+                    ['# jobs created by new businesses', valNum(form.JC_NEW_JOBS_FY3), valNum(form.JC_NEW_JOBS_FY2), valNum(form.JC_NEW_JOBS_FY1)],
+                    ['Existing Businesses Supported', valNum(form.JC_EXIST_BIZ_FY3), valNum(form.JC_EXIST_BIZ_FY2), valNum(form.JC_EXIST_BIZ_FY1)],
+                    ['# jobs created by existing businesses', valNum(form.JC_EXIST_JOBS_FY3), valNum(form.JC_EXIST_JOBS_FY2), valNum(form.JC_EXIST_JOBS_FY1)],
+                    ['Total Avg Cost per Job Created', val$(form.JC_COST_FY3), val$(form.JC_COST_FY2), val$(form.JC_COST_FY1)]
+                ];
+                table(['Item', val(this.fiscalYears.fy3Label), val(this.fiscalYears.fy2Label), val(this.fiscalYears.fy1Label)], jcRows);
+
+                checkPage(10);
+                const t18 = y;
+                drawQLabel(qn.Q18, 'Job Creation Outcomes (Projections)', t18);
+                y = t18 + 10;
+
+                doc.setFontSize(8.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...NAVY);
+                doc.text('Job Creation Outcomes: Current FY Projections', marginX, y);
+                y += 4;
+
+                const jcProjRows = [
+                    ['# New Businesses Started', valNum(form.JC_NEW_BIZ_PROJ)],
+                    ['# jobs created by new businesses', valNum(form.JC_NEW_JOBS_PROJ)],
+                    ['Existing Businesses Supported', valNum(form.JC_EXIST_BIZ_PROJ)],
+                    ['# jobs created by existing businesses', valNum(form.JC_EXIST_JOBS_PROJ)],
+                    ['Total Avg Cost per Job Created', val$(form.JC_COST_PROJ)]
+                ];
+                table(['Item', 'CFY (projected)'], jcProjRows);
+
+                if (this.hasCustomQuestionsJobCreation) {
+                    this.customQuestionsJobCreation.forEach(cq => {
+                        simpleQRow(cq.displayNumber, cq.label, cq.displayValue || cq.value);
+                    });
+                }
+            }
+
+            // ══ SECTION 4 — Track 3: Livelihood Upliftment (Q19 - Q23) ══
+            if (this.hasLivelihoodTrack) {
+                currentSec++;
+                sectionHeader('Track 3: Livelihood Upliftment', `Section ${currentSec} of ${totalSections}`);
+
+                richQRow(qn.Q19, 'Your Livelihood Upliftment Approach', form.Livelihood_Approach__c);
+
+                if (this.hasLivelihoodProgramsForReview) {
+                    checkPage(10);
+                    const t20 = y;
+                    drawQLabel(qn.Q20, 'Key Programs / Initiatives', t20);
+                    y = t20 + 10;
+                    const progRows = this.livelihoodProgramsForReview.map(p => [
+                        p.name,
+                        val(p.supportType),
+                        val(p.manHours),
+                        val(p.enrollment)
+                    ]);
+                    table(['Program / Initiative Name', 'Type of Support Provided', 'Duration (Man-Hours)', 'Annual Enrollment'], progRows);
+                } else {
+                    simpleQRow(qn.Q20, 'Key Programs / Initiatives', 'N/A');
+                }
+
+                if (this.hasCommunityRowsForReview) {
+                    checkPage(10);
+                    const t21 = y;
+                    drawQLabel(qn.Q21, 'Communities that you work in', t21);
+                    y = t21 + 10;
+                    const commRows = this.communityRowsForReview.map(c => [
+                        c.state,
+                        val(c.district),
+                        val(c.fy3),
+                        val(c.fy2),
+                        val(c.fy1),
+                        val(c.proj)
+                    ]);
+                    table(['State', 'District / Area', val(this.fiscalYears.fy3Label), val(this.fiscalYears.fy2Label), val(this.fiscalYears.fy1Label), 'CFY (projected)'], commRows);
+                } else {
+                    simpleQRow(qn.Q21, 'Communities that you work in', 'N/A');
+                }
+
+                checkPage(10);
+                const t22 = y;
+                drawQLabel(qn.Q22, 'Livelihood Outcomes (Actuals)', t22);
+                y = t22 + 10;
+
+                doc.setFontSize(8.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...NAVY);
+                doc.text('Livelihood Outcomes (Actuals)', marginX, y);
+                y += 4;
+
+                const livRows = [
+                    ['Beneficiaries served during the year', valNum(form.LIV_SERVED_FY3), valNum(form.LIV_SERVED_FY2), valNum(form.LIV_SERVED_FY1)],
+                    ['Beneficiaries newly enrolled during the year', valNum(form.LIV_ENROLL_FY3), valNum(form.LIV_ENROLL_FY2), valNum(form.LIV_ENROLL_FY1)],
+                    ['Beneficiaries meeting outcome criteria', valNum(form.LIV_OUTCOME_FY3), valNum(form.LIV_OUTCOME_FY2), valNum(form.LIV_OUTCOME_FY1)],
+                    ['Avg. cost per outcome (USD)', val$(form.LIV_COST_FY3), val$(form.LIV_COST_FY2), val$(form.LIV_COST_FY1)]
+                ];
+                table(['Item', val(this.fiscalYears.fy3Label), val(this.fiscalYears.fy2Label), val(this.fiscalYears.fy1Label)], livRows);
+
+                checkPage(10);
+                const t23 = y;
+                drawQLabel(qn.Q23, 'Livelihood Outcomes (Projections)', t23);
+                y = t23 + 10;
+
+                doc.setFontSize(8.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...NAVY);
+                doc.text('Livelihood Outcomes, Current FY Projections', marginX, y);
+                y += 4;
+
+                const livProjRows = [
+                    ['Beneficiaries served during the year (projected)', valNum(form.LIV_SERVED_PROJ)],
+                    ['Beneficiaries newly enrolled during the year (projected)', valNum(form.LIV_ENROLL_PROJ)],
+                    ['Beneficiaries expected to meet outcome criteria', valNum(form.LIV_OUTCOME_PROJ)],
+                    ['Avg. cost per outcome (USD) - projected', val$(form.LIV_COST_PROJ)]
+                ];
+                table(['Item', 'CFY (projected)'], livProjRows);
+
+                if (this.hasCustomQuestionsLivelihood) {
+                    this.customQuestionsLivelihood.forEach(cq => {
+                        simpleQRow(cq.displayNumber, cq.label, cq.displayValue || cq.value);
+                    });
+                }
+            }
+
+            // ══ SECTION 5 — Why Wadhwani Grants & Organizational Sustainability (Q24 - Q28) ══
+            currentSec++;
+            sectionHeader('Why Wadhwani Grants & Organizational Sustainability', `Section ${currentSec} of ${totalSections}`);
+
+            // Q24: Independent Verification
+            gridQRow(qn.Q24, 'Independent Verification of Your Outcomes', [
+                { label: 'Outcomes Verified by a Third Party?', value: this.reviewQ24Verified },
+                ...(this.reviewQ24Verified === 'Yes' || form.Q24_VERIFIED === 'Yes' ? [{ label: 'Verification Details', value: this.reviewDetailsOfEthicalReceived }] : []),
+                ...(this.q24UploadedFiles && this.q24UploadedFiles.length > 0 ? [{
+                    label: 'Verification Reports',
+                    value: this.reviewVerificationReportsDisplay
+                }] : [])
+            ], 1);
+
+            // Q25: Sustainability Plan
+            richQRow(qn.Q25, 'Sustainability Plan', form.Organizational_Sustainability__c);
+
+            // Q26: Direction for Additional Funding
+            richQRow(qn.Q26, 'Direction for Additional Funding', form.Use_of_Additional_Funding__c);
+
+            // Q27: Operational Synergies — GenieAI
+            simpleQRow(qn.Q27, 'Operational Synergies: GenieAI', this.reviewGenieInterestLevel, true);
+            const genieContribution = form.Operational_Synergies_with_WOF__c || form.GenieAI_Synergies_Description__c;
+            if (genieContribution) {
+                richBoxUnder('How GenieAI could contribute', plainTextToHtml(genieContribution));
+            }
+
+            // Q28: Supporting Documents
+            if (this.q28UploadedFiles && this.q28UploadedFiles.length > 0) {
+                checkPage(10);
+                const docTop = y;
+                drawQLabel(qn.Q28, 'Supporting Documents', docTop);
+                y = docTop + 10;
+                table(['File Name'], this.q28UploadedFiles.map(f => [f.name]));
+            } else {
+                simpleQRow(qn.Q28, 'Supporting Documents', 'N/A');
+            }
+
+            if (this.hasCustomQuestionsWhyWadhwani) {
+                this.customQuestionsWhyWadhwani.forEach(cq => {
+                    simpleQRow(cq.displayNumber, cq.label, cq.displayValue || cq.value);
+                });
+            }
+
+            // ══ Attestation ══
+            checkPage(24);
+            doc.setFillColor(...NAVY);
+            doc.rect(marginX, y, contentW, 22, 'F');
+            doc.setFillColor(...RED);
+            doc.rect(marginX, y, 3, 22, 'F');
+            doc.setFontSize(10.5);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.text('Attestation: Confirmation of Accuracy', marginX + 8, y + 7);
+            doc.setFontSize(8.5);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(230, 230, 230);
+            doc.text(`Attesting User: ${this.attestingUserName || '—'}`, marginX + 8, y + 13);
+            doc.text(`Title: ${this.attestingUserTitle || '—'}`, marginX + 8, y + 18);
+            const attDate = form.Attestation_Date__c ? (this._fmtDateDisplay ? this._fmtDateDisplay(form.Attestation_Date__c) : form.Attestation_Date__c) : new Date().toLocaleDateString();
+            doc.text(`Date: ${attDate}`, marginX + contentW / 2 + 10, y + 18);
+            y += 28;
+
+            // ── Page numbering on every page ──
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let p = 1; p <= totalPages; p++) {
+                doc.setPage(p);
+                doc.setDrawColor(...RED);
+                doc.setLineWidth(0.3);
+                doc.line(marginX, pageHeight - 14, pageWidth - marginX, pageHeight - 14);
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(...GREY);
+                const appIdentifier = form.Organization_Name__c || (this.recordId ? `Application (${this.recordId})` : 'Draft');
+                doc.text(`${appIdentifier} · Generated ${new Date().toLocaleDateString()}`, marginX, pageHeight - 9);
+                doc.text(`Page ${p} of ${totalPages}`, pageWidth - marginX, pageHeight - 9, { align: 'right' });
+            }
+
+            const fileName = `Wadhwani Grants Application ${form.Organization_Name__c || 'Draft'}.pdf`;
+            doc.save(fileName);
+
+            this.showBanner('success', 'PDF Downloaded', `${fileName} has been saved to your downloads.`);
+        } catch (e) {
+            console.error('PDF generation error:', e?.message || String(e), e?.stack);
+            this.showBanner('error', 'PDF Generation Failed', 'Could not generate the PDF. Please try again.');
+        }
+    }
+
+    _syncRichTextFieldsFromDOM() {
+        const richTextElements = this.template.querySelectorAll('div[contenteditable="true"]');
+        richTextElements.forEach(el => {
+            const field = el.dataset?.field || el.dataset?.id || el.dataset?.key;
+            if (field) {
+                const htmlVal = el.innerHTML || '';
+                const text = (el.innerText || '').trim();
+                // Only overwrite formValues if DOM element has non-empty text
+                if (text.length > 0) {
+                    this.formValues[field] = htmlVal;
+                    const words = text.split(/\s+/).filter(w => w.length > 0);
+                    this._updateWordCountForField(field, words.length);
+                } else if (this.formValues[field] && String(this.formValues[field]).trim() !== '') {
+                    // Restore from formValues into empty DOM element
+                    el.innerHTML = this.formValues[field];
+                    const restoredText = (el.innerText || '').trim();
+                    const words = restoredText ? restoredText.split(/\s+/).filter(w => w.length > 0) : [];
+                    this._updateWordCountForField(field, words.length);
+                }
+            }
+        });
+    }
+
+    handleTabClick(event) {
+        this._syncRichTextFieldsFromDOM();
+        const tabId = event.currentTarget.dataset.tabid;
+        if (tabId) {
+
+            this.activeTabId = tabId;
+        }
+    }
+
+    handleNextTab() {
+        this._syncRichTextFieldsFromDOM();
+        if (!this.validateActiveTab()) {
+            return;
+        }
+
+        const tabs = this.dynamicTabs;
+        const index = tabs.findIndex(t => t.id === this.activeTabId);
+        if (index !== -1 && index < tabs.length - 1) {
+            const nextTab = tabs[index + 1];
+
+            this.activeTabId = nextTab.id;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Auto-save draft on moving to the next tab in background
+        this.handleSaveDraft(false);
+    }
+
+    handlePrevTab() {
+        this._syncRichTextFieldsFromDOM();
+        const tabs = this.dynamicTabs;
+        const index = tabs.findIndex(t => t.id === this.activeTabId);
+        if (index > 0) {
+            this.activeTabId = tabs[index - 1].id;
+        }
+    }
+
+    // ── Form Input Handlers & Live Validators ──────────────────────────────
+    handleInput(event) {
+        this.handleInputChange(event);
+    }
+
+    handleInputChange(event) {
+        const fldAttr = event.currentTarget?.dataset?.field || event.target?.dataset?.field;
+        const keyAttr = event.currentTarget?.dataset?.key || event.target?.dataset?.key;
+        const idAttr = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        const key = fldAttr || keyAttr || idAttr;
+        if (!key) return;
+
+        if (key === 'Attesting_User_Name__c') this._attestNameEdited = true;
+        if (key === 'Attesting_User_Title__c') this._attestTitleEdited = true;
+
+        this.isDirty = true;
+
+        let val;
+        if (event.target?.isContentEditable) {
+            val = event.target.innerHTML;
+            const text = (event.target.innerText || '').trim();
+            const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+            this._updateWordCountForField(key, words.length);
+            if (words.length > 0) {
+                this._clearFieldError(key);
+            }
+        } else if (event.detail?.checked !== undefined) {
+            val = event.detail.checked;
+        } else if (event.target?.type === 'checkbox') {
+            val = event.target.checked;
+        } else if (event.detail?.value !== undefined) {
+            val = event.detail.value;
+        } else {
+            val = event.target?.value ?? '';
+        }
+
+        // Direct property mutation prevents full-component VDOM re-evaluation on each keystroke
+        this.formValues[key] = val;
+
+        if (idAttr && idAttr !== key && this.formValues[idAttr] !== undefined) {
+            this.formValues[idAttr] = val;
+        }
+
+        if (key === 'Operational_Synergies_with_WOF__c') {
+            this.formValues.GenieAI_Synergies_Description__c = val;
+        }
+
+        if (key === 'GenieAI_Interest_Level__c' && (val === 'Not at this time' || !val)) {
+            this.formValues.Operational_Synergies_with_WOF__c = '';
+            this.formValues.GenieAI_Synergies_Description__c = '';
+        }
+
+        // Debounce live validation to prevent synchronous reportValidity() blocking on every keystroke
+        if (this._liveValidationTimeout) {
+            clearTimeout(this._liveValidationTimeout);
+        }
+        this._liveValidationTimeout = setTimeout(() => {
+            this._runLiveFieldValidation(key, val);
+        }, 300);
+    }
+
+    _validateIntegerCount(cleanStr, label) {
+        if (cleanStr === '' || cleanStr === null || cleanStr === undefined) {
+            return `${label} is required.`;
+        }
+        const s = String(cleanStr).trim();
+        if (s === '') {
+            return `${label} is required.`;
+        }
+        if (s.includes('.')) {
+            return `${label} must be a whole number (no decimals allowed).`;
+        }
+        const n = Number(s);
+        if (isNaN(n)) {
+            return `${label} must be a valid number.`;
+        }
+        if (!Number.isInteger(n)) {
+            return `${label} must be a whole number (no decimals allowed).`;
+        }
+        if (n < 0) {
+            return `${label} cannot be negative.`;
+        }
+        if (n > 999999999) {
+            return `${label} cannot exceed 999,999,999.`;
+        }
+        return null;
+    }
+
+    _validateMoneyAmount(cleanStr, label, isRequired = true) {
+        if (cleanStr === '' || cleanStr === null || cleanStr === undefined) {
+            return isRequired ? `${label} is required.` : null;
+        }
+        const s = String(cleanStr).replace(/[$,\s]/g, '').trim();
+        if (s === '') {
+            return isRequired ? `${label} is required.` : null;
+        }
+        const n = Number(s);
+        if (isNaN(n)) {
+            return `${label} must be a valid number.`;
+        }
+        if (n < 0) {
+            return `${label} cannot be negative.`;
+        }
+        const parts = s.split('.');
+        if (parts.length > 1 && parts[1].length > 2) {
+            return `${label} cannot have more than 2 decimal places.`;
+        }
+        if (n > 999999999) {
+            return `${label} cannot exceed 999,999,999.`;
+        }
+        return null;
+    }
+
+    _validatePlacementEnrollmentRatio(key) {
+        const pairs = [
+            { placeKey: 'JF_PLACE_FY3', enrollKey: 'JF_ENROLL_FY3', yearLabel: 'FY-3' },
+            { placeKey: 'JF_PLACE_FY2', enrollKey: 'JF_ENROLL_FY2', yearLabel: 'FY-2' },
+            { placeKey: 'JF_PLACE_FY1', enrollKey: 'JF_ENROLL_FY1', yearLabel: 'FY-1' },
+            { placeKey: 'JF_PLACE_PROJ', enrollKey: 'JF_ENROLL_PROJ', yearLabel: 'Projected' }
+        ];
+
+        for (const pair of pairs) {
+            if (key === pair.placeKey || key === pair.enrollKey) {
+                const pVal = this.formValues[pair.placeKey];
+                const eVal = this.formValues[pair.enrollKey];
+                if (pVal !== '' && pVal !== null && pVal !== undefined && eVal !== '' && eVal !== null && eVal !== undefined) {
+                    const pClean = String(pVal).replace(/,/g, '').trim();
+                    const eClean = String(eVal).replace(/,/g, '').trim();
+                    const pNum = Number(pClean);
+                    const eNum = Number(eClean);
+                    if (!isNaN(pNum) && !isNaN(eNum)) {
+                        if (pNum > eNum) {
+                            this._showLightningError(pair.placeKey, `Placements cannot exceed enrolments (${pair.yearLabel}).`);
+                            return false;
+                        } else {
+                            const basicErr = this._validateIntegerCount(pClean, this._getLabelForFieldKey(pair.placeKey) || 'Placements');
+                            if (!basicErr) {
+                                this._clearLightningError(pair.placeKey);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    _validateHouseholdOutcomeRatio(key) {
+        const pairs = [
+            { outcomeKey: 'LIV_OUTCOME_FY3', servedKey: 'LIV_SERVED_FY3', yearLabel: 'FY-3' },
+            { outcomeKey: 'LIV_OUTCOME_FY2', servedKey: 'LIV_SERVED_FY2', yearLabel: 'FY-2' },
+            { outcomeKey: 'LIV_OUTCOME_FY1', servedKey: 'LIV_SERVED_FY1', yearLabel: 'FY-1' },
+            { outcomeKey: 'LIV_OUTCOME_PROJ', servedKey: 'LIV_SERVED_PROJ', yearLabel: 'Projected' }
+        ];
+
+        for (const pair of pairs) {
+            if (key === pair.outcomeKey || key === pair.servedKey) {
+                const oVal = this.formValues[pair.outcomeKey];
+                const sVal = this.formValues[pair.servedKey];
+                if (oVal !== '' && oVal !== null && oVal !== undefined && sVal !== '' && sVal !== null && sVal !== undefined) {
+                    const oClean = String(oVal).replace(/,/g, '').trim();
+                    const sClean = String(sVal).replace(/,/g, '').trim();
+                    const oNum = Number(oClean);
+                    const sNum = Number(sClean);
+                    if (!isNaN(oNum) && !isNaN(sNum)) {
+                        if (oNum > sNum) {
+                            this._showLightningError(pair.outcomeKey, `Outcomes cannot exceed beneficiaries served (${pair.yearLabel}).`);
+                            return false;
+                        } else {
+                            const basicErr = this._validateIntegerCount(oClean, this._getLabelForFieldKey(pair.outcomeKey) || 'Outcomes');
+                            if (!basicErr) {
+                                this._clearLightningError(pair.outcomeKey);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    _runLiveFieldValidation(key, val) {
+        if (!key) return;
+
+        // 1. Text / Name-like fields
+        const liveTextValidators = {
+            Organization_Name__c: v => this._validateNameLikeField(v, 'Organization Name'),
+            Headquarters_City_and_Country__c: v => this._validateHQCityCountry(v),
+            Primary_Service_Regions__c: v => this._validateRegionsField(v),
+            Leader_Name__c: v => this._validateNameLikeField(v, 'Leader Name'),
+            Leader_Title__c: v => this._validateNameLikeField(v, 'Leader Title'),
+            Submitter_Name__c: v => this._validateNameLikeField(v, 'Submitter Name'),
+            Job_Title__c: v => this._validateNameLikeField(v, 'Submitter Title'),
+            Legal_Type_Other__c: v => this._validateNameLikeField(v, 'Legal Type'),
+            Registration_Jurisdiction_Other__c: v => this._validateNameLikeField(v, 'Registration Jurisdiction'),
+            Funder_1_Name__c: v => this._validateNameLikeField(v, 'Funder Name'),
+            Funder_2_Name__c: v => this._validateNameLikeField(v, 'Funder Name'),
+            Funder_3_Name__c: v => this._validateNameLikeField(v, 'Funder Name'),
+            Reference_1_Name__c: v => this._validateNameLikeField(v, 'Reference Name'),
+            Reference_1_Role__c: v => this._validateNameLikeField(v, 'Reference Role / Designation'),
+            Reference_2_Name__c: v => this._validateNameLikeField(v, 'Reference Name'),
+            Reference_2_Role__c: v => this._validateNameLikeField(v, 'Reference Role / Designation'),
+            Attesting_User_Name__c: v => this._validateNameLikeField(v, 'Attesting User Name'),
+            Attesting_User_Title__c: v => this._validateNameLikeField(v, 'Attesting User Title')
+        };
+
+        if (liveTextValidators[key]) {
+            if (val && String(val).trim() !== '') {
+                const err = liveTextValidators[key](val);
+                if (err) this._showLightningError(key, err);
+                else this._clearLightningError(key);
+            } else {
+                this._clearLightningError(key);
+            }
+            if (key.startsWith('Reference_')) {
+                this._validateReferenceFields();
+            }
+            if (key.startsWith('Funder_')) {
+                this._validateFunderFields();
+            }
+            return;
+        }
+
+        // 2. Email fields
+        if (key === 'Work_Email_ID__c' || key === 'Leader_Email__c' || key === 'Reference_1_Email__c' || key === 'Reference_2_Email__c') {
+            if (val && String(val).trim() !== '') {
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(val)) {
+                    this._showLightningError(key, 'Please enter a valid email address.');
+                } else {
+                    this._clearLightningError(key);
+                }
+            } else {
+                this._clearLightningError(key);
+            }
+            if (key.startsWith('Reference_')) {
+                this._validateReferenceFields();
+            }
+            return;
+        }
+
+        // 3. Incorporation Date
+        if (key === 'Incorporation_Date__c') {
+            if (val) {
+                const todayStr = this.todayDateString;
+                if (val > todayStr) {
+                    this._showLightningError(key, 'Incorporation date cannot be in the future.');
+                } else if (val < '1800-01-01') {
+                    this._showLightningError(key, 'Please enter a valid incorporation date.');
+                } else {
+                    this._clearLightningError(key);
+                }
+            } else {
+                this._clearLightningError(key);
+            }
+            return;
+        }
+
+        // 4. Leader Tenure
+        if (key === 'Leader_Tenure__c') {
+            if (val !== '' && val !== null && val !== undefined) {
+                const n = Number(val);
+                if (!Number.isInteger(n) || n < 0 || n > 99) {
+                    this._showLightningError('Leader_Tenure__c', 'Must be a whole number between 0 and 99.');
+                } else {
+                    this._clearLightningError('Leader_Tenure__c');
+                }
+            } else {
+                this._clearLightningError('Leader_Tenure__c');
+            }
+            return;
+        }
+
+        // 5. Picklists & single selections
+        const picklistKeys = [
+            'Legal_Type__c', 'Registration_Jurisdiction__c',
+            'Has_501c3_Status__c', 'Has_Equivalency_Determination__c',
+            'Is_FCRA_Registered__c', 'Willing_to_Pursue_ED__c',
+            'Fiscal_Month__c', 'Fiscal_Day__c',
+            'Funder_1_Type__c', 'Funder_2_Type__c', 'Funder_3_Type__c',
+            'Q24_VERIFIED', 'GenieAI_Interest_Level__c'
+        ];
+        if (picklistKeys.includes(key)) {
+            if (val) {
+                this._clearLightningError(key);
+            }
+            return;
+        }
+
+        // 6. Funder Dates and Amounts
+        if (key.startsWith('Funder_')) {
+            if (key.endsWith('_Amount__c')) {
+                if (val !== '' && val !== null && val !== undefined) {
+                    const clean = String(val).replace(/,/g, '').trim();
+                    const err = this._validateMoneyAmount(clean, 'Funder amount', false);
+                    if (err) {
+                        this._showLightningError(key, err);
+                    } else {
+                        this._clearLightningError(key);
+                    }
+                } else {
+                    this._clearLightningError(key);
+                }
+            } else if (key.includes('_Period_')) {
+                const funderPrefix = key.substring(0, 8); // 'Funder_1', 'Funder_2', 'Funder_3'
+                const sKey = `${funderPrefix}_Period_Start__c`;
+                const eKey = `${funderPrefix}_Period_End__c`;
+                const sVal = this.formValues[sKey];
+                const eVal = this.formValues[eKey];
+                if (sVal && eVal && eVal <= sVal) {
+                    this._showLightningError(eKey, 'Funding end date must be after start date.');
+                } else {
+                    this._clearLightningError(eKey);
+                    this._clearLightningError(sKey);
+                }
+            }
+            return;
+        }
+
+        // 7. Numeric Financial & Outcome fields (Q9, Q10, Q13, Q14, Q17, Q18, Q22, Q23)
+        const integerCountKeys = [
+            // Q13 & Q14 Job Fulfillment
+            'JF_ENROLL_FY3', 'JF_ENROLL_FY2', 'JF_ENROLL_FY1', 'JF_ENROLL_PROJ',
+            'JF_PLACE_FY3', 'JF_PLACE_FY2', 'JF_PLACE_FY1', 'JF_PLACE_PROJ',
+            // Q17 & Q18 Job Creation
+            'JC_NEW_BIZ_FY3', 'JC_NEW_BIZ_FY2', 'JC_NEW_BIZ_FY1', 'JC_NEW_BIZ_PROJ',
+            'JC_NEW_JOBS_FY3', 'JC_NEW_JOBS_FY2', 'JC_NEW_JOBS_FY1', 'JC_NEW_JOBS_PROJ',
+            'JC_EXIST_BIZ_FY3', 'JC_EXIST_BIZ_FY2', 'JC_EXIST_BIZ_FY1', 'JC_EXIST_BIZ_PROJ',
+            'JC_EXIST_JOBS_FY3', 'JC_EXIST_JOBS_FY2', 'JC_EXIST_JOBS_FY1', 'JC_EXIST_JOBS_PROJ',
+            // Q22 & Q23 Livelihood Upliftment
+            'LIV_SERVED_FY3', 'LIV_SERVED_FY2', 'LIV_SERVED_FY1', 'LIV_SERVED_PROJ',
+            'LIV_ENROLL_FY3', 'LIV_ENROLL_FY2', 'LIV_ENROLL_FY1', 'LIV_ENROLL_PROJ',
+            'LIV_OUTCOME_FY3', 'LIV_OUTCOME_FY2', 'LIV_OUTCOME_FY1', 'LIV_OUTCOME_PROJ'
+        ];
+
+        const moneyAmountKeys = [
+            // Q9 Historical Financials
+            'START_FY3',
+            'REV_FY3', 'REV_FY2', 'REV_FY1',
+            'CAP_FY3', 'CAP_FY2', 'CAP_FY1',
+            'OP_FY3', 'OP_FY2', 'OP_FY1',
+            // Q10 CFY Financials
+            'CFY_REV_BUDGET', 'CFY_REV_PROJ',
+            'CFY_CAP_BUDGET', 'CFY_CAP_PROJ',
+            'CFY_OP_BUDGET', 'CFY_OP_PROJ',
+            // Unit Costs
+            'JF_COST_FY3', 'JF_COST_FY2', 'JF_COST_FY1', 'JF_COST_PROJ',
+            'JC_COST_FY3', 'JC_COST_FY2', 'JC_COST_FY1', 'JC_COST_PROJ',
+            'LIV_COST_FY3', 'LIV_COST_FY2', 'LIV_COST_FY1', 'LIV_COST_PROJ'
+        ];
+
+        if (integerCountKeys.includes(key)) {
+            const clean = (val !== '' && val !== null && val !== undefined) ? String(val).replace(/,/g, '').trim() : '';
+            const label = this._getLabelForFieldKey(key) || 'This field';
+            const err = this._validateIntegerCount(clean, label);
+            if (err) {
+                this._showLightningError(key, err);
+            } else {
+                this._clearLightningError(key);
+                if (key.startsWith('JF_')) {
+                    this._validatePlacementEnrollmentRatio(key);
+                } else if (key.startsWith('LIV_')) {
+                    this._validateHouseholdOutcomeRatio(key);
+                }
+            }
+            return;
+        }
+
+        if (moneyAmountKeys.includes(key)) {
+            const clean = (val !== '' && val !== null && val !== undefined) ? String(val).replace(/,/g, '').trim() : '';
+            const label = this._getLabelForFieldKey(key) || 'This field';
+            const err = this._validateMoneyAmount(clean, label, true);
+            if (err) {
+                this._showLightningError(key, err);
+            } else {
+                this._clearLightningError(key);
+            }
+            return;
+        }
+
+        // 8. Details_of_Ethical_Received__c
+        if (key === 'Details_of_Ethical_Received__c') {
+            if (val && String(val).trim() !== '') {
+                this._clearLightningError(key);
+            }
+            return;
+        }
+
+        // 9. Operational_Synergies_with_WOF__c
+        if (key === 'Operational_Synergies_with_WOF__c') {
+            const words = (val || '').trim().split(/\s+/).filter(w => w.length > 0);
+            if (words.length > 200) {
+                this._showLightningError('Operational_Synergies_with_WOF__c', `Exceeds 200-word limit (currently ${words.length} words). Please shorten before proceeding.`);
+            } else {
+                this._clearLightningError('Operational_Synergies_with_WOF__c');
+            }
+            return;
+        }
+    }
+
+    // ── Phone ITI Methods & Helpers ────────────────────────────────────────
+    get phoneFieldWrapperClass() {
+        return this.phoneNumberError ? 'phone-input-group has-error' : 'phone-input-group';
+    }
+
+    _extractDialCode(countryCodeValue) {
+        if (!countryCodeValue) return null;
+        const match = String(countryCodeValue).match(/^\+\d+/);
+        return match ? match[0] : null;
+    }
+
+    _currentDialCode() {
+        if (!this._phoneIti) return '';
+        const d = this._phoneIti.getSelectedCountryData();
+        return (d && d.dialCode) ? '+' + d.dialCode : '';
+    }
+
+    _normalizeNationalNumber(raw, dialCode) {
+        if (raw === null || raw === undefined) return '';
+        let digits = String(raw).replace(/\D/g, '');
+        if (!digits) return '';
+
+        const dc = dialCode ? String(dialCode).replace('+', '') : '';
+        if (dc && digits.length > dc.length && digits.startsWith(dc)) {
+            const rule = this.PHONE_LENGTH_BY_COUNTRY_CODE[dialCode];
+            const rest = digits.slice(dc.length);
+            if (!rule || rest.length >= rule.min) digits = rest;
+        }
+        return digits.replace(/^0+/, '');
+    }
+
+    _applyItiScopeToken(input) {
+        const token = Array.from(input.attributes)
+            .map(a => a.name)
+            .find(n => n.startsWith('c-') && n.includes('_'));
+        if (!token) return;
+        const wrapper = input.closest('.iti');
+        if (!wrapper) return;
+        wrapper.setAttribute(token, '');
+        wrapper.querySelectorAll('*').forEach(el => el.setAttribute(token, ''));
+    }
+
+    _managePhoneIti() {
+        if (!this._phoneScriptsLoaded) {
+            this._phoneScriptsLoaded = true;
+            Promise.all([
+                loadStyle(this, flagTelpicker + '/css/intlTelInput.css'),
+                loadScript(this, flagTelpicker + '/js/utils.js'),
+                loadScript(this, flagTelpicker + '/js/intlTelInput.js')
+            ])
+                .then(() => this._managePhoneIti())
+                .catch(err => console.error('flagTelpicker load error', err));
+            return;
+        }
+        if (typeof window.intlTelInput !== 'function') return;
+
+        const input = this.template.querySelector('input[data-id="phone"]');
+        if (input && !this._phoneItiInitialized) {
+            this._initPhoneIti(input);
+        } else if (input && this._phoneItiInitialized && this._phoneIti) {
+            // Keep phone input in sync if formValues.Phone__c is populated but input is empty
+            if (this.formValues.Phone__c && (!input.value || input.value === '')) {
+                const storedDial = this._extractDialCode(this.formValues.WG_Phone_Country_Code__c) || this._currentDialCode();
+                if (storedDial) {
+                    try { this._phoneIti.setNumber(storedDial + this.formValues.Phone__c); }
+                    catch (e) { /* ignore */ }
+                }
+                input.value = this._normalizeNationalNumber(
+                    this.formValues.Phone__c,
+                    storedDial || this._currentDialCode()
+                );
+            }
+        } else if (!input && this._phoneItiInitialized) {
+            this._destroyPhoneIti();
+        }
+    }
+
+    _initPhoneIti(input) {
+        const storedDial = this._extractDialCode(this.formValues.WG_Phone_Country_Code__c);
+
+        this._phoneIti = window.intlTelInput(input, {
+            separateDialCode: true,
+            showFlags: false,
+            excludeCountries: ['il'],
+            initialCountry: 'in',
+            preferredCountries: ['in', 'us', 'gb', 'ae', 'sg', 'au'],
+            utilsScript: flagTelpicker + '/js/utils.js',
+            customPlaceholder: (ph) => (ph && ph.startsWith('0')) ? ph.slice(1).trim() : ph
+        });
+
+        const wrapper = input.closest('.iti');
+        if (wrapper) wrapper.style.width = '100%';
+        this._applyItiScopeToken(input);
+        if (typeof this._phoneIti._updateInputPadding === 'function') {
+            this._phoneIti._updateInputPadding();
+        }
+
+        const national = this.formValues.Phone__c;
+        if (national) {
+            if (storedDial) {
+                try { this._phoneIti.setNumber(storedDial + national); }
+                catch (e) { /* ignore */ }
+            }
+            input.value = this._normalizeNationalNumber(
+                input.value || national,
+                storedDial || this._currentDialCode()
+            );
+        }
+
+        this._onPhoneCountryChange = () => this._syncPhoneFromIti(input, false, true);
+        input.addEventListener('countrychange', this._onPhoneCountryChange);
+
+        this._phoneItiInitialized = true;
+        this._syncPhoneFromIti(input, true, true);
+    }
+
+    _destroyPhoneIti() {
+        const input = this.template.querySelector('input[data-id="phone"]');
+        if (input && this._onPhoneCountryChange) {
+            input.removeEventListener('countrychange', this._onPhoneCountryChange);
+        }
+        if (this._phoneIti) {
+            try { this._phoneIti.destroy(); } catch (e) { /* ignore */ }
+        }
+        this._phoneIti = null;
+        this._phoneItiInitialized = false;
+        this._onPhoneCountryChange = null;
+    }
+
+    _syncPhoneFromIti(input, skipUnsavedFlag, normalizeDisplay) {
+        if (!this._phoneIti || !input) return;
+        const data = this._phoneIti.getSelectedCountryData();
+        const dial = (data && data.dialCode) ? '+' + data.dialCode : '';
+        const national = this._normalizeNationalNumber(input.value, dial);
+
+        if (normalizeDisplay && input.value !== national) {
+            input.value = national;
+        }
+
+        // Only overwrite formValues.Phone__c if input has a value OR if formValues.Phone__c was not set yet
+        if (input.value || !this.formValues.Phone__c) {
+            this.formValues.WG_Phone_Country_Code__c = dial;
+            this.formValues.Phone__c = national;
+        }
+
+        if (national) {
+            const err = this._validatePhoneField(national, dial);
+            this.phoneNumberError = err || '';
+        } else {
+            this.phoneNumberError = '';
+        }
+    }
+
+    handlePhoneNumberInput(event) {
+        this._syncPhoneFromIti(event.target, false, false);
+    }
+
+    // ── Headquarters City Search Handlers ────────────────────────────────
+    get hqHasResults() {
+        return this.hqResults && this.hqResults.length > 0;
+    }
+
+    get hqNoResults() {
+        return this.hqShowNoResults
+            && !this.hqIsLoading
+            && this.hqResults.length === 0
+            && (this.hqSearchKey || '').length > 1;
+    }
+
+    // U50: tracks whether the city box has focus, so a late search response
+    // can't reopen the list after the user has clicked away.
+    _hqHasFocus = false;
+
+    handleHQFocus() {
+        this._hqHasFocus = true;
+        if (this.hqSearchKey && this.hqSearchKey.length > 1 && this.hqResults.length > 0) {
+            this.hqResults = [...this.hqResults];
+        }
+    }
+
+    handleHQBlur() {
+        this._hqHasFocus = false;
+        // U50: cancel a search that hasn't started yet
+        window.clearTimeout(this.hqDelayTimeout);
+        setTimeout(() => {
+            this.hqResults = [];
+            this.hqShowNoResults = false;
+            this.hqIsLoading = false;
+        }, 200);
+    }
+
+    handleHQChange(event) {
+        const val = event.target.value;
+        this.hqSearchKey = val;
+        this.hqShowNoResults = false;
+
+        this._setHQValue(val);
+        window.clearTimeout(this.hqDelayTimeout);
+
+        if (!val || val.trim().length === 0) {
+            this.hqResults = [];
+            this.hqIsLoading = false;
+            return;
+        }
+
+        if (val.trim().length > 1) {
+            this.hqIsLoading = true;
+            this.hqDelayTimeout = setTimeout(() => {
+                this.fetchHQLocations();
+            }, 300);
+        } else {
+            this.hqResults = [];
+        }
+    }
+
+    async fetchHQLocations() {
+        const query = this.hqSearchKey;
+        try {
+            const response = await searchHQLocation({ query });
+            // U50: ignore a response that arrives after the user left the box
+            // or kept typing; otherwise the list reopens over the next fields.
+            if (!this._hqHasFocus || query !== this.hqSearchKey) {
+                return;
+            }
+            const data = JSON.parse(response);
+
+            const seen = new Set();
+            const tempResults = [];
+            const typed = this.hqSearchKey.split(',')[0].toLowerCase().trim();
+
+            (data.features || []).forEach(feature => {
+                const props = feature.properties || {};
+                const cityName = props.name || props.city;
+                const state = props.state || '';
+                const country = props.country || '';
+
+                if (!cityName) return;
+
+                if (!cityName.toLowerCase().startsWith(typed) &&
+                    !cityName.toLowerCase().includes(typed)) {
+                    return;
+                }
+
+                const value = [cityName, state, country].filter(Boolean).join(', ');
+                const subDisplay = [state, country].filter(Boolean).join(', ');
+
+                if (!seen.has(value)) {
+                    seen.add(value);
+                    tempResults.push({
+                        label: cityName,
+                        subDisplay: subDisplay,
+                        display: value,
+                        value: value,
+                        country: country
+                    });
+                }
+            });
+
+            this.hqResults = tempResults;
+            this.hqShowNoResults = tempResults.length === 0;
+
+        } catch (error) {
+            console.error('Error fetching HQ locations:', error);
+            this.hqResults = [];
+            this.hqShowNoResults = this._hqHasFocus;   // U50: no stuck box after blur
+        } finally {
+            // U50: only the latest search may switch the spinner off
+            if (query === this.hqSearchKey) {
+                this.hqIsLoading = false;
+            }
+        }
+    }
+
+    handleHQSelect(event) {
+        const label = event.currentTarget.dataset.label;
+        const country = event.currentTarget.dataset.country || '';
+        const val = [label, country].filter(Boolean).join(', ');
+
+        this.hqSearchKey = val;
+        this.hqResults = [];
+        this.hqShowNoResults = false;
+
+        this._setHQValue(val);
+    }
+
+    _setHQValue(val) {
+        this.formValues.Headquarters_City_and_Country__c = val;
+
+        const err = val ? this._validateHQCityCountry(val) : null;
+        if (err) {
+            this._showLightningError('Headquarters_City_and_Country__c', err);
+        } else {
+            this._clearLightningError('Headquarters_City_and_Country__c');
+        }
+    }
+
+    // ── Field Quality & Validation Helpers ─────────────────────────────────
+    // U76: true when the text contains letters from a script the form does not
+    // support (anything other than Latin, accented Latin or Cyrillic), e.g.
+    // Hindi, Tamil, Arabic or Chinese. Used to give the right message instead
+    // of "numbers or symbols alone are not allowed".
+    _hasUnsupportedScript(text) {
+        const withoutSupported = String(text || '').normalize('NFC').replace(/[a-zA-Z\u00C0-\u024F\u0400-\u04FF]/g, '');
+        return /[\p{L}\p{M}]/u.test(withoutSupported);
+    }
+
+    _unsupportedScriptMessage(fieldLabel) {
+        return `${fieldLabel} must be written in English letters (A to Z, accented letters such as é are fine). Other scripts, such as Hindi or Tamil, are not supported.`;
+    }
+
+    _validateNameLikeField(value, fieldLabel) {
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
+        if (trimmed === '') return `${fieldLabel} cannot be blank or contain only spaces.`;
+
+        const emojiPattern = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FFFF}]/u;
+        if (emojiPattern.test(trimmed)) {
+            return `${fieldLabel} cannot contain emoji characters.`;
+        }
+
+        if (/<\s*\/?\s*[a-zA-Z][^>]*>/.test(trimmed)) {
+            return `${fieldLabel} cannot contain HTML or script tags.`;
+        }
+
+        if (/(--|;|\bor\b\s+\d+\s*=\s*\d+|\bunion\b\s+\bselect\b|'\s*or\s*')/i.test(trimmed)) {
+            return `${fieldLabel} contains characters that are not allowed.`;
+        }
+
+        if (this._hasUnsupportedScript(trimmed)) {
+            return this._unsupportedScriptMessage(fieldLabel);   // U76
+        }
+
+        if (!/[a-zA-Z\u00C0-\u024F\u0400-\u04FF]/.test(trimmed)) {
+            return `${fieldLabel} must contain at least one letter: numbers or symbols alone are not allowed.`;
+        }
+
+        if (!/^[a-zA-Z\u00C0-\u024F\u0400-\u04FF0-9\s.,'()&/\-]+$/.test(trimmed)) {
+            return `${fieldLabel} contains invalid characters or symbols.`;
+        }
+
+        return null;
+    }
+
+    _validateHQCityCountry(value) {
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
+        if (trimmed === '') return 'Headquarters City and Country cannot be blank or contain only spaces.';
+        if (!/[a-zA-Z]/.test(trimmed)) return 'Headquarters City and Country must contain letters.';
+
+        const parts = trimmed.split(',').map(p => p.trim());
+        if (parts.length < 2) {
+            return 'Please enter both headquarters city and country, separated by a comma (e.g., "Chennai, India").';
+        }
+        if (parts.length > 2 || parts.some(p => p === '')) {
+            return 'Please enter exactly one city and one country separated by a single comma (e.g., "Chennai, India").';
+        }
+        const [city, country] = parts;
+        if (!/[a-zA-Z]/.test(city)) return 'Please enter a valid city name.';
+        if (!/[a-zA-Z]/.test(country)) return 'Please enter a valid country name.';
+        return null;
+    }
+
+    _validateRegionsField(value) {
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
+        if (trimmed === '') return 'Primary Service Regions cannot be blank or contain only spaces.';
+
+        const emojiPattern = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FFFF}]/u;
+        if (emojiPattern.test(trimmed)) {
+            return 'Primary Service Regions cannot contain emoji characters.';
+        }
+
+        if (/<\s*\/?\s*[a-zA-Z][^>]*>/.test(trimmed)) {
+            return 'Primary Service Regions cannot contain HTML or script tags.';
+        }
+
+        if (/(--|\bor\b\s+\d+\s*=\s*\d+|\bunion\b\s+\bselect\b|'\s*or\s*')/i.test(trimmed)) {
+            return 'Primary Service Regions contains characters that are not allowed.';
+        }
+
+        if (this._hasUnsupportedScript(trimmed)) {
+            return this._unsupportedScriptMessage('Primary Service Regions');   // U76
+        }
+
+        const LETTER = /[a-zA-Z\u00C0-\u024F\u0400-\u04FF]/;
+        if (!LETTER.test(trimmed)) {
+            return 'Primary Service Regions must contain letters.';
+        }
+
+        if (!/^[a-zA-Z\u00C0-\u024F\u0400-\u04FF0-9\s:;,.\-–—/\\()[\]&'"’“”|>\+]+$/.test(trimmed)) {
+            return 'Primary Service Regions contains invalid characters or symbols.';
+        }
+
+        const parts = trimmed.split(/[,;:|/\n]/).map(p => p.trim()).filter(p => p !== '');
+        if (parts.length === 0) return 'Please enter at least one state, province or region.';
+
+        for (const part of parts) {
+            const cleanPart = part.replace(/^[()[\]\s\-–—]+|[()[\]\s\-–—]+$/g, '').trim();
+            if (cleanPart && !LETTER.test(cleanPart) && !/\d/.test(cleanPart)) {
+                return `"${part}" is not a valid region name: each entry must contain letters.`;
+            }
+        }
+        return null;
+    }
+
+    _validatePhoneField(value, countryCodeValue) {
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
+        if (trimmed === '') return 'Phone number cannot be blank or contain only spaces.';
+        if (!/^[0-9+\-()\s]+$/.test(trimmed)) {
+            return 'Phone number can only contain digits and characters like +, -, (), or spaces.';
+        }
+
+        const dialCode = this._extractDialCode(countryCodeValue);
+        const digitsOnly = this._normalizeNationalNumber(trimmed, dialCode);
+        if (!digitsOnly) return 'Phone number cannot be blank or contain only spaces.';
+
+        const rule = dialCode ? this.PHONE_LENGTH_BY_COUNTRY_CODE[dialCode] : null;
+
+        if (rule) {
+            if (digitsOnly.length < rule.min || digitsOnly.length > rule.max) {
+                const expected = rule.min === rule.max
+                    ? `${rule.min} digits`
+                    : `${rule.min}–${rule.max} digits`;
+                return `Enter a valid phone number for the selected country (expected ${expected}, e.g. ${dialCode} ${rule.example}).`;
+            }
+            return null;
+        }
+
+        if (digitsOnly.length < 7) {
+            return 'Please enter a valid phone number with at least 7 digits.';
+        }
+        return null;
+    }
+
+    _isNativeFormElement(el) {
+        const tag = el && el.tagName ? el.tagName.toUpperCase() : '';
+        return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+    }
+
+    _showLightningError(dataId, message) {
+        const el = this.template.querySelector(`[data-id="${dataId}"]`) ||
+            this.template.querySelector(`[data-key="${dataId}"]`) ||
+            this.template.querySelector(`[data-field="${dataId}"]`);
+        if (el) {
+            if (this._isNativeFormElement(el)) {
+                // Native inputs (e.g. the funding period dates): reportValidity() would move
+                // the cursor into this field while the user is typing elsewhere, so show the
+                // inline message instead.
+                this._showNativeError(el, message);
+            } else if (el.setCustomValidity) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+            } else {
+                this._showNativeError(el, message);
+            }
+            this._registerInvalid(el);
+        }
+    }
+
+    _clearLightningError(dataId) {
+        const el = this.template.querySelector(`[data-id="${dataId}"]`) ||
+            this.template.querySelector(`[data-key="${dataId}"]`) ||
+            this.template.querySelector(`[data-field="${dataId}"]`);
+        if (el) {
+            if (this._isNativeFormElement(el)) {
+                // Clear without reportValidity(), which can pull focus to an empty required field.
+                if (el.setCustomValidity) {
+                    el.setCustomValidity('');
+                }
+                this._clearNativeError(el);
+            } else if (el.setCustomValidity) {
+                el.setCustomValidity('');
+                el.reportValidity();
+            } else {
+                this._clearNativeError(el);
+            }
+            this._invalidElements = this._invalidElements.filter(x => x !== el);
+        }
+    }
+
+    _showFieldError(fieldName, message) {
+        const el = this.template.querySelector(`[data-field="${fieldName}"]`) ||
+            this.template.querySelector(`[data-id="${fieldName}"]`) ||
+            this.template.querySelector(`[data-key="${fieldName}"]`);
+        if (el) {
+            el.classList.add('richtext-invalid');
+            this._registerInvalid(el);
+        }
+        const errEl = this.template.querySelector(`[data-error="${fieldName}"]`);
+        if (errEl) {
+            errEl.textContent = message;
+            errEl.style.display = 'block';
+        }
+    }
+
+    _clearFieldError(fieldName) {
+        const el = this.template.querySelector(`[data-field="${fieldName}"]`) ||
+            this.template.querySelector(`[data-id="${fieldName}"]`) ||
+            this.template.querySelector(`[data-key="${fieldName}"]`);
+        if (el) el.classList.remove('richtext-invalid', 'invalid-field', 'richtext-overlimit');
+        if (el) this._invalidElements = this._invalidElements.filter(x => x !== el);
+
+        const errEl = this.template.querySelector(`[data-error="${fieldName}"]`);
+        if (errEl) {
+            errEl.textContent = '';
+            errEl.style.display = 'none';
+        }
+    }
+
+    _fieldErrorHost(el) {
+        return el.closest('.domain-field-item, .domain-name-field, .modern-field, .verify-block, .table-container, td')
+            || el.parentElement;
+    }
+
+    _showNativeError(el, message) {
+        if (!el) return;
+        el.classList.add('input-error');
+        const host = this._fieldErrorHost(el);
+        if (!host) return;
+        let errEl = host.querySelector('.field-error-msg');
+        if (!errEl) {
+            errEl = document.createElement('p');
+            errEl.className = 'field-error-msg';
+            errEl.style.color = 'var(--wg-error)'; // audit sweep fix -- was stale literal #C23934, now uses the token (inherits through the shadow tree from :host)
+            errEl.style.fontSize = '12px';
+            errEl.style.lineHeight = '1.4';
+            errEl.style.marginTop = '4px';
+            host.appendChild(errEl);
+        }
+        errEl.textContent = message;
+        errEl.style.display = 'block';
+        this._registerInvalid(el);
+    }
+
+    _clearNativeError(el) {
+        if (!el) return;
+        el.classList.remove('input-error');
+        const host = this._fieldErrorHost(el);
+        const errEl = host && host.querySelector('.field-error-msg');
+        if (errEl) {
+            errEl.textContent = '';
+            errEl.style.display = 'none';
+        }
+        this._invalidElements = this._invalidElements.filter(x => x !== el);
+    }
+
+    _showChipError(card, message) {
+        const row = card?.querySelector('.sector-chips-row');
+        if (!row) return;
+        row.classList.add('chips-error');
+        let errEl = row.parentElement.querySelector('.field-error-msg');
+        if (!errEl) {
+            errEl = document.createElement('p');
+            errEl.className = 'field-error-msg';
+            errEl.style.color = 'var(--wg-error)'; // audit sweep fix -- was stale literal #C23934
+            errEl.style.fontSize = '12px';
+            errEl.style.marginTop = '4px';
+            row.parentElement.appendChild(errEl);
+        }
+        errEl.textContent = message;
+        errEl.style.display = 'block';
+        this._registerInvalid(row);
+    }
+
+    _clearChipError(card) {
+        const row = card?.querySelector('.sector-chips-row');
+        if (!row) return;
+        row.classList.remove('chips-error');
+        const errEl = row.parentElement.querySelector('.field-error-msg');
+        if (errEl) {
+            errEl.style.display = 'none';
+        }
+        this._invalidElements = this._invalidElements.filter(x => x !== row);
+    }
+
+    _registerInvalid(el) {
+        if (el && !this._invalidElements.includes(el)) {
+            this._invalidElements.push(el);
+        }
+    }
+
+    _resetInvalidTracking() {
+        this._invalidElements = [];
+    }
+
+    _clearAllInlineErrors() {
+        this.template.querySelectorAll('.field-error-msg, .inline-date-error-msg')
+            .forEach(el => { el.textContent = ''; el.style.display = 'none'; });
+
+        this.template.querySelectorAll('p.error-msg')
+            .forEach(el => { el.textContent = ''; el.style.display = 'none'; });
+
+        this.template.querySelectorAll(
+            '.input-error, .invalid-field, .richtext-invalid, .richtext-overlimit, .chips-error'
+        ).forEach(el => el.classList.remove(
+            'input-error', 'invalid-field', 'richtext-invalid', 'richtext-overlimit', 'chips-error'
+        ));
+
+        this.template.querySelectorAll('lightning-input, lightning-combobox, lightning-textarea')
+            .forEach(el => { if (el.setCustomValidity) { el.setCustomValidity(''); el.reportValidity(); } });
+
+        this.phoneNumberError = '';
+        this._invalidElements = [];
+    }
+
+    _scrollToFirstError() {
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        setTimeout(() => {
+            const marked = Array.from(this.template.querySelectorAll(
+                '.richtext-invalid, .invalid-field, .richtext-overlimit, ' +
+                '.input-error, .chips-error, .file-upload-error'
+            ));
+
+            const messages = Array.from(this.template.querySelectorAll(
+                '.error-msg, .file-error-msg, .phone-error-msg, .field-error-msg, ' +
+                '.inline-date-error-msg, .word-count-over'
+            )).filter(el =>
+                el.offsetParent !== null &&
+                el.style.display !== 'none' &&
+                (el.textContent || '').trim() !== ''
+            );
+
+            const all = [...this._invalidElements, ...marked, ...messages]
+                .filter(el => el && el.isConnected && el.offsetParent !== null);
+
+            if (all.length === 0) return;
+
+            let target = all[0];
+            let minTop = target.getBoundingClientRect().top;
+            all.forEach(el => {
+                const t = el.getBoundingClientRect().top;
+                if (t < minTop) { minTop = t; target = el; }
+            });
+
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            if (typeof target.focus === 'function') {
+                // eslint-disable-next-line @lwc/lwc/no-async-operation
+                setTimeout(() => { try { target.focus(); } catch (e) { /* noop */ } }, 400);
+            }
+        }, 60);
+    }
+
+    _nativeFieldLabel(el) {
+        const wrap = el.closest ? el.closest('.slds-form-element, .modern-field, .domain-field-item, .date-field-wrapper') : null;
+        const lbl = wrap?.querySelector('.slds-form-element__label, .date-field-label, .domain-field-label, label, .field-label-bold');
+        return lbl ? lbl.textContent.replace(/[*]/g, '').trim() : 'This field';
+    }
+
+    _fmtDateDisplay(dateStr) {
+        if (!dateStr) return '';
+        try {
+            const parts = String(dateStr).split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+        } catch (_) { }
+        return dateStr;
+    }
+
+    _getLabelForFieldKey(key) {
+        if (!key) return '';
+        const specMap = {
+            Organization_Name__c: 'Organization Name',
+            Headquarters_City_and_Country__c: 'Headquarters City and Country',
+            Primary_Service_Regions__c: 'Primary Service Regions',
+            Leader_Name__c: 'Leader Name',
+            Leader_Title__c: 'Leader Title',
+            Leader_Tenure__c: 'Leader Tenure',
+            Submitter_Name__c: 'Submitter Name',
+            Job_Title__c: 'Submitter Title',
+            Work_Email_ID__c: 'Work Email Address',
+            Phone__c: 'Phone number',
+            phone: 'Phone number',
+            Legal_Type__c: 'Organizational Legal Type',
+            Legal_Type_Other__c: 'Other Legal Type',
+            Registration_Jurisdiction__c: 'Registration Jurisdiction',
+            Registration_Jurisdiction_Other__c: 'Other Registration Jurisdiction',
+            Incorporation_Date__c: 'Incorporation Date',
+            Legal_Structure__c: 'Organizational Legal Structure',
+            Has_501c3_Status__c: 'US 501(c)(3) Status',
+            Has_Equivalency_Determination__c: 'Equivalency Determination (ED) Status',
+            Is_FCRA_Registered__c: 'FCRA Registration Status',
+            Willing_to_Pursue_ED__c: 'Willingness to Pursue ED Certification',
+            Fiscal_Month__c: 'Fiscal Year End Month',
+            Fiscal_Day__c: 'Fiscal Year End Day',
+            Funder_1_Name__c: 'Funder 1 Name',
+            Funder_1_Amount__c: 'Funder 1 Amount',
+            Funder_1_Period_Start__c: 'Funder 1 Period Start',
+            Funder_1_Period_End__c: 'Funder 1 Period End',
+            Funder_1_Type__c: 'Funder 1 Type',
+            Funder_2_Name__c: 'Funder 2 Name',
+            Funder_2_Amount__c: 'Funder 2 Amount',
+            Funder_2_Period_Start__c: 'Funder 2 Period Start',
+            Funder_2_Period_End__c: 'Funder 2 Period End',
+            Funder_2_Type__c: 'Funder 2 Type',
+            Funder_3_Name__c: 'Funder 3 Name',
+            Funder_3_Amount__c: 'Funder 3 Amount',
+            Funder_3_Period_Start__c: 'Funder 3 Period Start',
+            Funder_3_Period_End__c: 'Funder 3 Period End',
+            Funder_3_Type__c: 'Funder 3 Type',
+            Reference_1_Name__c: 'Reference 1 Name',
+            Reference_1_Role__c: 'Reference 1 Role',
+            Reference_1_Email__c: 'Reference 1 Email',
+            Reference_2_Name__c: 'Reference 2 Name',
+            Reference_2_Role__c: 'Reference 2 Role',
+            Reference_2_Email__c: 'Reference 2 Email',
+            // Q9 Historical Financials
+            START_FY3: 'Historical Balance - Start of FY-3',
+            REV_FY3: 'Historical Revenue - FY-3',
+            REV_FY2: 'Historical Revenue - FY-2',
+            REV_FY1: 'Historical Revenue - FY-1',
+            CAP_FY3: 'Historical Capital Expenditure - FY-3',
+            CAP_FY2: 'Historical Capital Expenditure - FY-2',
+            CAP_FY1: 'Historical Capital Expenditure - FY-1',
+            OP_FY3: 'Historical Operating Expenditure - FY-3',
+            OP_FY2: 'Historical Operating Expenditure - FY-2',
+            OP_FY1: 'Historical Operating Expenditure - FY-1',
+            // Q10 Current FY Financials
+            CFY_REV_BUDGET: 'Current FY Revenue (Budget)',
+            CFY_REV_PROJ: 'Current FY Revenue (Projection)',
+            CFY_CAP_BUDGET: 'Current FY Capital Expenditure (Budget)',
+            CFY_CAP_PROJ: 'Current FY Capital Expenditure (Projection)',
+            CFY_OP_BUDGET: 'Current FY Operating Expenditure (Budget)',
+            CFY_OP_PROJ: 'Current FY Operating Expenditure (Projection)',
+            Revenue_Explanation__c: 'CFY Deviation Explanation',
+            // Tab 2 Skilling
+            Skilling_Approach__c: 'Your Skilling Approach',
+            name: 'Domain / Program Name',
+            hours: 'Hours of Training',
+            duration: 'Duration (Months)',
+            whenStarted: 'When Program Started',
+            enrollment: 'Annual Enrollment',
+            JF_ENROLL_FY3: 'Learner Enrollments (FY-3)',
+            JF_ENROLL_FY2: 'Learner Enrollments (FY-2)',
+            JF_ENROLL_FY1: 'Learner Enrollments (FY-1)',
+            JF_ENROLL_PROJ: 'Learner Enrollments (Projected)',
+            JF_PLACE_FY3: 'Learner Placements (FY-3)',
+            JF_PLACE_FY2: 'Learner Placements (FY-2)',
+            JF_PLACE_FY1: 'Learner Placements (FY-1)',
+            JF_PLACE_PROJ: 'Learner Placements (Projected)',
+            JF_COST_FY3: 'Avg Cost per Placement (FY-3)',
+            JF_COST_FY2: 'Avg Cost per Placement (FY-2)',
+            JF_COST_FY1: 'Avg Cost per Placement (FY-1)',
+            JF_COST_PROJ: 'Avg Cost per Placement (Projected)',
+            // Tab 3 Job Creation
+            Job_Creation_Approach__c: 'Your Job Creation Approach',
+            sector: 'Business Sector',
+            sectorOther: 'Other Business Sector',
+            supportTypes: 'Type of Support Provided',
+            supportTypeOther: 'Other Type of Support',
+            whenBegan: 'When Program Began',
+            JC_NEW_BIZ_FY3: 'New Businesses Started (FY-3)',
+            JC_NEW_BIZ_FY2: 'New Businesses Started (FY-2)',
+            JC_NEW_BIZ_FY1: 'New Businesses Started (FY-1)',
+            JC_NEW_BIZ_PROJ: 'New Businesses Started (Projected)',
+            JC_NEW_JOBS_FY3: 'Jobs Created by New Businesses (FY-3)',
+            JC_NEW_JOBS_FY2: 'Jobs Created by New Businesses (FY-2)',
+            JC_NEW_JOBS_FY1: 'Jobs Created by New Businesses (FY-1)',
+            JC_NEW_JOBS_PROJ: 'Jobs Created by New Businesses (Projected)',
+            JC_EXIST_BIZ_FY3: 'Existing Businesses Supported (FY-3)',
+            JC_EXIST_BIZ_FY2: 'Existing Businesses Supported (FY-2)',
+            JC_EXIST_BIZ_FY1: 'Existing Businesses Supported (FY-1)',
+            JC_EXIST_BIZ_PROJ: 'Existing Businesses Supported (Projected)',
+            JC_EXIST_JOBS_FY3: 'Jobs Created by Existing Businesses (FY-3)',
+            JC_EXIST_JOBS_FY2: 'Jobs Created by Existing Businesses (FY-2)',
+            JC_EXIST_JOBS_FY1: 'Jobs Created by Existing Businesses (FY-1)',
+            JC_EXIST_JOBS_PROJ: 'Jobs Created by Existing Businesses (Projected)',
+            JC_COST_FY3: 'Avg Cost per Job Created (FY-3)',
+            JC_COST_FY2: 'Avg Cost per Job Created (FY-2)',
+            JC_COST_FY1: 'Avg Cost per Job Created (FY-1)',
+            JC_COST_PROJ: 'Avg Cost per Job Created (Projected)',
+            // Tab 4 Livelihood
+            Livelihood_Approach__c: 'Your Livelihood Upliftment Approach',
+            supportType: 'Type of Support Provided',
+            manHours: 'Duration in Man-Hours',
+            state: 'State',
+            district: 'District / Area',
+            LIV_SERVED_FY3: 'Beneficiaries Served (FY-3)',
+            LIV_SERVED_FY2: 'Beneficiaries Served (FY-2)',
+            LIV_SERVED_FY1: 'Beneficiaries Served (FY-1)',
+            LIV_SERVED_PROJ: 'Beneficiaries Served (Projected)',
+            LIV_ENROLL_FY3: 'Beneficiaries Newly Enrolled (FY-3)',
+            LIV_ENROLL_FY2: 'Beneficiaries Newly Enrolled (FY-2)',
+            LIV_ENROLL_FY1: 'Beneficiaries Newly Enrolled (FY-1)',
+            LIV_ENROLL_PROJ: 'Beneficiaries Newly Enrolled (Projected)',
+            LIV_OUTCOME_FY3: 'Beneficiaries Meeting Outcome Criteria (FY-3)',
+            LIV_OUTCOME_FY2: 'Beneficiaries Meeting Outcome Criteria (FY-2)',
+            LIV_OUTCOME_FY1: 'Beneficiaries Meeting Outcome Criteria (FY-1)',
+            LIV_OUTCOME_PROJ: 'Beneficiaries Meeting Outcome Criteria (Projected)',
+            LIV_COST_FY3: 'Avg Cost per Outcome (FY-3)',
+            LIV_COST_FY2: 'Avg Cost per Outcome (FY-2)',
+            LIV_COST_FY1: 'Avg Cost per Outcome (FY-1)',
+            LIV_COST_PROJ: 'Avg Cost per Outcome (Projected)',
+            // Tab 5 Why Wadhwani
+            Q24_VERIFIED: 'Outcomes Verified by Third Party',
+            Details_of_Ethical_Received__c: 'Verification Conductor Details',
+            q24Upload: 'Verification Report Upload',
+            Organizational_Sustainability__c: 'Sustainability Plan',
+            Use_of_Additional_Funding__c: 'Direction for Additional Funding',
+            GenieAI_Interest_Level__c: 'GenieAI Interest Level',
+            Operational_Synergies_with_WOF__c: 'Operational Synergies with GenieAI',
+            // Tab 6 Review & Submit
+            Attesting_User_Name__c: 'Attesting User Name',
+            Attesting_User_Title__c: 'Attesting User Title',
+            'attest-checkbox': 'Attestation Confirmation'
+        };
+        return specMap[key] || key;
+    }
+
+    _getFieldLabel(el) {
+        if (!el) return '';
+        if (typeof el === 'string') {
+            return this._getLabelForFieldKey(el);
+        }
+
+        const targetId = el.dataset?.key || el.dataset?.id || el.dataset?.field || el.dataset?.error;
+        if (targetId) {
+            const mapped = this._getLabelForFieldKey(targetId);
+            if (mapped && mapped !== targetId) return mapped;
+        }
+
+        const tr = el.closest ? el.closest('tr') : null;
+        if (tr) {
+            const td = el.closest('td');
+            const rowLabelEl = tr.querySelector('.row-label-cell, td:first-child');
+            let rowLabel = rowLabelEl ? rowLabelEl.textContent.replace(/[*]/g, '').trim() : '';
+            if (rowLabel.includes('\n')) {
+                rowLabel = rowLabel.split('\n')[0].trim();
+            }
+            const colIndex = td ? Array.from(tr.children).indexOf(td) : -1;
+            if (colIndex !== -1) {
+                const table = el.closest('table');
+                const th = table?.querySelector(`thead tr th:nth-child(${colIndex + 1})`);
+                const colLabel = th ? th.textContent.replace(/[*]/g, '').trim() : '';
+                if (colLabel && rowLabel) {
+                    return `${colLabel} - ${rowLabel}`;
+                }
+            }
+            if (rowLabel) return rowLabel;
+        }
+
+        if (el.label) return el.label;
+        if (el.dataset?.id === 'phone') return 'Phone number';
+
+        const wrap = el.closest ? el.closest('.slds-form-element, .modern-field, .domain-field-item, .date-field-wrapper') : null;
+        if (wrap && wrap.contains(el)) {
+            const lbl = wrap.querySelector('.slds-form-element__label, .date-field-label, .domain-field-label, label, .field-label-bold');
+            if (lbl) {
+                return lbl.textContent.replace(/[*]/g, '').trim();
+            }
+        }
+
+        const nativeLabel = this._nativeFieldLabel(el);
+        if (nativeLabel && nativeLabel !== 'This field') {
+            return nativeLabel;
+        }
+
+        return targetId ? this._getLabelForFieldKey(targetId) : 'This field';
+    }
+
+    _checkRichText(field, label, limit) {
+        const el = this.template.querySelector(`[data-field="${field}"]`) ||
+            this.template.querySelector(`[data-id="${field}"]`) ||
+            this.template.querySelector(`[data-key="${field}"]`);
+
+        let text = '';
+        let htmlVal = '';
+        if (el) {
+            const elText = (el.innerText || '').trim();
+            if (elText.length > 0) {
+                htmlVal = el.innerHTML || '';
+                text = elText;
+                this.formValues[field] = htmlVal;
+            } else if (this.formValues[field] && String(this.formValues[field]).trim() !== '') {
+                htmlVal = this.formValues[field];
+                text = this.stripHtml(htmlVal).trim();
+                el.innerHTML = htmlVal;
+            }
+        } else if (this.formValues[field]) {
+            htmlVal = this.formValues[field];
+            text = this.stripHtml(htmlVal).trim();
+        }
+
+        const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+        this._updateWordCountForField(field, words.length);
+
+        if (words.length === 0) {
+            this._showFieldError(field, `${label} is required.`);
+            if (el) el.classList.remove('richtext-overlimit');
+            return false;
+        }
+        if (words.length > limit) {
+            if (el) {
+                el.classList.add('richtext-invalid', 'richtext-overlimit');
+                this._registerInvalid(el);
+            }
+            const errEl = this.template.querySelector(`[data-error="${field}"]`);
+            if (errEl) {
+                errEl.textContent = '';
+                errEl.style.display = 'none';
+            }
+            return false;
+        }
+        if (el) el.classList.remove('richtext-overlimit');
+        this._clearFieldError(field);
+        return true;
+    }
+
+    // ── Tab 1: About Your Organisation Validation ──────────────────────────
+    validateTabAboutOrg() {
+        let isValid = true;
+        const org = this.formValues;
+
+        // Leader Tenure: Optional but whole number between 0 and 99
+        const tenure = org.Leader_Tenure__c;
+        if (tenure !== '' && tenure !== null && tenure !== undefined) {
+            const n = Number(tenure);
+            if (!Number.isInteger(n) || n < 0 || n > 99) {
+                this._showLightningError('Leader_Tenure__c', 'Must be a whole number between 0 and 99.');
+                isValid = false;
+            } else {
+                this._clearLightningError('Leader_Tenure__c');
+            }
+        } else {
+            this._clearLightningError('Leader_Tenure__c');
+        }
+
+        // Incorporation Date
+        const incDate = org.Incorporation_Date__c;
+        const todayStr = this.todayDateString;
+        if (!incDate) {
+            this._showLightningError('Incorporation_Date__c', 'Incorporation Date is required.');
+            isValid = false;
+        } else if (incDate > todayStr) {
+            this._showLightningError('Incorporation_Date__c', 'Incorporation date cannot be in the future.');
+            isValid = false;
+        } else if (incDate < '1900-01-01') {
+            this._showLightningError('Incorporation_Date__c', 'Please enter a valid incorporation date.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Incorporation_Date__c');
+        }
+
+        // Text-quality checks
+        const textFieldChecks = [
+            { id: 'Organization_Name__c', run: v => this._validateNameLikeField(v, 'Organization Name') },
+            { id: 'Headquarters_City_and_Country__c', run: v => this._validateHQCityCountry(v) },
+            { id: 'Primary_Service_Regions__c', run: v => this._validateRegionsField(v) },
+            { id: 'Leader_Name__c', run: v => this._validateNameLikeField(v, 'Leader Name') },
+            { id: 'Leader_Title__c', run: v => this._validateNameLikeField(v, 'Leader Title') },
+            { id: 'Submitter_Name__c', run: v => this._validateNameLikeField(v, 'Submitter Name') },
+            { id: 'Job_Title__c', run: v => this._validateNameLikeField(v, 'Submitter Title') }
+        ];
+
+        textFieldChecks.forEach(({ id, run }) => {
+            const val = org[id];
+            if (!val || String(val).trim() === '') {
+                const label = this._getFieldLabel({ dataset: { id } });
+                this._showLightningError(id, `${label} is required.`);
+                isValid = false;
+            } else {
+                const err = run(val);
+                if (err) {
+                    this._showLightningError(id, err);
+                    isValid = false;
+                } else {
+                    this._clearLightningError(id);
+                }
+            }
+        });
+
+        // Email address
+        const emailVal = org.Work_Email_ID__c;
+        if (!emailVal || String(emailVal).trim() === '') {
+            this._showLightningError('Work_Email_ID__c', 'Work Email Address is required.');
+            isValid = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+            this._showLightningError('Work_Email_ID__c', 'Please enter a valid email address.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Work_Email_ID__c');
+        }
+
+        // Phone number & country code
+        const countryCode = this.formValues.WG_Phone_Country_Code__c || this._currentDialCode();
+        const phoneVal = org.Phone__c;
+        const phoneEl = this.template.querySelector('[data-id="phone"]');
+
+        if (!countryCode || String(countryCode).trim() === '') {
+            this.phoneNumberError = 'Please select a country code.';
+            isValid = false;
+            if (phoneEl) this._registerInvalid(phoneEl);
+        } else if (!phoneVal || String(phoneVal).trim() === '') {
+            this.phoneNumberError = 'Phone number cannot be blank or contain only spaces.';
+            isValid = false;
+            if (phoneEl) this._registerInvalid(phoneEl);
+        } else {
+            const phoneErr = this._validatePhoneField(phoneVal, countryCode);
+            this.phoneNumberError = phoneErr || '';
+            if (phoneErr) {
+                isValid = false;
+                if (phoneEl) this._registerInvalid(phoneEl);
+            } else {
+                if (phoneEl) this._invalidElements = this._invalidElements.filter(x => x !== phoneEl);
+            }
+        }
+
+        // Legal Type & Jurisdiction
+        if (!org.Legal_Type__c) {
+            this._showLightningError('Legal_Type__c', 'Please select a Legal Type.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Legal_Type__c');
+            if (org.Legal_Type__c === 'Other') {
+                if (!org.Legal_Type_Other__c || String(org.Legal_Type_Other__c).trim() === '') {
+                    this._showLightningError('Legal_Type_Other__c', 'Please specify your legal type.');
+                    isValid = false;
+                } else {
+                    const err = this._validateNameLikeField(org.Legal_Type_Other__c, 'Legal Type');
+                    if (err) { this._showLightningError('Legal_Type_Other__c', err); isValid = false; }
+                    else { this._clearLightningError('Legal_Type_Other__c'); }
+                }
+            }
+        }
+
+        if (!org.Registration_Jurisdiction__c) {
+            this._showLightningError('Registration_Jurisdiction__c', 'Please select a Registration Jurisdiction.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Registration_Jurisdiction__c');
+            if (org.Registration_Jurisdiction__c === 'Other') {
+                if (!org.Registration_Jurisdiction_Other__c || String(org.Registration_Jurisdiction_Other__c).trim() === '') {
+                    this._showLightningError('Registration_Jurisdiction_Other__c', 'Please specify your registration jurisdiction.');
+                    isValid = false;
+                } else {
+                    const err = this._validateNameLikeField(org.Registration_Jurisdiction_Other__c, 'Registration Jurisdiction');
+                    if (err) { this._showLightningError('Registration_Jurisdiction_Other__c', err); isValid = false; }
+                    else { this._clearLightningError('Registration_Jurisdiction_Other__c'); }
+                }
+            }
+        }
+
+        // Rich Text: Legal Structure (Q4)
+        if (!this._checkRichText('Legal_Structure__c', 'Organizational Legal Structure', 100)) {
+            isValid = false;
+        }
+
+        // Compliance picklists (Q5)
+        const compFields = [
+            { key: 'Has_501c3_Status__c', label: 'US 501(c)(3) status' },
+            { key: 'Has_Equivalency_Determination__c', label: 'Equivalency Determination (ED) status' },
+            { key: 'Is_FCRA_Registered__c', label: 'FCRA registration status' },
+            { key: 'Willing_to_Pursue_ED__c', label: 'ED certification willingness' }
+        ];
+        compFields.forEach(({ key, label }) => {
+            if (!org[key]) {
+                this._showLightningError(key, `Please select an option for ${label}.`);
+                isValid = false;
+            } else {
+                this._clearLightningError(key);
+            }
+        });
+
+        // Fiscal Month & Day (Q6)
+        if (!org.Fiscal_Month__c) {
+            this._showLightningError('Fiscal_Month__c', 'Fiscal year end month is required.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Fiscal_Month__c');
+        }
+        if (!org.Fiscal_Day__c) {
+            this._showLightningError('Fiscal_Day__c', 'Fiscal year end day is required.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Fiscal_Day__c');
+        }
+
+        // Funders (Q7) partial-fill and sequential check
+        const f1Filled = [org.Funder_1_Name__c, org.Funder_1_Amount__c, org.Funder_1_Period_Start__c, org.Funder_1_Period_End__c, org.Funder_1_Type__c].some(v => v !== '' && v !== null && v !== undefined);
+        const f2Filled = this.showFunder2 && [org.Funder_2_Name__c, org.Funder_2_Amount__c, org.Funder_2_Period_Start__c, org.Funder_2_Period_End__c, org.Funder_2_Type__c].some(v => v !== '' && v !== null && v !== undefined);
+        const f3Filled = this.showFunder3 && [org.Funder_3_Name__c, org.Funder_3_Amount__c, org.Funder_3_Period_Start__c, org.Funder_3_Period_End__c, org.Funder_3_Type__c].some(v => v !== '' && v !== null && v !== undefined);
+
+        if (f2Filled && !f1Filled) {
+            ['Funder_1_Name__c', 'Funder_1_Amount__c', 'Funder_1_Period_Start__c', 'Funder_1_Period_End__c', 'Funder_1_Type__c'].forEach(k => {
+                this._showLightningError(k, 'Please complete Funder 1 before adding Funder 2.');
+            });
+            isValid = false;
+        }
+        if (f3Filled && !f2Filled) {
+            ['Funder_2_Name__c', 'Funder_2_Amount__c', 'Funder_2_Period_Start__c', 'Funder_2_Period_End__c', 'Funder_2_Type__c'].forEach(k => {
+                this._showLightningError(k, 'Please complete Funder 2 before adding Funder 3.');
+            });
+            isValid = false;
+        }
+
+        const funderSets = [
+            {
+                label: 'Funder 1',
+                fields: {
+                    name: 'Funder_1_Name__c',
+                    amount: 'Funder_1_Amount__c',
+                    start: 'Funder_1_Period_Start__c',
+                    end: 'Funder_1_Period_End__c',
+                    type: 'Funder_1_Type__c',
+                },
+                show: true,
+            },
+            {
+                label: 'Funder 2',
+                fields: {
+                    name: 'Funder_2_Name__c',
+                    amount: 'Funder_2_Amount__c',
+                    start: 'Funder_2_Period_Start__c',
+                    end: 'Funder_2_Period_End__c',
+                    type: 'Funder_2_Type__c',
+                },
+                show: this.showFunder2,
+            },
+            {
+                label: 'Funder 3',
+                fields: {
+                    name: 'Funder_3_Name__c',
+                    amount: 'Funder_3_Amount__c',
+                    start: 'Funder_3_Period_Start__c',
+                    end: 'Funder_3_Period_End__c',
+                    type: 'Funder_3_Type__c',
+                },
+                show: this.showFunder3,
+            },
+        ];
+
+        funderSets.forEach(({ label, fields, show }) => {
+            if (!show) return;
+            const f = fields;
+            const values = Object.values(f).map(key => org[key]);
+            const anyFilled = values.some(v => v !== '' && v !== null && v !== undefined);
+
+            if (!anyFilled) {
+                if ((label === 'Funder 1' && f2Filled) || (label === 'Funder 2' && f3Filled)) {
+                    // Retain sequential error
+                } else {
+                    Object.values(f).forEach(key => this._clearLightningError(key));
+                }
+                return;
+            }
+
+            const requiredKeys = [f.name, f.amount, f.start, f.end, f.type];
+            requiredKeys.forEach(key => {
+                if (!org[key] && org[key] !== 0) {
+                    this._showLightningError(key, `${label}: complete all fields or clear this row.`);
+                    isValid = false;
+                } else {
+                    this._clearLightningError(key);
+                }
+            });
+
+            if (org[f.amount] !== '' && org[f.amount] !== null && org[f.amount] !== undefined) {
+                const clean = String(org[f.amount]).replace(/,/g, '').trim();
+                const err = this._validateMoneyAmount(clean, `${label} amount`, false);
+                if (err) {
+                    this._showLightningError(f.amount, err);
+                    isValid = false;
+                } else {
+                    this._clearLightningError(f.amount);
+                }
+            }
+
+            if (org[f.start] && org[f.end]) {
+                try {
+                    const s = new Date(org[f.start]);
+                    const e = new Date(org[f.end]);
+                    if (!isNaN(s) && !isNaN(e) && s >= e) {
+                        this._showLightningError(f.end, 'Funding end date must be after start date.');
+                        isValid = false;
+                    }
+                } catch (_) { /* ignore */ }
+            }
+        });
+
+        // References (Q8) partial-fill and sequential check
+        const ref1Values = [org.Reference_1_Name__c, org.Reference_1_Role__c, org.Reference_1_Email__c];
+        const hasRef1Data = ref1Values.some(v => v !== '' && v !== null && v !== undefined);
+        const ref2Values = [org.Reference_2_Name__c, org.Reference_2_Role__c, org.Reference_2_Email__c];
+        const hasRef2Data = this.showReference2 && ref2Values.some(v => v !== '' && v !== null && v !== undefined);
+
+        if (hasRef2Data && !hasRef1Data) {
+            ['Reference_1_Name__c', 'Reference_1_Role__c', 'Reference_1_Email__c'].forEach(k => {
+                this._showLightningError(k, 'Please complete Reference 1 before providing Reference 2.');
+            });
+            isValid = false;
+        }
+
+        const refSets = [
+            {
+                label: 'Reference 1',
+                fields: {
+                    name: 'Reference_1_Name__c',
+                    role: 'Reference_1_Role__c',
+                    email: 'Reference_1_Email__c'
+                },
+                show: true
+            },
+            {
+                label: 'Reference 2',
+                fields: {
+                    name: 'Reference_2_Name__c',
+                    role: 'Reference_2_Role__c',
+                    email: 'Reference_2_Email__c'
+                },
+                show: this.showReference2
+            }
+        ];
+
+        refSets.forEach(({ label, fields, show }) => {
+            if (!show) return;
+            const f = fields;
+            const values = [org[f.name], org[f.role], org[f.email]];
+            const anyFilled = values.some(v => v !== '' && v !== null && v !== undefined);
+
+            if (!anyFilled) {
+                if (label !== 'Reference 1' || !hasRef2Data) {
+                    Object.values(f).forEach(key => this._clearLightningError(key));
+                }
+                return;
+            }
+
+            Object.values(f).forEach(key => {
+                if (!org[key] || String(org[key]).trim() === '') {
+                    this._showLightningError(key, `${label}: complete all fields or clear this row.`);
+                    isValid = false;
+                } else {
+                    this._clearLightningError(key);
+                }
+            });
+
+            if (org[f.name]) {
+                const nameErr = this._validateNameLikeField(org[f.name], `${label} Name`);
+                if (nameErr) {
+                    this._showLightningError(f.name, nameErr);
+                    isValid = false;
+                }
+            }
+            if (org[f.role]) {
+                const roleErr = this._validateNameLikeField(org[f.role], `${label} Organization / Role`);
+                if (roleErr) {
+                    this._showLightningError(f.role, roleErr);
+                    isValid = false;
+                }
+            }
+
+            if (org[f.email]) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(org[f.email])) {
+                    this._showLightningError(f.email, 'Please enter a valid email address.');
+                    isValid = false;
+                }
+            }
+        });
+
+        // Q9 Historical Financials: required and non-negative
+        const histNumKeys = [
+            'START_FY3',
+            'REV_FY3', 'REV_FY2', 'REV_FY1',
+            'CAP_FY3', 'CAP_FY2', 'CAP_FY1',
+            'OP_FY3', 'OP_FY2', 'OP_FY1'
+        ];
+        histNumKeys.forEach(k => {
+            const v = org[k];
+            const cleanStr = (v !== '' && v !== null && v !== undefined) ? String(v).replace(/,/g, '').trim() : '';
+            const label = this._getLabelForFieldKey(k) || 'Amount';
+            const err = this._validateMoneyAmount(cleanStr, label, true);
+            if (err) {
+                this._showLightningError(k, err);
+                isValid = false;
+            } else {
+                this._clearLightningError(k);
+            }
+        });
+
+        // Q10 Current FY Financials: required and non-negative & deviation explanation
+        const cfyNumKeys = [
+            'CFY_REV_BUDGET', 'CFY_REV_PROJ',
+            'CFY_CAP_BUDGET', 'CFY_CAP_PROJ',
+            'CFY_OP_BUDGET', 'CFY_OP_PROJ'
+        ];
+        cfyNumKeys.forEach(k => {
+            const v = org[k];
+            const cleanStr = (v !== '' && v !== null && v !== undefined) ? String(v).replace(/,/g, '').trim() : '';
+            const label = this._getLabelForFieldKey(k) || 'Amount';
+            const err = this._validateMoneyAmount(cleanStr, label, true);
+            if (err) {
+                this._showLightningError(k, err);
+                isValid = false;
+            } else {
+                this._clearLightningError(k);
+            }
+        });
+
+        if (this.isDeviationExplanationRequired) {
+            if (!this._checkRichText('Revenue_Explanation__c', 'CFY Deviation Explanation', 200)) {
+                isValid = false;
+            }
+        } else {
+            this._clearFieldError('Revenue_Explanation__c');
+        }
+
+        return isValid;
+    }
+
+    // ── Tab 2: Job Fulfillment Validation ─────────────────────────────────
+    validateTabJobFulfillment() {
+        let isValid = true;
+        const incorp = this.formValues.Incorporation_Date__c;
+        const today = this.todayDateString;
+
+        // Q11 Skilling Approach
+        if (!this._checkRichText('Skilling_Approach__c', 'Your Skilling Approach', 500)) {
+            isValid = false;
+        }
+
+        // Q12 Skilling Domains table
+        const checkNumber = (el, value, label) => {
+            const clean = (value !== '' && value !== null && value !== undefined) ? String(value).replace(/,/g, '').trim() : '';
+            const err = this._validateIntegerCount(clean, label);
+            if (err) {
+                this._showNativeError(el, err);
+                return false;
+            }
+            this._clearNativeError(el);
+            return true;
+        };
+
+        const checkDate = (el, value, label) => {
+            if (!value || String(value).trim() === '') {
+                this._showNativeError(el, `${label} is required.`);
+                return false;
+            }
+            if (incorp && value < incorp) {
+                this._showNativeError(el, `${label} cannot be earlier than your Incorporation Date (${this._fmtDateDisplay(incorp)}).`);
+                return false;
+            }
+            if (value > today) {
+                this._showNativeError(el, `${label} cannot be a future date.`);
+                return false;
+            }
+            this._clearNativeError(el);
+            return true;
+        };
+
+        this.skillingDomainRows.forEach(row => {
+            const nameEl = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="name"]`);
+            const isDuplicate = this.skillingDomainRows.some(r =>
+                String(r.id) !== String(row.id) &&
+                r.name &&
+                row.name &&
+                r.name.trim().toLowerCase() === row.name.trim().toLowerCase()
+            );
+            if (!row.name || String(row.name).trim() === '') {
+                if (nameEl?.setCustomValidity) {
+                    nameEl.setCustomValidity('Domain / Programme Name is required.');
+                    nameEl.reportValidity();
+                    this._registerInvalid(nameEl);
+                }
+                isValid = false;
+            } else {
+                const nameErr = this._validateNameLikeField(row.name, 'Domain / Programme Name');
+                if (nameErr) {
+                    if (nameEl?.setCustomValidity) {
+                        nameEl.setCustomValidity(nameErr);
+                        nameEl.reportValidity();
+                        this._registerInvalid(nameEl);
+                    }
+                    isValid = false;
+                } else if (isDuplicate) {
+                    if (nameEl?.setCustomValidity) {
+                        nameEl.setCustomValidity('Duplicate domain name entered. Please enter a unique domain name.');
+                        nameEl.reportValidity();
+                        this._registerInvalid(nameEl);
+                    }
+                    isValid = false;
+                } else if (nameEl?.setCustomValidity) {
+                    nameEl.setCustomValidity('');
+                    nameEl.reportValidity();
+                    this._invalidElements = this._invalidElements.filter(x => x !== nameEl);
+                }
+            }
+
+            const hoursEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="hours"]`);
+            if (!checkNumber(hoursEl, row.hours, 'Hours of Training')) isValid = false;
+
+            const durEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="duration"]`);
+            if (!checkNumber(durEl, row.duration, 'Duration (Months)')) isValid = false;
+
+            const dateEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="whenStarted"]`);
+            if (!checkDate(dateEl, row.whenStarted, 'When Programme Started')) isValid = false;
+
+            const enrollEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="enrollment"]`);
+            if (!checkNumber(enrollEl, row.enrollment, 'Annual Enrollment')) isValid = false;
+        });
+
+        // Q13 & Q14 Outcomes
+        const outcomeNumFields = [
+            { key: 'JF_ENROLL_FY3', label: 'Learner Enrollments (FY-3)' },
+            { key: 'JF_ENROLL_FY2', label: 'Learner Enrollments (FY-2)' },
+            { key: 'JF_ENROLL_FY1', label: 'Learner Enrollments (FY-1)' },
+            { key: 'JF_ENROLL_PROJ', label: 'Learner Enrollments (Projected)' },
+            { key: 'JF_PLACE_FY3', label: 'Learner Placements (FY-3)' },
+            { key: 'JF_PLACE_FY2', label: 'Learner Placements (FY-2)' },
+            { key: 'JF_PLACE_FY1', label: 'Learner Placements (FY-1)' },
+            { key: 'JF_PLACE_PROJ', label: 'Learner Placements (Projected)' },
+            { key: 'JF_COST_FY3', label: 'Avg Cost per Placement (FY-3)' },
+            { key: 'JF_COST_FY2', label: 'Avg Cost per Placement (FY-2)' },
+            { key: 'JF_COST_FY1', label: 'Avg Cost per Placement (FY-1)' },
+            { key: 'JF_COST_PROJ', label: 'Avg Cost per Placement (Projected)' }
+        ];
+
+        const costKeys = ['JF_COST_FY3', 'JF_COST_FY2', 'JF_COST_FY1', 'JF_COST_PROJ'];
+        outcomeNumFields.forEach(({ key, label }) => {
+            const raw = this.formValues[key];
+            const cleanStr = raw !== null && raw !== undefined ? String(raw).replace(/,/g, '').trim() : '';
+            const err = costKeys.includes(key)
+                ? this._validateMoneyAmount(cleanStr, label, true)
+                : this._validateIntegerCount(cleanStr, label);
+            if (err) {
+                this._showLightningError(key, err);
+                isValid = false;
+            } else {
+                this._clearLightningError(key);
+            }
+        });
+
+        // Ratio validation: Placements cannot exceed enrolments
+        const jfRatioPairs = [
+            { placeKey: 'JF_PLACE_FY3', enrollKey: 'JF_ENROLL_FY3', yearLabel: 'FY-3' },
+            { placeKey: 'JF_PLACE_FY2', enrollKey: 'JF_ENROLL_FY2', yearLabel: 'FY-2' },
+            { placeKey: 'JF_PLACE_FY1', enrollKey: 'JF_ENROLL_FY1', yearLabel: 'FY-1' },
+            { placeKey: 'JF_PLACE_PROJ', enrollKey: 'JF_ENROLL_PROJ', yearLabel: 'Projected' }
+        ];
+        jfRatioPairs.forEach(pair => {
+            const pVal = this.formValues[pair.placeKey];
+            const eVal = this.formValues[pair.enrollKey];
+            if (pVal !== '' && pVal !== null && pVal !== undefined && eVal !== '' && eVal !== null && eVal !== undefined) {
+                const pNum = Number(String(pVal).replace(/,/g, '').trim());
+                const eNum = Number(String(eVal).replace(/,/g, '').trim());
+                if (!isNaN(pNum) && !isNaN(eNum) && pNum > eNum) {
+                    this._showLightningError(pair.placeKey, `Placements cannot exceed enrolments (${pair.yearLabel}).`);
+                    isValid = false;
+                }
+            }
+        });
+
+        return isValid;
+    }
+
+    // ── Tab 3: Job Creation Validation ───────────────────────────────────
+    validateTabJobCreation() {
+        let isValid = true;
+        const incorp = this.formValues.Incorporation_Date__c;
+        const today = this.todayDateString;
+
+        // Q15 Job Creation Approach
+        if (!this._checkRichText('Job_Creation_Approach__c', 'Your Job Creation Approach', 500)) {
+            isValid = false;
+        }
+
+        // Q16 Business Sectors
+        const checkNumber = (el, value, label) => {
+            const clean = (value !== '' && value !== null && value !== undefined) ? String(value).replace(/,/g, '').trim() : '';
+            const err = this._validateIntegerCount(clean, label);
+            if (err) {
+                this._showNativeError(el, err);
+                return false;
+            }
+            this._clearNativeError(el);
+            return true;
+        };
+
+        const checkDate = (el, value, label) => {
+            if (!value || String(value).trim() === '') {
+                this._showNativeError(el, `${label} is required.`);
+                return false;
+            }
+            if (incorp && value < incorp) {
+                this._showNativeError(el, `${label} cannot be earlier than your Incorporation Date (${this._fmtDateDisplay(incorp)}).`);
+                return false;
+            }
+            if (value > today) {
+                this._showNativeError(el, `${label} cannot be a future date.`);
+                return false;
+            }
+            this._clearNativeError(el);
+            return true;
+        };
+
+        this.businessSectorRows.forEach(row => {
+            const sectorEl = this.template.querySelector(`lightning-combobox[data-id="${row.id}"][data-field="sector"]`);
+            if (!row.sector || String(row.sector).trim() === '') {
+                if (sectorEl?.setCustomValidity) {
+                    sectorEl.setCustomValidity('Please select a Business Sector.');
+                    sectorEl.reportValidity();
+                    this._registerInvalid(sectorEl);
+                }
+                isValid = false;
+            } else {
+                if (sectorEl?.setCustomValidity) {
+                    sectorEl.setCustomValidity('');
+                    sectorEl.reportValidity();
+                    this._invalidElements = this._invalidElements.filter(x => x !== sectorEl);
+                }
+            }
+
+            if (row.sector === 'Other') {
+                const otherEl = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="sectorOther"]`);
+                if (!row.sectorOther || String(row.sectorOther).trim() === '') {
+                    if (otherEl?.setCustomValidity) {
+                        otherEl.setCustomValidity('Please specify your business sector.');
+                        otherEl.reportValidity();
+                        this._registerInvalid(otherEl);
+                    }
+                    isValid = false;
+                } else {
+                    const err = this._validateNameLikeField(row.sectorOther, 'Business sector');
+                    if (err) {
+                        if (otherEl?.setCustomValidity) {
+                            otherEl.setCustomValidity(err);
+                            otherEl.reportValidity();
+                            this._registerInvalid(otherEl);
+                        }
+                        isValid = false;
+                    } else if (otherEl?.setCustomValidity) {
+                        otherEl.setCustomValidity('');
+                        otherEl.reportValidity();
+                        this._invalidElements = this._invalidElements.filter(x => x !== otherEl);
+                    }
+                }
+            }
+
+            const beginEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="whenBegan"]`);
+            if (!checkDate(beginEl, row.whenBegan, 'When Programme Started')) isValid = false;
+
+            const card = beginEl?.closest('.domain-card, .sector-card');
+            if (!row.supportTypes || row.supportTypes.length === 0) {
+                this._showChipError(card, 'Select at least one type of support provided.');
+                isValid = false;
+            } else {
+                this._clearChipError(card);
+                if (row.supportTypes.includes('Other')) {
+                    const otherSupportEl = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="supportTypeOther"]`);
+                    if (!row.supportTypeOther || String(row.supportTypeOther).trim() === '') {
+                        if (otherSupportEl?.setCustomValidity) {
+                            otherSupportEl.setCustomValidity('Please specify the type of support.');
+                            otherSupportEl.reportValidity();
+                            this._registerInvalid(otherSupportEl);
+                        }
+                        isValid = false;
+                    } else if (otherSupportEl?.setCustomValidity) {
+                        otherSupportEl.setCustomValidity('');
+                        otherSupportEl.reportValidity();
+                        this._invalidElements = this._invalidElements.filter(x => x !== otherSupportEl);
+                    }
+                }
+            }
+
+            const enrolEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="enrollment"]`);
+            if (!checkNumber(enrolEl, row.enrollment, 'Yearly Enrolment')) isValid = false;
+        });
+
+        // Q17 & Q18 Outcomes
+        const outcomeNumFields = [
+            { key: 'JC_NEW_BIZ_FY3', label: 'New Businesses Started (FY-3)' },
+            { key: 'JC_NEW_BIZ_FY2', label: 'New Businesses Started (FY-2)' },
+            { key: 'JC_NEW_BIZ_FY1', label: 'New Businesses Started (FY-1)' },
+            { key: 'JC_NEW_BIZ_PROJ', label: 'New Businesses Started (Projected)' },
+            { key: 'JC_NEW_JOBS_FY3', label: 'Jobs Created by New Businesses (FY-3)' },
+            { key: 'JC_NEW_JOBS_FY2', label: 'Jobs Created by New Businesses (FY-2)' },
+            { key: 'JC_NEW_JOBS_FY1', label: 'Jobs Created by New Businesses (FY-1)' },
+            { key: 'JC_NEW_JOBS_PROJ', label: 'Jobs Created by New Businesses (Projected)' },
+            { key: 'JC_EXIST_BIZ_FY3', label: 'Existing Businesses Supported (FY-3)' },
+            { key: 'JC_EXIST_BIZ_FY2', label: 'Existing Businesses Supported (FY-2)' },
+            { key: 'JC_EXIST_BIZ_FY1', label: 'Existing Businesses Supported (FY-1)' },
+            { key: 'JC_EXIST_BIZ_PROJ', label: 'Existing Businesses Supported (Projected)' },
+            { key: 'JC_EXIST_JOBS_FY3', label: 'Jobs Created by Existing Businesses (FY-3)' },
+            { key: 'JC_EXIST_JOBS_FY2', label: 'Jobs Created by Existing Businesses (FY-2)' },
+            { key: 'JC_EXIST_JOBS_FY1', label: 'Jobs Created by Existing Businesses (FY-1)' },
+            { key: 'JC_EXIST_JOBS_PROJ', label: 'Jobs Created by Existing Businesses (Projected)' },
+            { key: 'JC_COST_FY3', label: 'Avg Cost per Job Created (FY-3)' },
+            { key: 'JC_COST_FY2', label: 'Avg Cost per Job Created (FY-2)' },
+            { key: 'JC_COST_FY1', label: 'Avg Cost per Job Created (FY-1)' },
+            { key: 'JC_COST_PROJ', label: 'Avg Cost per Job Created (Projected)' }
+        ];
+
+        const costKeys = ['JC_COST_FY3', 'JC_COST_FY2', 'JC_COST_FY1', 'JC_COST_PROJ'];
+        outcomeNumFields.forEach(({ key, label }) => {
+            const raw = this.formValues[key];
+            const cleanStr = raw !== null && raw !== undefined ? String(raw).replace(/,/g, '').trim() : '';
+            const err = costKeys.includes(key)
+                ? this._validateMoneyAmount(cleanStr, label, true)
+                : this._validateIntegerCount(cleanStr, label);
+            if (err) {
+                this._showLightningError(key, err);
+                isValid = false;
+            } else {
+                this._clearLightningError(key);
+            }
+        });
+
+        return isValid;
+    }
+
+    // ── Tab 4: Livelihood Upliftment Validation ───────────────────────────
+    validateTabLivelihood() {
+        let isValid = true;
+
+        // Q19 Livelihood Approach
+        if (!this._checkRichText('Livelihood_Approach__c', 'Your Livelihood Upliftment Approach', 500)) {
+            isValid = false;
+        }
+
+        // Q20 Livelihood Programs
+        const checkNumber = (el, value, label) => {
+            const clean = (value !== '' && value !== null && value !== undefined) ? String(value).replace(/,/g, '').trim() : '';
+            const err = this._validateIntegerCount(clean, label);
+            if (err) {
+                this._showNativeError(el, err);
+                return false;
+            }
+            this._clearNativeError(el);
+            return true;
+        };
+
+        this.livelihoodProgramRows.forEach(row => {
+            const nameEl = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="name"]`);
+            const isDuplicateProgram = this.livelihoodProgramRows.some(r =>
+                String(r.id) !== String(row.id) &&
+                r.name &&
+                row.name &&
+                r.name.trim().toLowerCase() === row.name.trim().toLowerCase()
+            );
+            if (!row.name || String(row.name).trim() === '') {
+                if (nameEl?.setCustomValidity) {
+                    nameEl.setCustomValidity('Program / Initiative Name is required.');
+                    nameEl.reportValidity();
+                    this._registerInvalid(nameEl);
+                }
+                isValid = false;
+            } else {
+                const nameErr = this._validateNameLikeField(row.name, 'Program / Initiative Name');
+                if (nameErr) {
+                    if (nameEl?.setCustomValidity) {
+                        nameEl.setCustomValidity(nameErr);
+                        nameEl.reportValidity();
+                        this._registerInvalid(nameEl);
+                    }
+                    isValid = false;
+                } else if (isDuplicateProgram) {
+                    if (nameEl?.setCustomValidity) {
+                        nameEl.setCustomValidity('Duplicate program name entered. Please enter a unique program name.');
+                        nameEl.reportValidity();
+                        this._registerInvalid(nameEl);
+                    }
+                    isValid = false;
+                } else if (nameEl?.setCustomValidity) {
+                    nameEl.setCustomValidity('');
+                    nameEl.reportValidity();
+                    this._invalidElements = this._invalidElements.filter(x => x !== nameEl);
+                }
+            }
+
+            const typeEl = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="supportType"]`);
+            if (!row.supportType || String(row.supportType).trim() === '') {
+                if (typeEl?.setCustomValidity) {
+                    typeEl.setCustomValidity('Type of Support Provided is required.');
+                    typeEl.reportValidity();
+                    this._registerInvalid(typeEl);
+                }
+                isValid = false;
+            } else {
+                const typeErr = this._validateNameLikeField(row.supportType, 'Type of Support Provided');
+                if (typeErr) {
+                    if (typeEl?.setCustomValidity) {
+                        typeEl.setCustomValidity(typeErr);
+                        typeEl.reportValidity();
+                        this._registerInvalid(typeEl);
+                    }
+                    isValid = false;
+                } else if (typeEl?.setCustomValidity) {
+                    typeEl.setCustomValidity('');
+                    typeEl.reportValidity();
+                    this._invalidElements = this._invalidElements.filter(x => x !== typeEl);
+                }
+            }
+
+            const hoursEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="manHours"]`);
+            if (!checkNumber(hoursEl, row.manHours, 'Duration in Man-Hours')) isValid = false;
+
+            const enrollEl = this.template.querySelector(`input[data-id="${row.id}"][data-field="enrollment"]`);
+            if (!checkNumber(enrollEl, row.enrollment, 'Annual Enrollment')) isValid = false;
+        });
+
+        // Q21 Community Rows
+        this.communityRows.forEach(row => {
+            const stateEl = this.template.querySelector(`select[data-id="${row.id}"][data-field="state"]`);
+            if (!row.state || String(row.state).trim() === '') {
+                this._showNativeError(stateEl, 'Please select a State.');
+                isValid = false;
+            } else {
+                this._clearNativeError(stateEl);
+            }
+
+            const distEl = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="district"]`);
+            const isDuplicateCommunity = this.communityRows.some(r =>
+                String(r.id) !== String(row.id) &&
+                r.state &&
+                row.state &&
+                r.state.trim().toLowerCase() === row.state.trim().toLowerCase() &&
+                r.district &&
+                row.district &&
+                r.district.trim().toLowerCase() === row.district.trim().toLowerCase()
+            );
+            if (!row.district || String(row.district).trim() === '') {
+                if (distEl?.setCustomValidity) {
+                    distEl.setCustomValidity('District / Area is required.');
+                    distEl.reportValidity();
+                    this._registerInvalid(distEl);
+                }
+                isValid = false;
+            } else {
+                const distErr = this._validateNameLikeField(row.district, 'District / Area');
+                if (distErr) {
+                    if (distEl?.setCustomValidity) {
+                        distEl.setCustomValidity(distErr);
+                        distEl.reportValidity();
+                        this._registerInvalid(distEl);
+                    }
+                    isValid = false;
+                } else if (isDuplicateCommunity) {
+                    if (distEl?.setCustomValidity) {
+                        distEl.setCustomValidity('Duplicate community entry for the same State and District.');
+                        distEl.reportValidity();
+                        this._registerInvalid(distEl);
+                    }
+                    isValid = false;
+                } else if (distEl?.setCustomValidity) {
+                    distEl.setCustomValidity('');
+                    distEl.reportValidity();
+                    this._invalidElements = this._invalidElements.filter(x => x !== distEl);
+                }
+            }
+
+            ['fy3', 'fy2', 'fy1', 'proj'].forEach(f => {
+                const el = this.template.querySelector(`lightning-input[data-id="${row.id}"][data-field="${f}"]`);
+                const val = row[f];
+                const clean = (val !== '' && val !== null && val !== undefined) ? String(val).replace(/,/g, '').trim() : '';
+                const err = this._validateIntegerCount(clean, 'Beneficiary count');
+                if (err) {
+                    if (el?.setCustomValidity) {
+                        el.setCustomValidity(err);
+                        el.reportValidity();
+                        this._registerInvalid(el);
+                    }
+                    isValid = false;
+                } else if (el?.setCustomValidity) {
+                    el.setCustomValidity('');
+                    el.reportValidity();
+                    this._invalidElements = this._invalidElements.filter(x => x !== el);
+                }
+            });
+        });
+
+        // Q22 & Q23 Outcomes
+        const outcomeNumFields = [
+            { key: 'LIV_SERVED_FY3', label: 'Beneficiaries Served (FY-3)' },
+            { key: 'LIV_SERVED_FY2', label: 'Beneficiaries Served (FY-2)' },
+            { key: 'LIV_SERVED_FY1', label: 'Beneficiaries Served (FY-1)' },
+            { key: 'LIV_SERVED_PROJ', label: 'Beneficiaries Served (Projected)' },
+            { key: 'LIV_ENROLL_FY3', label: 'Beneficiaries Newly Enrolled (FY-3)' },
+            { key: 'LIV_ENROLL_FY2', label: 'Beneficiaries Newly Enrolled (FY-2)' },
+            { key: 'LIV_ENROLL_FY1', label: 'Beneficiaries Newly Enrolled (FY-1)' },
+            { key: 'LIV_ENROLL_PROJ', label: 'Beneficiaries Newly Enrolled (Projected)' },
+            { key: 'LIV_OUTCOME_FY3', label: 'Beneficiaries Meeting Outcome Criteria (FY-3)' },
+            { key: 'LIV_OUTCOME_FY2', label: 'Beneficiaries Meeting Outcome Criteria (FY-2)' },
+            { key: 'LIV_OUTCOME_FY1', label: 'Beneficiaries Meeting Outcome Criteria (FY-1)' },
+            { key: 'LIV_OUTCOME_PROJ', label: 'Beneficiaries Meeting Outcome Criteria (Projected)' },
+            { key: 'LIV_COST_FY3', label: 'Avg Cost per Outcome (FY-3)' },
+            { key: 'LIV_COST_FY2', label: 'Avg Cost per Outcome (FY-2)' },
+            { key: 'LIV_COST_FY1', label: 'Avg Cost per Outcome (FY-1)' },
+            { key: 'LIV_COST_PROJ', label: 'Avg Cost per Outcome (Projected)' }
+        ];
+
+        const costKeys = ['LIV_COST_FY3', 'LIV_COST_FY2', 'LIV_COST_FY1', 'LIV_COST_PROJ'];
+        outcomeNumFields.forEach(({ key, label }) => {
+            const raw = this.formValues[key];
+            const cleanStr = raw !== null && raw !== undefined ? String(raw).replace(/,/g, '').trim() : '';
+            const err = costKeys.includes(key)
+                ? this._validateMoneyAmount(cleanStr, label, true)
+                : this._validateIntegerCount(cleanStr, label);
+            if (err) {
+                this._showLightningError(key, err);
+                isValid = false;
+            } else {
+                this._clearLightningError(key);
+            }
+        });
+
+        // Ratio validation: Outcomes cannot exceed beneficiaries served
+        const livRatioPairs = [
+            { outcomeKey: 'LIV_OUTCOME_FY3', servedKey: 'LIV_SERVED_FY3', yearLabel: 'FY-3' },
+            { outcomeKey: 'LIV_OUTCOME_FY2', servedKey: 'LIV_SERVED_FY2', yearLabel: 'FY-2' },
+            { outcomeKey: 'LIV_OUTCOME_FY1', servedKey: 'LIV_SERVED_FY1', yearLabel: 'FY-1' },
+            { outcomeKey: 'LIV_OUTCOME_PROJ', servedKey: 'LIV_SERVED_PROJ', yearLabel: 'Projected' }
+        ];
+        livRatioPairs.forEach(pair => {
+            const oVal = this.formValues[pair.outcomeKey];
+            const sVal = this.formValues[pair.servedKey];
+            if (oVal !== '' && oVal !== null && oVal !== undefined && sVal !== '' && sVal !== null && sVal !== undefined) {
+                const oNum = Number(String(oVal).replace(/,/g, '').trim());
+                const sNum = Number(String(sVal).replace(/,/g, '').trim());
+                if (!isNaN(oNum) && !isNaN(sNum) && oNum > sNum) {
+                    this._showLightningError(pair.outcomeKey, `Outcomes cannot exceed beneficiaries served (${pair.yearLabel}).`);
+                    isValid = false;
+                }
+            }
+        });
+
+        return isValid;
+    }
+
+    // ── Tab 5: Why Wadhwani Grants Validation ─────────────────────────────
+    validateTabWhyWadhwani() {
+        let isValid = true;
+        const org = this.formValues;
+
+        // Q24 Verified
+        if (!org.Q24_VERIFIED) {
+            this._showLightningError('Q24_VERIFIED', 'Please select whether outcomes were verified by a third party.');
+            isValid = false;
+        } else {
+            this._clearLightningError('Q24_VERIFIED');
+            if (org.Q24_VERIFIED === 'Yes') {
+                if (!org.Details_of_Ethical_Received__c || String(org.Details_of_Ethical_Received__c).trim() === '') {
+                    this._showLightningError('Details_of_Ethical_Received__c', 'Please specify who conducted the verification.');
+                    isValid = false;
+                } else {
+                    this._clearLightningError('Details_of_Ethical_Received__c');
+                }
+
+                if (!this.q24UploadedFiles || this.q24UploadedFiles.length === 0) {
+                    const q24ErrEl = this.template.querySelector('[data-error="q24Upload"]');
+                    if (q24ErrEl) {
+                        q24ErrEl.textContent = 'Please upload your third-party verification report.';
+                        q24ErrEl.style.display = 'block';
+                        this._registerInvalid(q24ErrEl);
+                    }
+                    isValid = false;
+                } else {
+                    const q24ErrEl = this.template.querySelector('[data-error="q24Upload"]');
+                    if (q24ErrEl) {
+                        q24ErrEl.textContent = '';
+                        q24ErrEl.style.display = 'none';
+                        this._invalidElements = this._invalidElements.filter(x => x !== q24ErrEl);
+                    }
+                }
+            }
+        }
+
+        // Q25 Sustainability Plan
+        if (!this._checkRichText('Organizational_Sustainability__c', 'Sustainability Plan', 100)) {
+            isValid = false;
+        }
+
+        // Q26 Direction for Additional Funding
+        if (!this._checkRichText('Use_of_Additional_Funding__c', 'Direction for Additional Funding', 200)) {
+            isValid = false;
+        }
+
+        // Q27 GenieAI interest & description
+        const gEl = this.template.querySelector('[data-field="Operational_Synergies_with_WOF__c"]') ||
+            this.template.querySelector('[data-id="Operational_Synergies_with_WOF__c"]');
+        if (org.GenieAI_Interest_Level__c === 'Yes, interested' || org.GenieAI_Interest_Level__c === 'Maybe, want to learn more') {
+            const desc = (org.Operational_Synergies_with_WOF__c || '').trim();
+            const words = desc.split(/\s+/).filter(w => w.length > 0);
+            if (words.length === 0) {
+                this._showLightningError('Operational_Synergies_with_WOF__c', 'Please describe how GenieAI could contribute, or change your interest level to "Not at this time".');
+                if (gEl) gEl.classList.remove('richtext-overlimit');
+                isValid = false;
+            } else if (words.length > 200) {
+                this._showLightningError('Operational_Synergies_with_WOF__c', `Exceeds 200-word limit (currently ${words.length} words). Please shorten before proceeding.`);
+                if (gEl) gEl.classList.add('richtext-overlimit');
+                isValid = false;
+            } else {
+                this._clearLightningError('Operational_Synergies_with_WOF__c');
+                if (gEl) gEl.classList.remove('richtext-overlimit');
+            }
+        } else {
+            this._clearLightningError('Operational_Synergies_with_WOF__c');
+            if (gEl) gEl.classList.remove('richtext-overlimit');
+        }
+
+        return isValid;
+    }
+
+    // ── Tab 6: Review & Submit Validation ─────────────────────────────────
+    validateTabReviewSubmit() {
+        let isValid = true;
+
+        if (!this.isAttested) {
+            this.showBanner('error', 'Validation Error', 'Please confirm the accuracy of your application before submitting.');
+            const box = this.template.querySelector('.attest-checkbox');
+            if (box) {
+                this._registerInvalid(box);
+                this._scrollToFirstError();
+            }
+            return false;
+        }
+
+        const attestFields = [
+            { id: 'Attesting_User_Name__c', label: 'Attesting User Name', val: this.attestingUserName },
+            { id: 'Attesting_User_Title__c', label: 'Attesting User Title', val: this.attestingUserTitle }
+        ];
+
+        attestFields.forEach(({ id, label, val }) => {
+            if (!val || String(val).trim() === '') {
+                this._showLightningError(id, `${label} is required.`);
+                isValid = false;
+            } else {
+                const err = this._validateNameLikeField(val, label);
+                if (err) {
+                    this._showLightningError(id, err);
+                    isValid = false;
+                } else {
+                    this._clearLightningError(id);
+                }
+            }
+        });
+
+        return isValid;
+    }
+
+    // ── Unified Active Tab Validator ──────────────────────────────────────
+    validateActiveTab(targetTabId = this.activeTabId) {
+        this._syncRichTextFieldsFromDOM();
+        this._resetInvalidTracking();
+        let isTabValid = true;
+
+        if (targetTabId === 'tabAboutOrg') {
+            isTabValid = this.validateTabAboutOrg();
+        } else if (targetTabId === 'tabJobFulfillment') {
+            isTabValid = this.validateTabJobFulfillment();
+        } else if (targetTabId === 'tabJobCreation') {
+            isTabValid = this.validateTabJobCreation();
+        } else if (targetTabId === 'tabLivelihood') {
+            isTabValid = this.validateTabLivelihood();
+        } else if (targetTabId === 'tabWhyWadhwani') {
+            isTabValid = this.validateTabWhyWadhwani();
+        } else if (targetTabId === 'tabReviewSubmit') {
+            isTabValid = this.validateTabReviewSubmit();
+        }
+
+        if (!isTabValid) {
+            const currentInvalidElements = this._invalidElements.filter(el => {
+                return el && el.isConnected && (el.offsetParent !== null || el.closest('.modern-richtext-wrapper') !== null || el.closest('table') !== null || el.closest('.modern-subsection-card') !== null);
+            });
+            const validElementsList = currentInvalidElements.length > 0 ? currentInvalidElements : this._invalidElements;
+
+            const isOverLimit = (el) => {
+                if (el.classList && el.classList.contains('richtext-overlimit')) return true;
+                const fieldName = el.dataset?.field || el.dataset?.id || el.dataset?.key;
+                if (fieldName) {
+                    const errEl = this.template.querySelector(`[data-error="${fieldName}"]`);
+                    if (errEl && errEl.textContent && errEl.textContent.toLowerCase().includes('word limit')) {
+                        return true;
+                    }
+                }
+                const host = this._fieldErrorHost(el);
+                if (host) {
+                    const inlineMsg = host.querySelector('.field-error-msg');
+                    if (inlineMsg && inlineMsg.textContent && inlineMsg.textContent.toLowerCase().includes('word limit')) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            const overLimitElements = [];
+            const missingElements = [];
+
+            validElementsList.forEach(el => {
+                if (isOverLimit(el)) {
+                    overLimitElements.push(el);
+                } else {
+                    missingElements.push(el);
+                }
+            });
+
+            const overLimitLabels = Array.from(new Set(
+                overLimitElements.map(el => this._getFieldLabel(el)).filter(Boolean)
+            ));
+            const missingLabels = Array.from(new Set(
+                missingElements.map(el => this._getFieldLabel(el)).filter(Boolean)
+            ));
+
+            let bannerTitle = 'Validation Error';
+            let bannerMessage = 'Please review your answers before proceeding.';
+
+            if (overLimitLabels.length > 0 && missingLabels.length === 0) {
+                bannerTitle = 'Word Limit Exceeded';
+                const listStr = overLimitLabels.map(l => `"${l}"`).join(', ');
+                bannerMessage = `Please shorten your text to meet the word limit: ${listStr}`;
+            } else if (missingLabels.length > 0 && overLimitLabels.length === 0) {
+                bannerTitle = 'Missing Required Fields';
+                const listStr = missingLabels.map(l => `"${l}"`).join(', ');
+                bannerMessage = `Please complete all required fields before proceeding: ${listStr}`;
+            } else if (missingLabels.length > 0 && overLimitLabels.length > 0) {
+                bannerTitle = 'Please Review Your Answers';
+                const missingStr = missingLabels.map(l => `"${l}"`).join(', ');
+                const overLimitStr = overLimitLabels.map(l => `"${l}"`).join(', ');
+                bannerMessage = `Please complete required fields: ${missingStr}. Word limit exceeded on: ${overLimitStr}.`;
+            }
+
+            this.showBanner('error', bannerTitle, bannerMessage);
+
+            this._scrollToFirstError();
+            return false;
+        }
+
+        return true;
+    }
+
+    handleFiscalMonthChange(event) {
+        this.handleInputChange(event);
+        const newMonth = event.detail.value;
+        let m = parseInt(newMonth, 10);
+        if (isNaN(m) && newMonth) {
+            const monthMap = {
+                january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3,
+                april: 4, apr: 4, may: 5, june: 6, jun: 6,
+                july: 7, jul: 7, august: 8, aug: 8, september: 9, sep: 9, sept: 9,
+                october: 10, oct: 10, november: 11, nov: 11, december: 12, dec: 12
+            };
+            m = monthMap[String(newMonth).toLowerCase().trim()] || 3;
+        }
+
+        let maxDays = 31;
+        if ([4, 6, 9, 11].includes(m)) {
+            maxDays = 30;
+        } else if (m === 2) {
+            maxDays = 29;
+        }
+
+        const currentDay = parseInt(this.formValues.Fiscal_Day__c, 10);
+        if (currentDay > maxDays) {
+            this.formValues = { ...this.formValues, Fiscal_Day__c: String(maxDays) };
+        }
+        this.loadMetadata();
+    }
+
+    handleFiscalDayChange(event) {
+        this.handleInputChange(event);
+        this.loadMetadata();
+    }
+
+    get todayDateString() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    get minProgrammeStartDate() {
+        return this.formValues.Incorporation_Date__c || this.savedOrgData?.Incorporation_Date__c || '1900-01-01';
+    }
+
+    handleDateKeyDown(event) {
+        if (event.key === 'Tab' || event.key === 'Escape' || event.key === 'Enter') {
+            return;
+        }
+        // Prevent manual keyboard entry to prevent invalid years; enforce picking via calendar popup
+        event.preventDefault();
+    }
+
+    handleDateClick(event) {
+        if (event.target && typeof event.target.showPicker === 'function') {
+            try {
+                event.target.showPicker();
+            } catch (_) {
+                // ignore
+            }
+        }
+    }
+
+    // ── Date Formatting (DD/MM/YYYY) ─────────────────────────────────────
+    _formatDateDDMMYYYY(v) {
+        if (!v) return '';
+        const s = (v instanceof Date) ? v.toISOString() : String(v);
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return s;
+        return `${m[3]}/${m[2]}/${m[1]}`;
+    }
+
+    get formattedIncorporationDate() {
+        return this._formatDateDDMMYYYY(this.formValues.Incorporation_Date__c);
+    }
+    get formattedFunder1PeriodStart() {
+        return this._formatDateDDMMYYYY(this.formValues.Funder_1_Period_Start__c);
+    }
+    get formattedFunder1PeriodEnd() {
+        return this._formatDateDDMMYYYY(this.formValues.Funder_1_Period_End__c);
+    }
+    get formattedFunder2PeriodStart() {
+        return this._formatDateDDMMYYYY(this.formValues.Funder_2_Period_Start__c);
+    }
+    get formattedFunder2PeriodEnd() {
+        return this._formatDateDDMMYYYY(this.formValues.Funder_2_Period_End__c);
+    }
+    get formattedFunder3PeriodStart() {
+        return this._formatDateDDMMYYYY(this.formValues.Funder_3_Period_Start__c);
+    }
+    get formattedFunder3PeriodEnd() {
+        return this._formatDateDDMMYYYY(this.formValues.Funder_3_Period_End__c);
+    }
+
+    // ── Q9 Math End Balances & Auto-Chained Start Balances ────────────────
+    _rawEndFY3() {
+        return calculateEndingBalance(this.formValues.START_FY3, this.formValues.REV_FY3, (Number(String(this.formValues.CAP_FY3).replace(/,/g, '')) || 0) + (Number(String(this.formValues.OP_FY3).replace(/,/g, '')) || 0));
+    }
+    _rawStartFY2() {
+        return this._rawEndFY3();
+    }
+    _rawEndFY2() {
+        return calculateEndingBalance(this._rawStartFY2(), this.formValues.REV_FY2, (Number(String(this.formValues.CAP_FY2).replace(/,/g, '')) || 0) + (Number(String(this.formValues.OP_FY2).replace(/,/g, '')) || 0));
+    }
+    _rawStartFY1() {
+        return this._rawEndFY2();
+    }
+    _rawEndFY1() {
+        return calculateEndingBalance(this._rawStartFY1(), this.formValues.REV_FY1, (Number(String(this.formValues.CAP_FY1).replace(/,/g, '')) || 0) + (Number(String(this.formValues.OP_FY1).replace(/,/g, '')) || 0));
+    }
+
+    get computedEndFY3() {
+        return this._formatNumberWithCommas(this._rawEndFY3());
+    }
+    get computedStartFY2() {
+        return this.computedEndFY3;
+    }
+    get computedEndFY2() {
+        return this._formatNumberWithCommas(this._rawEndFY2());
+    }
+    get computedStartFY1() {
+        return this.computedEndFY2;
+    }
+    get computedEndFY1() {
+        return this._formatNumberWithCommas(this._rawEndFY1());
+    }
+
+    // ── Q10 Math Deviations & Net Position Totals ─────────────────────────
+    get computedRevDeviation() {
+        const budget = Number(String(this.formValues.CFY_REV_BUDGET).replace(/,/g, '')) || 0;
+        const proj = Number(String(this.formValues.CFY_REV_PROJ).replace(/,/g, '')) || 0;
+        return this._formatNumberWithCommas(proj - budget);
+    }
+    get computedCapDeviation() {
+        const budget = Number(String(this.formValues.CFY_CAP_BUDGET).replace(/,/g, '')) || 0;
+        const proj = Number(String(this.formValues.CFY_CAP_PROJ).replace(/,/g, '')) || 0;
+        return this._formatNumberWithCommas(proj - budget);
+    }
+    get computedOpDeviation() {
+        const budget = Number(String(this.formValues.CFY_OP_BUDGET).replace(/,/g, '')) || 0;
+        const proj = Number(String(this.formValues.CFY_OP_PROJ).replace(/,/g, '')) || 0;
+        return this._formatNumberWithCommas(proj - budget);
+    }
+
+    get computedNetBudget() {
+        const rev = Number(String(this.formValues.CFY_REV_BUDGET).replace(/,/g, '')) || 0;
+        const cap = Number(String(this.formValues.CFY_CAP_BUDGET).replace(/,/g, '')) || 0;
+        const op = Number(String(this.formValues.CFY_OP_BUDGET).replace(/,/g, '')) || 0;
+        return this._formatNumberWithCommas(rev - (cap + op));
+    }
+    get computedNetProjection() {
+        const rev = Number(String(this.formValues.CFY_REV_PROJ).replace(/,/g, '')) || 0;
+        const cap = Number(String(this.formValues.CFY_CAP_PROJ).replace(/,/g, '')) || 0;
+        const op = Number(String(this.formValues.CFY_OP_PROJ).replace(/,/g, '')) || 0;
+        return this._formatNumberWithCommas(rev - (cap + op));
+    }
+    get computedNetDeviation() {
+        const revBud = Number(String(this.formValues.CFY_REV_BUDGET).replace(/,/g, '')) || 0;
+        const capBud = Number(String(this.formValues.CFY_CAP_BUDGET).replace(/,/g, '')) || 0;
+        const opBud = Number(String(this.formValues.CFY_OP_BUDGET).replace(/,/g, '')) || 0;
+        const netBud = revBud - (capBud + opBud);
+
+        const revProj = Number(String(this.formValues.CFY_REV_PROJ).replace(/,/g, '')) || 0;
+        const capProj = Number(String(this.formValues.CFY_CAP_PROJ).replace(/,/g, '')) || 0;
+        const opProj = Number(String(this.formValues.CFY_OP_PROJ).replace(/,/g, '')) || 0;
+        const netProj = revProj - (capProj + opProj);
+
+        return this._formatNumberWithCommas(netProj - netBud);
+    }
+
+    get isDeviationExplanationRequired() {
+        const revBud = Number(String(this.formValues.CFY_REV_BUDGET).replace(/,/g, '')) || 0;
+        const revProj = Number(String(this.formValues.CFY_REV_PROJ).replace(/,/g, '')) || 0;
+        const capBud = Number(String(this.formValues.CFY_CAP_BUDGET).replace(/,/g, '')) || 0;
+        const capProj = Number(String(this.formValues.CFY_CAP_PROJ).replace(/,/g, '')) || 0;
+        const opBud = Number(String(this.formValues.CFY_OP_BUDGET).replace(/,/g, '')) || 0;
+        const opProj = Number(String(this.formValues.CFY_OP_PROJ).replace(/,/g, '')) || 0;
+
+        const revDev = revProj - revBud;
+        const capDev = capProj - capBud;
+        const opDev = opProj - opBud;
+        const netDev = (revProj - (capProj + opProj)) - (revBud - (capBud + opBud));
+
+        return revDev !== 0 || capDev !== 0 || opDev !== 0 || netDev !== 0;
+    }
+
+    get deviationExplanationCounterClass() {
+        return this.deviationExplanationWordCount > 200 ? 'word-count-over' : 'word-count';
+    }
+
+    // ── Q13 & Q14 Placement % Calculations ──────────────────────────────
+    get computedJfPlacePctFY3() {
+        const enroll = Number(String(this.formValues.JF_ENROLL_FY3).replace(/,/g, '')) || 0;
+        const place = Number(String(this.formValues.JF_PLACE_FY3).replace(/,/g, '')) || 0;
+        return enroll > 0 ? ((place / enroll) * 100).toFixed(1) : '0.0';
+    }
+    get computedJfPlacePctFY2() {
+        const enroll = Number(String(this.formValues.JF_ENROLL_FY2).replace(/,/g, '')) || 0;
+        const place = Number(String(this.formValues.JF_PLACE_FY2).replace(/,/g, '')) || 0;
+        return enroll > 0 ? ((place / enroll) * 100).toFixed(1) : '0.0';
+    }
+    get computedJfPlacePctFY1() {
+        const enroll = Number(String(this.formValues.JF_ENROLL_FY1).replace(/,/g, '')) || 0;
+        const place = Number(String(this.formValues.JF_PLACE_FY1).replace(/,/g, '')) || 0;
+        return enroll > 0 ? ((place / enroll) * 100).toFixed(1) : '0.0';
+    }
+    get computedJfPlacePctProj() {
+        const enroll = Number(String(this.formValues.JF_ENROLL_PROJ).replace(/,/g, '')) || 0;
+        const place = Number(String(this.formValues.JF_PLACE_PROJ).replace(/,/g, '')) || 0;
+        return enroll > 0 ? ((place / enroll) * 100).toFixed(1) : '0.0';
+    }
+
+    get reviewJfPlacePctFY3() {
+        const eRaw = this.formValues.JF_ENROLL_FY3;
+        const pRaw = this.formValues.JF_PLACE_FY3;
+        if ((eRaw === null || eRaw === undefined || String(eRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        return `${this.computedJfPlacePctFY3}%`;
+    }
+    get reviewJfPlacePctFY2() {
+        const eRaw = this.formValues.JF_ENROLL_FY2;
+        const pRaw = this.formValues.JF_PLACE_FY2;
+        if ((eRaw === null || eRaw === undefined || String(eRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        return `${this.computedJfPlacePctFY2}%`;
+    }
+    get reviewJfPlacePctFY1() {
+        const eRaw = this.formValues.JF_ENROLL_FY1;
+        const pRaw = this.formValues.JF_PLACE_FY1;
+        if ((eRaw === null || eRaw === undefined || String(eRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        return `${this.computedJfPlacePctFY1}%`;
+    }
+    get reviewJfPlacePctProj() {
+        const eRaw = this.formValues.JF_ENROLL_PROJ;
+        const pRaw = this.formValues.JF_PLACE_PROJ;
+        if ((eRaw === null || eRaw === undefined || String(eRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        return `${this.computedJfPlacePctProj}%`;
+    }
+
+    _formatNumberWithCommas(val) {
+        if (val === null || val === undefined || val === '') return '';
+        const cleanStr = String(val).replace(/,/g, '');
+        const num = Number(cleanStr);
+        if (isNaN(num)) return val;
+        return num.toLocaleString('en-US');
+    }
+
+    _formatCurrency(val, defaultVal = 'N/A') {
+        if (val === null || val === undefined || String(val).trim() === '') return defaultVal;
+        const cleanStr = String(val).replace(/[,\s$]/g, '');
+        const num = Number(cleanStr);
+        if (isNaN(num)) return String(val);
+        const abs = Math.abs(num);
+        const hasCents = Math.round(abs * 100) % 100 !== 0;
+        const body = abs.toLocaleString('en-US', {
+            minimumFractionDigits: hasCents ? 2 : 0,
+            maximumFractionDigits: 2
+        });
+        return num < 0 ? `-$${body}` : `$${body}`;
+    }
+
+    // ── Q9 Review Display Getters (Historical Financials) ────────────────
+    get reviewStartFY3() { return this._formatCurrency(this.formValues.START_FY3); }
+    get reviewStartFY2() {
+        const hasFY3 = [this.formValues.START_FY3, this.formValues.REV_FY3, this.formValues.CAP_FY3, this.formValues.OP_FY3].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        return hasFY3 ? this._formatCurrency(this._rawEndFY3()) : 'N/A';
+    }
+    get reviewStartFY1() {
+        const hasFY2 = [this.formValues.REV_FY2, this.formValues.CAP_FY2, this.formValues.OP_FY2].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        const hasFY3 = [this.formValues.START_FY3, this.formValues.REV_FY3, this.formValues.CAP_FY3, this.formValues.OP_FY3].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        return (hasFY2 || hasFY3) ? this._formatCurrency(this._rawEndFY2()) : 'N/A';
+    }
+    get reviewRevFY3() { return this._formatCurrency(this.formValues.REV_FY3); }
+    get reviewRevFY2() { return this._formatCurrency(this.formValues.REV_FY2); }
+    get reviewRevFY1() { return this._formatCurrency(this.formValues.REV_FY1); }
+    get reviewCapFY3() { return this._formatCurrency(this.formValues.CAP_FY3); }
+    get reviewCapFY2() { return this._formatCurrency(this.formValues.CAP_FY2); }
+    get reviewCapFY1() { return this._formatCurrency(this.formValues.CAP_FY1); }
+    get reviewOpFY3() { return this._formatCurrency(this.formValues.OP_FY3); }
+    get reviewOpFY2() { return this._formatCurrency(this.formValues.OP_FY2); }
+    get reviewOpFY1() { return this._formatCurrency(this.formValues.OP_FY1); }
+    get reviewEndFY3() {
+        const hasFY3 = [this.formValues.START_FY3, this.formValues.REV_FY3, this.formValues.CAP_FY3, this.formValues.OP_FY3].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        return hasFY3 ? this._formatCurrency(this._rawEndFY3()) : 'N/A';
+    }
+    get reviewEndFY2() {
+        const hasFY2 = [this.formValues.REV_FY2, this.formValues.CAP_FY2, this.formValues.OP_FY2].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        const hasFY3 = [this.formValues.START_FY3, this.formValues.REV_FY3, this.formValues.CAP_FY3, this.formValues.OP_FY3].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        return (hasFY2 || hasFY3) ? this._formatCurrency(this._rawEndFY2()) : 'N/A';
+    }
+    get reviewEndFY1() {
+        const hasAny = [this.formValues.START_FY3, this.formValues.REV_FY3, this.formValues.CAP_FY3, this.formValues.OP_FY3, this.formValues.REV_FY2, this.formValues.CAP_FY2, this.formValues.OP_FY2, this.formValues.REV_FY1, this.formValues.CAP_FY1, this.formValues.OP_FY1].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        return hasAny ? this._formatCurrency(this._rawEndFY1()) : 'N/A';
+    }
+
+    // ── Q10 Review Display Getters (Current Fiscal Year Data) ────────────
+    get reviewCfyRevBudget() { return this._formatCurrency(this.formValues.CFY_REV_BUDGET); }
+    get reviewCfyRevProj() { return this._formatCurrency(this.formValues.CFY_REV_PROJ); }
+    get reviewRevDeviation() {
+        const bRaw = this.formValues.CFY_REV_BUDGET;
+        const pRaw = this.formValues.CFY_REV_PROJ;
+        if ((bRaw === null || bRaw === undefined || String(bRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        const budget = Number(String(bRaw).replace(/,/g, '')) || 0;
+        const proj = Number(String(pRaw).replace(/,/g, '')) || 0;
+        return this._formatCurrency(proj - budget);
+    }
+    get reviewCfyCapBudget() { return this._formatCurrency(this.formValues.CFY_CAP_BUDGET); }
+    get reviewCfyCapProj() { return this._formatCurrency(this.formValues.CFY_CAP_PROJ); }
+    get reviewCapDeviation() {
+        const bRaw = this.formValues.CFY_CAP_BUDGET;
+        const pRaw = this.formValues.CFY_CAP_PROJ;
+        if ((bRaw === null || bRaw === undefined || String(bRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        const budget = Number(String(bRaw).replace(/,/g, '')) || 0;
+        const proj = Number(String(pRaw).replace(/,/g, '')) || 0;
+        return this._formatCurrency(proj - budget);
+    }
+    get reviewCfyOpBudget() { return this._formatCurrency(this.formValues.CFY_OP_BUDGET); }
+    get reviewCfyOpProj() { return this._formatCurrency(this.formValues.CFY_OP_PROJ); }
+    get reviewOpDeviation() {
+        const bRaw = this.formValues.CFY_OP_BUDGET;
+        const pRaw = this.formValues.CFY_OP_PROJ;
+        if ((bRaw === null || bRaw === undefined || String(bRaw).trim() === '') &&
+            (pRaw === null || pRaw === undefined || String(pRaw).trim() === '')) {
+            return 'N/A';
+        }
+        const budget = Number(String(bRaw).replace(/,/g, '')) || 0;
+        const proj = Number(String(pRaw).replace(/,/g, '')) || 0;
+        return this._formatCurrency(proj - budget);
+    }
+    get reviewNetBudget() {
+        const rRaw = this.formValues.CFY_REV_BUDGET;
+        const cRaw = this.formValues.CFY_CAP_BUDGET;
+        const oRaw = this.formValues.CFY_OP_BUDGET;
+        if ((rRaw === null || rRaw === undefined || String(rRaw).trim() === '') &&
+            (cRaw === null || cRaw === undefined || String(cRaw).trim() === '') &&
+            (oRaw === null || oRaw === undefined || String(oRaw).trim() === '')) {
+            return 'N/A';
+        }
+        const rev = Number(String(rRaw).replace(/,/g, '')) || 0;
+        const cap = Number(String(cRaw).replace(/,/g, '')) || 0;
+        const op = Number(String(oRaw).replace(/,/g, '')) || 0;
+        return this._formatCurrency(rev - (cap + op));
+    }
+    get reviewNetProjection() {
+        const rRaw = this.formValues.CFY_REV_PROJ;
+        const cRaw = this.formValues.CFY_CAP_PROJ;
+        const oRaw = this.formValues.CFY_OP_PROJ;
+        if ((rRaw === null || rRaw === undefined || String(rRaw).trim() === '') &&
+            (cRaw === null || cRaw === undefined || String(cRaw).trim() === '') &&
+            (oRaw === null || oRaw === undefined || String(oRaw).trim() === '')) {
+            return 'N/A';
+        }
+        const rev = Number(String(rRaw).replace(/,/g, '')) || 0;
+        const cap = Number(String(cRaw).replace(/,/g, '')) || 0;
+        const op = Number(String(oRaw).replace(/,/g, '')) || 0;
+        return this._formatCurrency(rev - (cap + op));
+    }
+    get reviewNetDeviation() {
+        const hasBudget = [this.formValues.CFY_REV_BUDGET, this.formValues.CFY_CAP_BUDGET, this.formValues.CFY_OP_BUDGET].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        const hasProj = [this.formValues.CFY_REV_PROJ, this.formValues.CFY_CAP_PROJ, this.formValues.CFY_OP_PROJ].some(x => x !== null && x !== undefined && String(x).trim() !== '');
+        if (!hasBudget && !hasProj) {
+            return 'N/A';
+        }
+        const revBud = Number(String(this.formValues.CFY_REV_BUDGET).replace(/,/g, '')) || 0;
+        const capBud = Number(String(this.formValues.CFY_CAP_BUDGET).replace(/,/g, '')) || 0;
+        const opBud = Number(String(this.formValues.CFY_OP_BUDGET).replace(/,/g, '')) || 0;
+        const netBud = revBud - (capBud + opBud);
+
+        const revProj = Number(String(this.formValues.CFY_REV_PROJ).replace(/,/g, '')) || 0;
+        const capProj = Number(String(this.formValues.CFY_CAP_PROJ).replace(/,/g, '')) || 0;
+        const opProj = Number(String(this.formValues.CFY_OP_PROJ).replace(/,/g, '')) || 0;
+        const netProj = revProj - (capProj + opProj);
+
+        return this._formatCurrency(netProj - netBud);
+    }
+
+    // ── Cost Review Getters ──────────────────────────────────────────────
+    get reviewJfCostFY3() { return this._formatCurrency(this.formValues.JF_COST_FY3); }
+    get reviewJfCostFY2() { return this._formatCurrency(this.formValues.JF_COST_FY2); }
+    get reviewJfCostFY1() { return this._formatCurrency(this.formValues.JF_COST_FY1); }
+    get reviewJfCostProj() { return this._formatCurrency(this.formValues.JF_COST_PROJ); }
+
+    get reviewJcCostFY3() { return this._formatCurrency(this.formValues.JC_COST_FY3); }
+    get reviewJcCostFY2() { return this._formatCurrency(this.formValues.JC_COST_FY2); }
+    get reviewJcCostFY1() { return this._formatCurrency(this.formValues.JC_COST_FY1); }
+    get reviewJcCostProj() { return this._formatCurrency(this.formValues.JC_COST_PROJ); }
+
+    get reviewLivCostFY3() { return this._formatCurrency(this.formValues.LIV_COST_FY3); }
+    get reviewLivCostFY2() { return this._formatCurrency(this.formValues.LIV_COST_FY2); }
+    get reviewLivCostFY1() { return this._formatCurrency(this.formValues.LIV_COST_FY1); }
+    get reviewLivCostProj() { return this._formatCurrency(this.formValues.LIV_COST_PROJ); }
+
+    get previewFunder1Amount() {
+        const v = this.formValues.Funder_1_Amount__c;
+        return (v !== null && v !== undefined && String(v).trim() !== '') ? this._formatNumberWithCommas(v) : 'N/A';
+    }
+    get previewFunder2Amount() {
+        const v = this.formValues.Funder_2_Amount__c;
+        return (v !== null && v !== undefined && String(v).trim() !== '') ? this._formatNumberWithCommas(v) : 'N/A';
+    }
+    get previewFunder3Amount() {
+        const v = this.formValues.Funder_3_Amount__c;
+        return (v !== null && v !== undefined && String(v).trim() !== '') ? this._formatNumberWithCommas(v) : 'N/A';
+    }
+
+    _getPreviewVal(val, defaultZero = 'N/A') {
+        if (val === null || val === undefined || String(val).trim() === '') {
+            return defaultZero;
+        }
+        return this._formatNumberWithCommas(val);
+    }
+
+    // ── Q9 Preview Getters (Historical Financials) ───────────────────────
+    get previewStartFY3() { return this._getPreviewVal(this.formValues.START_FY3); }
+    get previewRevFY3() { return this._getPreviewVal(this.formValues.REV_FY3); }
+    get previewRevFY2() { return this._getPreviewVal(this.formValues.REV_FY2); }
+    get previewRevFY1() { return this._getPreviewVal(this.formValues.REV_FY1); }
+    get previewCapFY3() { return this._getPreviewVal(this.formValues.CAP_FY3); }
+    get previewCapFY2() { return this._getPreviewVal(this.formValues.CAP_FY2); }
+    get previewCapFY1() { return this._getPreviewVal(this.formValues.CAP_FY1); }
+    get previewOpFY3() { return this._getPreviewVal(this.formValues.OP_FY3); }
+    get previewOpFY2() { return this._getPreviewVal(this.formValues.OP_FY2); }
+    get previewOpFY1() { return this._getPreviewVal(this.formValues.OP_FY1); }
+
+    // ── Q10 Preview Getters (Current Fiscal Year Data) ───────────────────
+    get previewCfyRevBudget() { return this._getPreviewVal(this.formValues.CFY_REV_BUDGET); }
+    get previewCfyRevProj() { return this._getPreviewVal(this.formValues.CFY_REV_PROJ); }
+    get previewCfyCapBudget() { return this._getPreviewVal(this.formValues.CFY_CAP_BUDGET); }
+    get previewCfyCapProj() { return this._getPreviewVal(this.formValues.CFY_CAP_PROJ); }
+    get previewCfyOpBudget() { return this._getPreviewVal(this.formValues.CFY_OP_BUDGET); }
+    get previewCfyOpProj() { return this._getPreviewVal(this.formValues.CFY_OP_PROJ); }
+
+    // ── Q13 & Q14 Preview Getters (Job Fulfillment Outcomes) ─────────────
+    get previewJfCostFY3() { return this._getPreviewVal(this.formValues.JF_COST_FY3); }
+    get previewJfCostFY2() { return this._getPreviewVal(this.formValues.JF_COST_FY2); }
+    get previewJfCostFY1() { return this._getPreviewVal(this.formValues.JF_COST_FY1); }
+    get previewJfCostProj() { return this._getPreviewVal(this.formValues.JF_COST_PROJ); }
+
+    get previewJfEnrollFY3() {
+        const f = this.formattedJfEnrollFY3;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfEnrollFY2() {
+        const f = this.formattedJfEnrollFY2;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfEnrollFY1() {
+        const f = this.formattedJfEnrollFY1;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfPlaceFY3() {
+        const f = this.formattedJfPlaceFY3;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfPlaceFY2() {
+        const f = this.formattedJfPlaceFY2;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfPlaceFY1() {
+        const f = this.formattedJfPlaceFY1;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfEnrollProj() {
+        const f = this.formattedJfEnrollProj;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+    get previewJfPlaceProj() {
+        const f = this.formattedJfPlaceProj;
+        return (f !== null && f !== undefined && f !== '') ? f : 'N/A';
+    }
+
+    // ── Q17 & Q18 Preview Getters (Job Creation Outcomes) ────────────────
+    get previewJcNewBizFY3() { return this._getPreviewVal(this.formValues.JC_NEW_BIZ_FY3); }
+    get previewJcNewBizFY2() { return this._getPreviewVal(this.formValues.JC_NEW_BIZ_FY2); }
+    get previewJcNewBizFY1() { return this._getPreviewVal(this.formValues.JC_NEW_BIZ_FY1); }
+    get previewJcNewBizProj() { return this._getPreviewVal(this.formValues.JC_NEW_BIZ_PROJ); }
+
+    get previewJcNewJobsFY3() { return this._getPreviewVal(this.formValues.JC_NEW_JOBS_FY3); }
+    get previewJcNewJobsFY2() { return this._getPreviewVal(this.formValues.JC_NEW_JOBS_FY2); }
+    get previewJcNewJobsFY1() { return this._getPreviewVal(this.formValues.JC_NEW_JOBS_FY1); }
+    get previewJcNewJobsProj() { return this._getPreviewVal(this.formValues.JC_NEW_JOBS_PROJ); }
+
+    get previewJcExistBizFY3() { return this._getPreviewVal(this.formValues.JC_EXIST_BIZ_FY3); }
+    get previewJcExistBizFY2() { return this._getPreviewVal(this.formValues.JC_EXIST_BIZ_FY2); }
+    get previewJcExistBizFY1() { return this._getPreviewVal(this.formValues.JC_EXIST_BIZ_FY1); }
+    get previewJcExistBizProj() { return this._getPreviewVal(this.formValues.JC_EXIST_BIZ_PROJ); }
+
+    get previewJcExistJobsFY3() { return this._getPreviewVal(this.formValues.JC_EXIST_JOBS_FY3); }
+    get previewJcExistJobsFY2() { return this._getPreviewVal(this.formValues.JC_EXIST_JOBS_FY2); }
+    get previewJcExistJobsFY1() { return this._getPreviewVal(this.formValues.JC_EXIST_JOBS_FY1); }
+    get previewJcExistJobsProj() { return this._getPreviewVal(this.formValues.JC_EXIST_JOBS_PROJ); }
+
+    get previewJcCostFY3() { return this._getPreviewVal(this.formValues.JC_COST_FY3); }
+    get previewJcCostFY2() { return this._getPreviewVal(this.formValues.JC_COST_FY2); }
+    get previewJcCostFY1() { return this._getPreviewVal(this.formValues.JC_COST_FY1); }
+    get previewJcCostProj() { return this._getPreviewVal(this.formValues.JC_COST_PROJ); }
+
+    // ── Q22 & Q23 Preview Getters (Livelihood Upliftment Outcomes) ───────
+    get previewLivServedFY3() { return this._getPreviewVal(this.formValues.LIV_SERVED_FY3); }
+    get previewLivServedFY2() { return this._getPreviewVal(this.formValues.LIV_SERVED_FY2); }
+    get previewLivServedFY1() { return this._getPreviewVal(this.formValues.LIV_SERVED_FY1); }
+    get previewLivServedProj() { return this._getPreviewVal(this.formValues.LIV_SERVED_PROJ); }
+
+    get previewLivEnrollFY3() { return this._getPreviewVal(this.formValues.LIV_ENROLL_FY3); }
+    get previewLivEnrollFY2() { return this._getPreviewVal(this.formValues.LIV_ENROLL_FY2); }
+    get previewLivEnrollFY1() { return this._getPreviewVal(this.formValues.LIV_ENROLL_FY1); }
+    get previewLivEnrollProj() { return this._getPreviewVal(this.formValues.LIV_ENROLL_PROJ); }
+
+    get previewLivOutcomeFY3() { return this._getPreviewVal(this.formValues.LIV_OUTCOME_FY3); }
+    get previewLivOutcomeFY2() { return this._getPreviewVal(this.formValues.LIV_OUTCOME_FY2); }
+    get previewLivOutcomeFY1() { return this._getPreviewVal(this.formValues.LIV_OUTCOME_FY1); }
+    get previewLivOutcomeProj() { return this._getPreviewVal(this.formValues.LIV_OUTCOME_PROJ); }
+
+    get previewLivCostFY3() { return this._getPreviewVal(this.formValues.LIV_COST_FY3); }
+    get previewLivCostFY2() { return this._getPreviewVal(this.formValues.LIV_COST_FY2); }
+    get previewLivCostFY1() { return this._getPreviewVal(this.formValues.LIV_COST_FY1); }
+    get previewLivCostProj() { return this._getPreviewVal(this.formValues.LIV_COST_PROJ); }
+
+    // ── Formatted Value Getters (Standard 3-Digit Comma Formatting) ─────────────
+    // Q7 Funders
+    get formattedFunder1Amount() { return this._formatNumberWithCommas(this.formValues.Funder_1_Amount__c); }
+    get formattedFunder2Amount() { return this._formatNumberWithCommas(this.formValues.Funder_2_Amount__c); }
+    get formattedFunder3Amount() { return this._formatNumberWithCommas(this.formValues.Funder_3_Amount__c); }
+
+    // Q9 Historical Financials
+    get formattedStartFY3() { return this._formatNumberWithCommas(this.formValues.START_FY3); }
+    get formattedRevFY3() { return this._formatNumberWithCommas(this.formValues.REV_FY3); }
+    get formattedRevFY2() { return this._formatNumberWithCommas(this.formValues.REV_FY2); }
+    get formattedRevFY1() { return this._formatNumberWithCommas(this.formValues.REV_FY1); }
+    get formattedCapFY3() { return this._formatNumberWithCommas(this.formValues.CAP_FY3); }
+    get formattedCapFY2() { return this._formatNumberWithCommas(this.formValues.CAP_FY2); }
+    get formattedCapFY1() { return this._formatNumberWithCommas(this.formValues.CAP_FY1); }
+    get formattedOpFY3() { return this._formatNumberWithCommas(this.formValues.OP_FY3); }
+    get formattedOpFY2() { return this._formatNumberWithCommas(this.formValues.OP_FY2); }
+    get formattedOpFY1() { return this._formatNumberWithCommas(this.formValues.OP_FY1); }
+
+    // Q10 Current Fiscal Year Data
+    get formattedCfyRevBudget() { return this._formatNumberWithCommas(this.formValues.CFY_REV_BUDGET); }
+    get formattedCfyRevProj() { return this._formatNumberWithCommas(this.formValues.CFY_REV_PROJ); }
+    get formattedCfyCapBudget() { return this._formatNumberWithCommas(this.formValues.CFY_CAP_BUDGET); }
+    get formattedCfyCapProj() { return this._formatNumberWithCommas(this.formValues.CFY_CAP_PROJ); }
+    get formattedCfyOpBudget() { return this._formatNumberWithCommas(this.formValues.CFY_OP_BUDGET); }
+    get formattedCfyOpProj() { return this._formatNumberWithCommas(this.formValues.CFY_OP_PROJ); }
+
+    // Q13 & Q14 Job Fulfillment Outcomes
+    get formattedJfEnrollFY3() { return this._formatNumberWithCommas(this.formValues.JF_ENROLL_FY3); }
+    get formattedJfEnrollFY2() { return this._formatNumberWithCommas(this.formValues.JF_ENROLL_FY2); }
+    get formattedJfEnrollFY1() { return this._formatNumberWithCommas(this.formValues.JF_ENROLL_FY1); }
+    get formattedJfEnrollProj() { return this._formatNumberWithCommas(this.formValues.JF_ENROLL_PROJ); }
+    get formattedJfPlaceFY3() { return this._formatNumberWithCommas(this.formValues.JF_PLACE_FY3); }
+    get formattedJfPlaceFY2() { return this._formatNumberWithCommas(this.formValues.JF_PLACE_FY2); }
+    get formattedJfPlaceFY1() { return this._formatNumberWithCommas(this.formValues.JF_PLACE_FY1); }
+    get formattedJfPlaceProj() { return this._formatNumberWithCommas(this.formValues.JF_PLACE_PROJ); }
+    get formattedJfCostFY3() { return this._formatNumberWithCommas(this.formValues.JF_COST_FY3); }
+    get formattedJfCostFY2() { return this._formatNumberWithCommas(this.formValues.JF_COST_FY2); }
+    get formattedJfCostFY1() { return this._formatNumberWithCommas(this.formValues.JF_COST_FY1); }
+    get formattedJfCostProj() { return this._formatNumberWithCommas(this.formValues.JF_COST_PROJ); }
+
+    // Q17 & Q18 Job Creation Outcomes
+    get formattedJcNewBizFY3() { return this._formatNumberWithCommas(this.formValues.JC_NEW_BIZ_FY3); }
+    get formattedJcNewBizFY2() { return this._formatNumberWithCommas(this.formValues.JC_NEW_BIZ_FY2); }
+    get formattedJcNewBizFY1() { return this._formatNumberWithCommas(this.formValues.JC_NEW_BIZ_FY1); }
+    get formattedJcNewBizProj() { return this._formatNumberWithCommas(this.formValues.JC_NEW_BIZ_PROJ); }
+    get formattedJcNewJobsFY3() { return this._formatNumberWithCommas(this.formValues.JC_NEW_JOBS_FY3); }
+    get formattedJcNewJobsFY2() { return this._formatNumberWithCommas(this.formValues.JC_NEW_JOBS_FY2); }
+    get formattedJcNewJobsFY1() { return this._formatNumberWithCommas(this.formValues.JC_NEW_JOBS_FY1); }
+    get formattedJcNewJobsProj() { return this._formatNumberWithCommas(this.formValues.JC_NEW_JOBS_PROJ); }
+    get formattedJcExistBizFY3() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_BIZ_FY3); }
+    get formattedJcExistBizFY2() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_BIZ_FY2); }
+    get formattedJcExistBizFY1() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_BIZ_FY1); }
+    get formattedJcExistBizProj() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_BIZ_PROJ); }
+    get formattedJcExistJobsFY3() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_JOBS_FY3); }
+    get formattedJcExistJobsFY2() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_JOBS_FY2); }
+    get formattedJcExistJobsFY1() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_JOBS_FY1); }
+    get formattedJcExistJobsProj() { return this._formatNumberWithCommas(this.formValues.JC_EXIST_JOBS_PROJ); }
+    get formattedJcCostFY3() { return this._formatNumberWithCommas(this.formValues.JC_COST_FY3); }
+    get formattedJcCostFY2() { return this._formatNumberWithCommas(this.formValues.JC_COST_FY2); }
+    get formattedJcCostFY1() { return this._formatNumberWithCommas(this.formValues.JC_COST_FY1); }
+    get formattedJcCostProj() { return this._formatNumberWithCommas(this.formValues.JC_COST_PROJ); }
+
+    // Q22 & Q23 Livelihood Upliftment Outcomes
+    get formattedLivServedFY3() { return this._formatNumberWithCommas(this.formValues.LIV_SERVED_FY3); }
+    get formattedLivServedFY2() { return this._formatNumberWithCommas(this.formValues.LIV_SERVED_FY2); }
+    get formattedLivServedFY1() { return this._formatNumberWithCommas(this.formValues.LIV_SERVED_FY1); }
+    get formattedLivServedProj() { return this._formatNumberWithCommas(this.formValues.LIV_SERVED_PROJ); }
+    get formattedLivEnrollFY3() { return this._formatNumberWithCommas(this.formValues.LIV_ENROLL_FY3); }
+    get formattedLivEnrollFY2() { return this._formatNumberWithCommas(this.formValues.LIV_ENROLL_FY2); }
+    get formattedLivEnrollFY1() { return this._formatNumberWithCommas(this.formValues.LIV_ENROLL_FY1); }
+    get formattedLivEnrollProj() { return this._formatNumberWithCommas(this.formValues.LIV_ENROLL_PROJ); }
+    get formattedLivOutcomeFY3() { return this._formatNumberWithCommas(this.formValues.LIV_OUTCOME_FY3); }
+    get formattedLivOutcomeFY2() { return this._formatNumberWithCommas(this.formValues.LIV_OUTCOME_FY2); }
+    get formattedLivOutcomeFY1() { return this._formatNumberWithCommas(this.formValues.LIV_OUTCOME_FY1); }
+    get formattedLivOutcomeProj() { return this._formatNumberWithCommas(this.formValues.LIV_OUTCOME_PROJ); }
+    get formattedLivCostFY3() { return this._formatNumberWithCommas(this.formValues.LIV_COST_FY3); }
+    get formattedLivCostFY2() { return this._formatNumberWithCommas(this.formValues.LIV_COST_FY2); }
+    get formattedLivCostFY1() { return this._formatNumberWithCommas(this.formValues.LIV_COST_FY1); }
+    get formattedLivCostProj() { return this._formatNumberWithCommas(this.formValues.LIV_COST_PROJ); }
+
+    get skillingApproachCounterClass() {
+        return this.skillingApproachWordCount > 500 ? 'word-count-over' : 'word-count';
+    }
+
+    get jobCreationApproachCounterClass() {
+        return this.jobCreationApproachWordCount > 500 ? 'word-count-over' : 'word-count';
+    }
+
+    // ── Rich Text Word Count Error Getters & Flags ───────────────────────
+    get skillingApproachError() {
+        if (this.skillingApproachWordCount > 500) {
+            return `Word limit exceeded (${this.skillingApproachWordCount} / 500 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isSkillingApproachOverLimit() {
+        return this.skillingApproachWordCount > 500;
+    }
+
+    get jobCreationApproachError() {
+        if (this.jobCreationApproachWordCount > 500) {
+            return `Word limit exceeded (${this.jobCreationApproachWordCount} / 500 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isJobCreationApproachOverLimit() {
+        return this.jobCreationApproachWordCount > 500;
+    }
+
+    get livelihoodApproachCounterClass() {
+        return this.livelihoodApproachWordCount > 500 ? 'word-count-over' : 'word-count';
+    }
+    get livelihoodApproachError() {
+        if (this.livelihoodApproachWordCount > 500) {
+            return `Word limit exceeded (${this.livelihoodApproachWordCount} / 500 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isLivelihoodApproachOverLimit() {
+        return this.livelihoodApproachWordCount > 500;
+    }
+
+    get sustainabilityCounterClass() {
+        return this.sustainabilityWordCount > 100 ? 'word-count-over' : 'word-count';
+    }
+    get sustainabilityError() {
+        if (this.sustainabilityWordCount > 100) {
+            return `Word limit exceeded (${this.sustainabilityWordCount} / 100 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isSustainabilityOverLimit() {
+        return this.sustainabilityWordCount > 100;
+    }
+
+    get useOfFundingCounterClass() {
+        return this.useOfFundingWordCount > 200 ? 'word-count-over' : 'word-count';
+    }
+    get useOfFundingError() {
+        if (this.useOfFundingWordCount > 200) {
+            return `Word limit exceeded (${this.useOfFundingWordCount} / 200 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isUseOfFundingOverLimit() {
+        return this.useOfFundingWordCount > 200;
+    }
+
+    get legalStructureError() {
+        if (this.legalStructureWordCount > 100) {
+            return `Word limit exceeded (${this.legalStructureWordCount} / 100 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isLegalStructureOverLimit() {
+        return this.legalStructureWordCount > 100;
+    }
+
+    get deviationExplanationError() {
+        if (this.deviationExplanationWordCount > 200) {
+            return `Word limit exceeded (${this.deviationExplanationWordCount} / 200 words). Please shorten your text.`;
+        }
+        return '';
+    }
+    get isDeviationExplanationOverLimit() {
+        return this.deviationExplanationWordCount > 200;
+    }
+
+    // ── Q24 Verified Flag ───────────────────────────────────────────────
+    get isThirdPartyVerified() {
+        return this.formValues.Q24_VERIFIED === 'Yes';
+    }
+
+    addSkillingDomainRow() {
+        this.skillingDomainRows = [...this.skillingDomainRows, { id: Date.now(), name: '', hours: '', duration: '', whenStarted: '', displayWhenStarted: '', enrollment: '' }];
+    }
+    handleSkillingDomainChange(event) {
+        const rawId = event.target?.dataset?.id || event.currentTarget?.dataset?.id;
+        const field = event.target?.dataset?.field || event.currentTarget?.dataset?.field;
+        const val = event.target?.value ?? '';
+        this.skillingDomainRows = this.skillingDomainRows.map(r => {
+            if (String(r.id) === String(rawId)) {
+                const updated = { ...r, [field]: val };
+                if (field === 'whenStarted') {
+                    updated.displayWhenStarted = this._formatDateDDMMYYYY(val);
+                }
+                return updated;
+            }
+            return r;
+        });
+        if (event.target) {
+            if (field === 'name') {
+                const nameErr = val ? this._validateNameLikeField(val, 'Domain / Program Name') : null;
+                const isDuplicate = val && this.skillingDomainRows.some(r =>
+                    String(r.id) !== String(rawId) &&
+                    r.name &&
+                    r.name.trim().toLowerCase() === val.trim().toLowerCase()
+                );
+                if (nameErr) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity(nameErr);
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else if (isDuplicate) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('Duplicate domain name entered. Please enter a unique domain name.');
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('');
+                        event.target.reportValidity();
+                    }
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else if (field === 'whenStarted') {
+                const incorp = this.formValues.Incorporation_Date__c || this.savedOrgData?.Incorporation_Date__c;
+                const today = this.todayDateString;
+                if (val && incorp && val < incorp) {
+                    this._showNativeError(event.target, `When Started cannot be earlier than your Incorporation Date (${this._fmtDateDisplay(incorp)}).`);
+                } else if (val && val > today) {
+                    this._showNativeError(event.target, 'When Started cannot be a future date.');
+                } else {
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else if (['hours', 'duration', 'enrollment'].includes(field)) {
+                const labelMap = { hours: 'Hours of Training', duration: 'Duration (Months)', enrollment: 'Annual Enrollment' };
+                const clean = (val !== '' && val !== null && val !== undefined) ? String(val).replace(/,/g, '').trim() : '';
+                if (clean !== '') {
+                    const err = this._validateIntegerCount(clean, labelMap[field] || 'Value');
+                    if (err) {
+                        this._showNativeError(event.target, err);
+                        this._registerInvalid(event.target);
+                    } else {
+                        this._clearNativeError(event.target);
+                        this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                    }
+                } else {
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else {
+                if (event.target.setCustomValidity) {
+                    event.target.setCustomValidity('');
+                    event.target.reportValidity();
+                }
+                this._clearNativeError(event.target);
+                this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+            }
+        }
+    }
+    handleRemoveSkillingDomainRow(event) {
+        const rawId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        if (this.skillingDomainRows.length > 1) {
+            this.skillingDomainRows = this.skillingDomainRows.filter(r => String(r.id) !== String(rawId));
+        } else {
+            this.skillingDomainRows = [{ id: Date.now(), name: '', hours: '', duration: '', whenStarted: '', displayWhenStarted: '', enrollment: '' }];
+        }
+    }
+
+    get canRemoveSkillingDomainRow() {
+        return this.skillingDomainRows.length > 1;
+    }
+
+    addBusinessSectorRow() {
+        this.businessSectorRows = [...this.businessSectorRows, { id: Date.now(), sector: '', sectorOther: '', supportTypes: [], supportTypeOther: '', whenBegan: '', displayWhenBegan: '', enrollment: '' }];
+    }
+    handleBusinessSectorChange(event) {
+        const rawId = event.target?.dataset?.id || event.currentTarget?.dataset?.id;
+        const field = event.target?.dataset?.field || event.currentTarget?.dataset?.field;
+        const val = event.target?.value ?? event.detail?.value ?? '';
+        this.businessSectorRows = this.businessSectorRows.map(r => {
+            if (String(r.id) === String(rawId)) {
+                const updated = { ...r, [field]: val };
+                if (field === 'whenBegan') {
+                    updated.displayWhenBegan = this._formatDateDDMMYYYY(val);
+                }
+                if (field === 'sector' && val !== 'Other') {
+                    updated.sectorOther = '';
+                }
+                return updated;
+            }
+            return r;
+        });
+        if (event.target) {
+            if (field === 'whenBegan') {
+                const incorp = this.formValues.Incorporation_Date__c || this.savedOrgData?.Incorporation_Date__c;
+                const today = this.todayDateString;
+                if (val && incorp && val < incorp) {
+                    this._showNativeError(event.target, `When Programme Started cannot be earlier than your Incorporation Date (${this._fmtDateDisplay(incorp)}).`);
+                } else if (val && val > today) {
+                    this._showNativeError(event.target, 'When Programme Started cannot be a future date.');
+                } else {
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else if (field === 'enrollment') {
+                const clean = (val !== '' && val !== null && val !== undefined) ? String(val).replace(/,/g, '').trim() : '';
+                if (clean !== '') {
+                    const err = this._validateIntegerCount(clean, 'Yearly Enrolment');
+                    if (err) {
+                        this._showNativeError(event.target, err);
+                        this._registerInvalid(event.target);
+                    } else {
+                        this._clearNativeError(event.target);
+                        this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                    }
+                } else {
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else {
+                if (event.target.setCustomValidity) {
+                    event.target.setCustomValidity('');
+                    event.target.reportValidity();
+                }
+                this._clearNativeError(event.target);
+                this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+            }
+        }
+    }
+    handleSupportTypeChip(event) {
+        const rawId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        const chipVal = event.currentTarget?.dataset?.chip || event.target?.dataset?.chip;
+        this.businessSectorRows = this.businessSectorRows.map(r => {
+            if (String(r.id) === String(rawId)) {
+                let current = Array.isArray(r.supportTypes) ? [...r.supportTypes] : [];
+                if (current.includes(chipVal)) {
+                    current = current.filter(t => t !== chipVal);
+                } else {
+                    current.push(chipVal);
+                }
+                let supportTypeOtherVal = r.supportTypeOther;
+                if (!current.includes('Other')) {
+                    supportTypeOtherVal = '';
+                }
+                return { ...r, supportTypes: current, supportTypeOther: supportTypeOtherVal };
+            }
+            return r;
+        });
+        const card = event.currentTarget?.closest('.domain-card, .sector-card');
+        if (card) {
+            this._clearChipError(card);
+        }
+    }
+    handleRemoveBusinessSectorRow(event) {
+        const rawId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        if (this.businessSectorRows.length > 1) {
+            this.businessSectorRows = this.businessSectorRows.filter(r => String(r.id) !== String(rawId));
+        } else {
+            this.businessSectorRows = [{ id: Date.now(), sector: '', sectorOther: '', supportTypes: [], supportTypeOther: '', whenBegan: '', displayWhenBegan: '', enrollment: '' }];
+        }
+    }
+
+    addLivelihoodProgramRow() {
+        this.livelihoodProgramRows = [...this.livelihoodProgramRows, { id: Date.now(), name: '', supportType: '', manHours: '', enrollment: '' }];
+    }
+    handleLivelihoodProgramChange(event) {
+        const rawId = event.target?.dataset?.id || event.currentTarget?.dataset?.id;
+        const field = event.target?.dataset?.field || event.currentTarget?.dataset?.field;
+        const val = event.target?.value ?? '';
+        this.livelihoodProgramRows = this.livelihoodProgramRows.map(r => String(r.id) === String(rawId) ? { ...r, [field]: val } : r);
+        if (event.target) {
+            if (field === 'name') {
+                const nameErr = val ? this._validateNameLikeField(val, 'Program / Initiative Name') : null;
+                const isDuplicate = val && this.livelihoodProgramRows.some(r =>
+                    String(r.id) !== String(rawId) &&
+                    r.name &&
+                    r.name.trim().toLowerCase() === val.trim().toLowerCase()
+                );
+                if (nameErr) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity(nameErr);
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else if (isDuplicate) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('Duplicate program name entered. Please enter a unique program name.');
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('');
+                        event.target.reportValidity();
+                    }
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else if (field === 'supportType') {
+                const typeErr = val ? this._validateNameLikeField(val, 'Type of Support Provided') : null;
+                if (typeErr) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity(typeErr);
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('');
+                        event.target.reportValidity();
+                    }
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else if (['manHours', 'enrollment'].includes(field)) {
+                const labelMap = { manHours: 'Duration in Man-Hours', enrollment: 'Annual Enrollment' };
+                const clean = (val !== '' && val !== null && val !== undefined) ? String(val).replace(/,/g, '').trim() : '';
+                if (clean !== '') {
+                    const err = this._validateIntegerCount(clean, labelMap[field] || 'Value');
+                    if (err) {
+                        this._showNativeError(event.target, err);
+                        this._registerInvalid(event.target);
+                    } else {
+                        this._clearNativeError(event.target);
+                        this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                    }
+                } else {
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else {
+                if (event.target.setCustomValidity) {
+                    event.target.setCustomValidity('');
+                    event.target.reportValidity();
+                }
+                this._clearNativeError(event.target);
+                this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+            }
+        }
+    }
+    handleRemoveLivelihoodProgramRow(event) {
+        const rawId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        if (this.livelihoodProgramRows.length > 1) {
+            this.livelihoodProgramRows = this.livelihoodProgramRows.filter(r => String(r.id) !== String(rawId));
+        } else {
+            this.livelihoodProgramRows = [{ id: Date.now(), name: '', supportType: '', manHours: '', enrollment: '' }];
+        }
+    }
+    get canRemoveLivelihoodProgramRow() {
+        return this.livelihoodProgramRows.length > 1;
+    }
+
+    addCommunityRow() {
+        this.communityRows = [...this.communityRows, { id: Date.now(), state: '', district: '', fy3: '', fy2: '', fy1: '', proj: '' }];
+    }
+    get stateOptions() {
+        return [
+            { label: 'Select State', value: '' },
+            { label: 'Andhra Pradesh', value: 'Andhra Pradesh' },
+            { label: 'Arunachal Pradesh', value: 'Arunachal Pradesh' },
+            { label: 'Assam', value: 'Assam' },
+            { label: 'Bihar', value: 'Bihar' },
+            { label: 'Chhattisgarh', value: 'Chhattisgarh' },
+            { label: 'Goa', value: 'Goa' },
+            { label: 'Gujarat', value: 'Gujarat' },
+            { label: 'Haryana', value: 'Haryana' },
+            { label: 'Himachal Pradesh', value: 'Himachal Pradesh' },
+            { label: 'Jharkhand', value: 'Jharkhand' },
+            { label: 'Karnataka', value: 'Karnataka' },
+            { label: 'Kerala', value: 'Kerala' },
+            { label: 'Madhya Pradesh', value: 'Madhya Pradesh' },
+            { label: 'Maharashtra', value: 'Maharashtra' },
+            { label: 'Manipur', value: 'Manipur' },
+            { label: 'Meghalaya', value: 'Meghalaya' },
+            { label: 'Mizoram', value: 'Mizoram' },
+            { label: 'Nagaland', value: 'Nagaland' },
+            { label: 'Odisha', value: 'Odisha' },
+            { label: 'Punjab', value: 'Punjab' },
+            { label: 'Rajasthan', value: 'Rajasthan' },
+            { label: 'Sikkim', value: 'Sikkim' },
+            { label: 'Tamil Nadu', value: 'Tamil Nadu' },
+            { label: 'Telangana', value: 'Telangana' },
+            { label: 'Tripura', value: 'Tripura' },
+            { label: 'Uttar Pradesh', value: 'Uttar Pradesh' },
+            { label: 'Uttarakhand', value: 'Uttarakhand' },
+            { label: 'West Bengal', value: 'West Bengal' },
+            { label: 'Andaman and Nicobar Islands', value: 'Andaman and Nicobar Islands' },
+            { label: 'Chandigarh', value: 'Chandigarh' },
+            { label: 'Dadra and Nagar Haveli and Daman and Diu', value: 'Dadra and Nagar Haveli and Daman and Diu' },
+            { label: 'Delhi', value: 'Delhi' },
+            { label: 'Jammu and Kashmir', value: 'Jammu and Kashmir' },
+            { label: 'Ladakh', value: 'Ladakh' },
+            { label: 'Lakshadweep', value: 'Lakshadweep' },
+            { label: 'Puducherry', value: 'Puducherry' },
+            { label: 'Other', value: 'Other' }
+        ];
+    }
+
+    get canRemoveCommunityRow() {
+        return this.communityRows.length > 1;
+    }
+
+    get communityRowsWithStateOptions() {
+        const options = this.stateOptions;
+        return (this.communityRows || []).map(row => {
+            return {
+                ...row,
+                stateDropdownOptions: options.map(opt => ({
+                    ...opt,
+                    isSelected: opt.value === row.state
+                }))
+            };
+        });
+    }
+
+    handleCommunityChange(event) {
+        const rawId = event.target?.dataset?.id || event.currentTarget?.dataset?.id;
+        const field = event.target?.dataset?.field || event.currentTarget?.dataset?.field;
+        const val = event.detail?.value !== undefined ? event.detail.value : (event.target?.value ?? '');
+        this.communityRows = this.communityRows.map(r => String(r.id) === String(rawId) ? { ...r, [field]: val } : r);
+        const currentRow = this.communityRows.find(r => String(r.id) === String(rawId));
+        if (event.target) {
+            if (field === 'district') {
+                const distErr = val ? this._validateNameLikeField(val, 'District / Area') : null;
+                const isDuplicateCommunity = currentRow?.state && val && this.communityRows.some(r =>
+                    String(r.id) !== String(rawId) &&
+                    r.state &&
+                    r.state.trim().toLowerCase() === currentRow.state.trim().toLowerCase() &&
+                    r.district &&
+                    r.district.trim().toLowerCase() === val.trim().toLowerCase()
+                );
+                if (distErr) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity(distErr);
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else if (isDuplicateCommunity) {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('Duplicate community entry for the same State and District.');
+                        event.target.reportValidity();
+                        this._registerInvalid(event.target);
+                    }
+                } else {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('');
+                        event.target.reportValidity();
+                    }
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else if (['fy3', 'fy2', 'fy1', 'proj'].includes(field)) {
+                if (val !== '' && val !== null && val !== undefined) {
+                    const clean = String(val).replace(/,/g, '').trim();
+                    const err = this._validateIntegerCount(clean, 'Beneficiary count');
+                    if (err) {
+                        if (event.target.setCustomValidity) {
+                            event.target.setCustomValidity(err);
+                            event.target.reportValidity();
+                            this._registerInvalid(event.target);
+                        }
+                    } else {
+                        if (event.target.setCustomValidity) {
+                            event.target.setCustomValidity('');
+                            event.target.reportValidity();
+                        }
+                        this._clearNativeError(event.target);
+                        this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                    }
+                } else {
+                    if (event.target.setCustomValidity) {
+                        event.target.setCustomValidity('');
+                        event.target.reportValidity();
+                    }
+                    this._clearNativeError(event.target);
+                    this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+                }
+            } else {
+                if (event.target.setCustomValidity) {
+                    event.target.setCustomValidity('');
+                    event.target.reportValidity();
+                }
+                this._clearNativeError(event.target);
+                this._invalidElements = this._invalidElements.filter(x => x !== event.target);
+            }
+        }
+    }
+    handleRemoveCommunityRow(event) {
+        const rawId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        if (this.communityRows.length > 1) {
+            this.communityRows = this.communityRows.filter(r => String(r.id) !== String(rawId));
+        } else {
+            this.communityRows = [{ id: Date.now(), state: '', district: '', fy3: '', fy2: '', fy1: '', proj: '' }];
+        }
+    }
+
+    addDocRow() {
+        this.docRows = [...this.docRows, { id: Date.now(), name: '', url: '' }];
+    }
+    handleDocRowChange(event) {
+        const rawId = event.target?.dataset?.id || event.currentTarget?.dataset?.id;
+        const field = event.target?.dataset?.field || event.currentTarget?.dataset?.field;
+        const val = event.target?.value ?? '';
+        this.docRows = this.docRows.map(r => String(r.id) === String(rawId) ? { ...r, [field]: val } : r);
+    }
+    handleRemoveDocRow(event) {
+        const rawId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        if (this.docRows.length > 1) {
+            this.docRows = this.docRows.filter(r => String(r.id) !== String(rawId));
+        } else {
+            this.docRows = [{ id: Date.now(), name: '', url: '' }];
+        }
+    }
+    get canRemoveDocRow() {
+        return this.docRows.length > 1;
+    }
+
+    // ── Picklist Options & Conditional Getters (Q4, Q5, Q6) ────────────
+    get legalTypeOptions() {
+        return [
+            { label: 'Select type', value: '' },
+            { label: 'Non-profit', value: 'Non-profit' },
+            { label: 'For-profit', value: 'For-profit' },
+            { label: 'Hybrid', value: 'Hybrid' },
+            { label: 'Government-affiliated', value: 'Government-affiliated' },
+            { label: 'Other', value: 'Other' }
+        ];
+    }
+
+    get countryOptions() {
+        return [
+            { label: 'Select country', value: '' },
+            { label: 'Brazil', value: 'Brazil' },
+            { label: 'Egypt', value: 'Egypt' },
+            { label: 'India', value: 'India' },
+            { label: 'Indonesia', value: 'Indonesia' },
+            { label: 'Mexico', value: 'Mexico' },
+            { label: 'Philippines', value: 'Philippines' },
+            { label: 'United States', value: 'United States' },
+            { label: 'Other', value: 'Other' }
+        ];
+    }
+
+    get showLegalTypeOther() {
+        return this.formValues.Legal_Type__c === 'Other';
+    }
+
+    get showRegistrationJurisdictionOther() {
+        return this.formValues.Registration_Jurisdiction__c === 'Other';
+    }
+
+    get entityTypeOptions() {
+        return [
+            { label: 'Section 8 Non-Profit Company', value: 'Section 8' },
+            { label: 'Registered Trust', value: 'Trust' },
+            { label: 'Registered Society', value: 'Society' },
+            { label: 'US 501(c)(3) Public Charity', value: '501c3' },
+            { label: 'International Non-Profit / NGO', value: 'NGO' },
+            { label: 'Other', value: 'Other' }
+        ];
+    }
+
+    get yesNoOptions() {
+        return [
+            { label: 'Yes', value: 'Yes' },
+            { label: 'No', value: 'No' }
+        ];
+    }
+
+    get yesNoNotApplicableOptions() {
+        return [
+            { label: 'Yes', value: 'Yes' },
+            { label: 'No', value: 'No' },
+            { label: 'Not Applicable', value: 'Not Applicable' }
+        ];
+    }
+
+    get funderTypeOptions() {
+        return [
+            { label: 'Select an option', value: '' },
+            { label: 'Grant', value: 'Grant' },
+            { label: 'Loan', value: 'Loan' },
+            { label: 'Equity', value: 'Equity' },
+            { label: 'In-Kind', value: 'In-Kind' }
+        ];
+    }
+
+    get genieAiOptions() {
+        return [
+            { label: 'Yes, interested', value: 'Yes, interested' },
+            { label: 'Maybe, want to learn more', value: 'Maybe, want to learn more' },
+            { label: 'Not at this time', value: 'Not at this time' }
+        ];
+    }
+
+    get showGenieAiText() {
+        const val = this.formValues.GenieAI_Interest_Level__c;
+        return Boolean(val && (val === 'Yes, interested' || val === 'Maybe, want to learn more'));
+    }
+
+    get fiscalMonthOptions() {
+        return [
+            { label: 'January', value: '01' }, { label: 'February', value: '02' },
+            { label: 'March', value: '03' }, { label: 'April', value: '04' },
+            { label: 'May', value: '05' }, { label: 'June', value: '06' },
+            { label: 'July', value: '07' }, { label: 'August', value: '08' },
+            { label: 'September', value: '09' }, { label: 'October', value: '10' },
+            { label: 'November', value: '11' }, { label: 'December', value: '12' }
+        ];
+    }
+
+    get fiscalDayOptions() {
+        const rawMonth = this.formValues.Fiscal_Month__c;
+        let m = parseInt(rawMonth, 10);
+        if (isNaN(m) && rawMonth) {
+            const monthMap = {
+                january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3,
+                april: 4, apr: 4, may: 5, june: 6, jun: 6,
+                july: 7, jul: 7, august: 8, aug: 8, september: 9, sep: 9, sept: 9,
+                october: 10, oct: 10, november: 11, nov: 11, december: 12, dec: 12
+            };
+            m = monthMap[String(rawMonth).toLowerCase().trim()] || 3;
+        }
+
+        let maxDays = 31;
+        if ([4, 6, 9, 11].includes(m)) {
+            maxDays = 30;
+        } else if (m === 2) {
+            maxDays = 29;
+        } else {
+            maxDays = 31;
+        }
+
+        const opts = [];
+        for (let d = 1; d <= maxDays; d++) {
+            const val = String(d);
+            const label = String(d).padStart(2, '0');
+            opts.push({ label: label, value: val });
+        }
+        return opts;
+    }
+
+    get sectorDropdownOptions() {
+        return [
+            { label: 'Select an option', value: '' },
+            { label: 'Agriculture and allied', value: 'Agriculture and allied' },
+            { label: 'Manufacturing', value: 'Manufacturing' },
+            { label: 'Textiles and apparel', value: 'Textiles and apparel' },
+            { label: 'Automotive', value: 'Automotive' },
+            { label: 'Construction and real estate', value: 'Construction and real estate' },
+            { label: 'Retail and trade', value: 'Retail and trade' },
+            { label: 'IT and technology services', value: 'IT and technology services' },
+            { label: 'Financial services', value: 'Financial services' },
+            { label: 'Healthcare', value: 'Healthcare' },
+            { label: 'Education and training', value: 'Education and training' },
+            { label: 'Hospitality and tourism', value: 'Hospitality and tourism' },
+            { label: 'Logistics and transport', value: 'Logistics and transport' },
+            { label: 'Energy and environment', value: 'Energy and environment' },
+            { label: 'Media and creative', value: 'Media and creative' },
+            { label: 'Other', value: 'Other' }
+        ];
+    }
+
+    get supportTypeOptionsList() {
+        return [
+            { value: 'Capital', label: 'Capital' },
+            { value: 'Mentorship', label: 'Mentorship' },
+            { value: 'Business Advisory', label: 'Business Advisory' },
+            { value: 'Market Linkages', label: 'Market Linkages' },
+            { value: 'Sector Technical Assistance', label: 'Sector Technical Assistance' },
+            { value: 'Other', label: 'Other' }
+        ];
+    }
+
+    get businessSectorRowsIndexed() {
+        const supportOpts = this.supportTypeOptionsList;
+        return this.businessSectorRows.map((row, index) => {
+            const currentTypes = Array.isArray(row.supportTypes) ? row.supportTypes : [];
+            const supportTypeChips = supportOpts.map(opt => ({
+                value: opt.value,
+                label: opt.label,
+                isSelected: currentTypes.includes(opt.value),
+                chipClass: currentTypes.includes(opt.value) ? 'sector-chip selected' : 'sector-chip'
+            }));
+            return {
+                ...row,
+                displayIdx: index + 1,
+                isOtherSector: row.sector === 'Other',
+                showSupportTypeOther: currentTypes.includes('Other'),
+                supportTypeChips: supportTypeChips
+            };
+        });
+    }
+
+    get canRemoveSectorRow() {
+        return this.businessSectorRows.length > 1;
+    }
+
+    // ── Funder Card Toggle & Validation Methods (Q6) ───────────────────
+    get isFunderLimitReached() {
+        return this.showFunder3 === true;
+    }
+
+    handleAddFunder() {
+        if (!this.showFunder2) {
+            this.showFunder2 = true;
+        } else if (!this.showFunder3) {
+            this.showFunder3 = true;
+        }
+    }
+
+    handleRemoveFunder2() {
+        this.showFunder2 = false;
+        this.formValues.Funder_2_Name__c = '';
+        this.formValues.Funder_2_Amount__c = '';
+        this.formValues.Funder_2_Period_Start__c = '';
+        this.formValues.Funder_2_Period_End__c = '';
+        this.formValues.Funder_2_Type__c = '';
+        this._clearLightningError('Funder_2_Name__c');
+        this._clearLightningError('Funder_2_Amount__c');
+        this._clearLightningError('Funder_2_Period_Start__c');
+        this._clearLightningError('Funder_2_Period_End__c');
+        this._clearLightningError('Funder_2_Type__c');
+        this._validateFunderFields();
+    }
+
+    handleRemoveFunder3() {
+        this.showFunder3 = false;
+        this.formValues.Funder_3_Name__c = '';
+        this.formValues.Funder_3_Amount__c = '';
+        this.formValues.Funder_3_Period_Start__c = '';
+        this.formValues.Funder_3_Period_End__c = '';
+        this.formValues.Funder_3_Type__c = '';
+        this._clearLightningError('Funder_3_Name__c');
+        this._clearLightningError('Funder_3_Amount__c');
+        this._clearLightningError('Funder_3_Period_Start__c');
+        this._clearLightningError('Funder_3_Period_End__c');
+        this._clearLightningError('Funder_3_Type__c');
+        this._validateFunderFields();
+    }
+
+    _validateFunderFields() {
+        const org = this.formValues;
+        const f1Filled = [org.Funder_1_Name__c, org.Funder_1_Amount__c, org.Funder_1_Period_Start__c, org.Funder_1_Period_End__c, org.Funder_1_Type__c].some(v => v !== '' && v !== null && v !== undefined);
+        const f2Filled = this.showFunder2 && [org.Funder_2_Name__c, org.Funder_2_Amount__c, org.Funder_2_Period_Start__c, org.Funder_2_Period_End__c, org.Funder_2_Type__c].some(v => v !== '' && v !== null && v !== undefined);
+        const f3Filled = this.showFunder3 && [org.Funder_3_Name__c, org.Funder_3_Amount__c, org.Funder_3_Period_Start__c, org.Funder_3_Period_End__c, org.Funder_3_Type__c].some(v => v !== '' && v !== null && v !== undefined);
+
+        if (f2Filled && !f1Filled) {
+            ['Funder_1_Name__c', 'Funder_1_Amount__c', 'Funder_1_Period_Start__c', 'Funder_1_Period_End__c', 'Funder_1_Type__c'].forEach(k => {
+                this._showLightningError(k, 'Please complete Funder 1 before adding Funder 2.');
+            });
+        }
+        if (f3Filled && !f2Filled) {
+            ['Funder_2_Name__c', 'Funder_2_Amount__c', 'Funder_2_Period_Start__c', 'Funder_2_Period_End__c', 'Funder_2_Type__c'].forEach(k => {
+                this._showLightningError(k, 'Please complete Funder 2 before adding Funder 3.');
+            });
+        }
+
+        const funderSets = [
+            {
+                label: 'Funder 1',
+                fields: {
+                    name: 'Funder_1_Name__c',
+                    amount: 'Funder_1_Amount__c',
+                    start: 'Funder_1_Period_Start__c',
+                    end: 'Funder_1_Period_End__c',
+                    type: 'Funder_1_Type__c',
+                },
+                show: true,
+            },
+            {
+                label: 'Funder 2',
+                fields: {
+                    name: 'Funder_2_Name__c',
+                    amount: 'Funder_2_Amount__c',
+                    start: 'Funder_2_Period_Start__c',
+                    end: 'Funder_2_Period_End__c',
+                    type: 'Funder_2_Type__c',
+                },
+                show: this.showFunder2,
+            },
+            {
+                label: 'Funder 3',
+                fields: {
+                    name: 'Funder_3_Name__c',
+                    amount: 'Funder_3_Amount__c',
+                    start: 'Funder_3_Period_Start__c',
+                    end: 'Funder_3_Period_End__c',
+                    type: 'Funder_3_Type__c',
+                },
+                show: this.showFunder3,
+            },
+        ];
+
+        funderSets.forEach(({ label, fields, show }) => {
+            if (!show) return;
+
+            const f = fields;
+            const values = Object.values(f).map(key => org[key]);
+            const anyFilled = values.some(v => v !== '' && v !== null && v !== undefined);
+
+            if (!anyFilled) {
+                if ((label === 'Funder 1' && f2Filled) || (label === 'Funder 2' && f3Filled)) {
+                    // Retain sequential error
+                } else {
+                    Object.values(f).forEach(key => this._clearLightningError(key));
+                }
+                return;
+            }
+
+            const requiredKeys = [f.name, f.amount, f.start, f.end, f.type];
+            requiredKeys.forEach(key => {
+                if (!org[key] && org[key] !== 0) {
+                    this._showLightningError(key, `${label}: complete all fields or clear this row.`);
+                } else {
+                    this._clearLightningError(key);
+                }
+            });
+
+            if (org[f.name]) {
+                const nameErr = this._validateNameLikeField(org[f.name], `${label} Name`);
+                if (nameErr) {
+                    this._showLightningError(f.name, nameErr);
+                }
+            }
+
+            if (org[f.amount] !== '' && org[f.amount] !== null && org[f.amount] !== undefined) {
+                const clean = String(org[f.amount]).replace(/,/g, '').trim();
+                const err = this._validateMoneyAmount(clean, `${label} Amount`, false);
+                if (err) {
+                    this._showLightningError(f.amount, err);
+                }
+            }
+
+            if (org[f.start] && org[f.end]) {
+                try {
+                    const s = new Date(org[f.start]);
+                    const e = new Date(org[f.end]);
+                    if (!isNaN(s) && !isNaN(e) && s >= e) {
+                        this._showLightningError(f.end, 'Funding end date must be after start date.');
+                    }
+                } catch (_) { /* ignore */ }
+            }
+        });
+    }
+
+    // ── Reference Card Toggle & Validation Methods (Q8) ───────────────────
+    get isReferenceLimitReached() {
+        return this.showReference2 === true;
+    }
+
+    handleAddReference() {
+        if (!this.showReference2) {
+            this.showReference2 = true;
+        }
+    }
+
+    handleRemoveReference2() {
+        this.showReference2 = false;
+        this.formValues.Reference_2_Name__c = '';
+        this.formValues.Reference_2_Role__c = '';
+        this.formValues.Reference_2_Email__c = '';
+        this._clearLightningError('Reference_2_Name__c');
+        this._clearLightningError('Reference_2_Role__c');
+        this._clearLightningError('Reference_2_Email__c');
+        this._validateReferenceFields();
+    }
+
+    _validateReferenceFields() {
+        const org = this.formValues;
+        const ref1Values = [org.Reference_1_Name__c, org.Reference_1_Role__c, org.Reference_1_Email__c];
+        const hasRef1Data = ref1Values.some(v => v !== '' && v !== null && v !== undefined);
+        const ref2Values = [org.Reference_2_Name__c, org.Reference_2_Role__c, org.Reference_2_Email__c];
+        const hasRef2Data = this.showReference2 && ref2Values.some(v => v !== '' && v !== null && v !== undefined);
+
+        if (hasRef2Data && !hasRef1Data) {
+            ['Reference_1_Name__c', 'Reference_1_Role__c', 'Reference_1_Email__c'].forEach(k => {
+                this._showLightningError(k, 'Please complete Reference 1 before providing Reference 2.');
+            });
+        }
+
+        const refSets = [
+            {
+                label: 'Reference 1',
+                fields: {
+                    name: 'Reference_1_Name__c',
+                    role: 'Reference_1_Role__c',
+                    email: 'Reference_1_Email__c'
+                },
+                show: true
+            },
+            {
+                label: 'Reference 2',
+                fields: {
+                    name: 'Reference_2_Name__c',
+                    role: 'Reference_2_Role__c',
+                    email: 'Reference_2_Email__c'
+                },
+                show: this.showReference2
+            }
+        ];
+
+        refSets.forEach(({ label, fields, show }) => {
+            if (!show) return;
+            const f = fields;
+            const values = [org[f.name], org[f.role], org[f.email]];
+            const anyFilled = values.some(v => v !== '' && v !== null && v !== undefined);
+
+            if (!anyFilled) {
+                if (label !== 'Reference 1' || !hasRef2Data) {
+                    Object.values(f).forEach(key => this._clearLightningError(key));
+                }
+                return;
+            }
+
+            Object.values(f).forEach(key => {
+                if (!org[key] || String(org[key]).trim() === '') {
+                    this._showLightningError(key, `${label}: complete all fields or clear this row.`);
+                } else {
+                    this._clearLightningError(key);
+                }
+            });
+
+            if (org[f.name]) {
+                const nameErr = this._validateNameLikeField(org[f.name], `${label} Name`);
+                if (nameErr) {
+                    this._showLightningError(f.name, nameErr);
+                }
+            }
+            if (org[f.role]) {
+                const roleErr = this._validateNameLikeField(org[f.role], `${label} Organization / Role`);
+                if (roleErr) {
+                    this._showLightningError(f.role, roleErr);
+                }
+            }
+
+            if (org[f.email]) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(org[f.email])) {
+                    this._showLightningError(f.email, 'Please enter a valid email address.');
+                }
+            }
+        });
+    }
+
+    // ── Q5 Legal and Tax Compliance Validation Helper ─────────────────────
+    _validateComplianceFields() {
+        const reqFields = [
+            { key: 'Has_501c3_Status__c', label: 'US 501(c)(3) status' },
+            { key: 'Has_Equivalency_Determination__c', label: 'Equivalency Determination (ED) status' },
+            { key: 'Is_FCRA_Registered__c', label: 'FCRA registration status' },
+            { key: 'Willing_to_Pursue_ED__c', label: 'ED certification willingness' }
+        ];
+
+        reqFields.forEach(({ key, label }) => {
+            if (!this.formValues[key]) {
+                this._showLightningError(key, `Please select an option for ${label}.`);
+            } else {
+                this._clearLightningError(key);
+            }
+        });
+    }
+
+    // ── Rich Text Toolbar & Word Count Helpers (Q4) ────────────────────
+    setActiveField(event) {
+        this.activeField = event.target;
+    }
+
+    boldText() {
+        if (this.activeField) {
+            document.execCommand('bold', false, null);
+        }
+    }
+
+    italicText() {
+        if (this.activeField) {
+            document.execCommand('italic', false, null);
+        }
+    }
+
+    underlineText() {
+        if (this.activeField) {
+            document.execCommand('underline', false, null);
+        }
+    }
+
+    insertBulletPoints() {
+        const field = this.activeField;
+        if (!field) return;
+
+        field.focus();
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        const textNode = document.createTextNode('• ');
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    _updateWordCountForField(fieldKey, wordsCount) {
+        if (fieldKey === 'Legal_Structure__c') {
+            this.legalStructureWordCount = wordsCount;
+        } else if (fieldKey === 'Revenue_Explanation__c') {
+            this.deviationExplanationWordCount = wordsCount;
+        } else if (fieldKey === 'Skilling_Approach__c') {
+            this.skillingApproachWordCount = wordsCount;
+        } else if (fieldKey === 'Job_Creation_Approach__c') {
+            this.jobCreationApproachWordCount = wordsCount;
+        } else if (fieldKey === 'Livelihood_Approach__c') {
+            this.livelihoodApproachWordCount = wordsCount;
+        } else if (fieldKey === 'Organizational_Sustainability__c') {
+            this.sustainabilityWordCount = wordsCount;
+        } else if (fieldKey === 'Use_of_Additional_Funding__c') {
+            this.useOfFundingWordCount = wordsCount;
+        }
+    }
+
+    handleKeyDown(event) {
+        if (event.key === 'Enter') {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const range = selection.getRangeAt(0);
+            const container = range.startContainer;
+            const lineText = container.textContent || container.parentNode?.textContent || '';
+
+            if (lineText.trim().startsWith('• ')) {
+                event.preventDefault();
+                const br = document.createElement('br');
+                const bullet = document.createTextNode('• ');
+                range.insertNode(br);
+                range.collapse(false);
+                range.insertNode(bullet);
+                const newRange = document.createRange();
+                newRange.setStartAfter(bullet);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            }
+        }
+    }
+
+    handlePaste(event) {
+        event.preventDefault();
+        const text = (event.clipboardData || window.clipboardData).getData('text/plain');
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        selection.deleteFromDocument();
+        selection.getRangeAt(0).insertNode(document.createTextNode(text));
+
+        const el = event.target;
+        if (el?.isContentEditable) {
+            const rawWords = (el.innerText || '').trim().split(/\s+/).filter(w => w.length > 0);
+            const fieldKey = el.dataset?.field || el.dataset?.id;
+            if (fieldKey) {
+                this.formValues[fieldKey] = el.innerHTML;
+                this._updateWordCountForField(fieldKey, rawWords.length);
+            }
+        }
+    }
+
+    get legalStructureCounterClass() {
+        return this.legalStructureWordCount > 550 ? 'word-count-over' : 'word-count';
+    }
+
+    stripHtml(html) {
+        if (!html) return '';
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || doc.body.innerText || '';
+    }
+
+    _sanitizeHtml(html) {
+        if (!html) return '';
+        return html;
+    }
+
+    // ── AI Feedback Modal Logic ──────────────────────────────────────────
+    handleAIClick(event) {
+        const fieldApiName = event.currentTarget.dataset.id || 'Legal_Structure__c';
+        const submitterName = this.formValues.Submitter_Name__c || '';
+
+        if (!submitterName) {
+            this.showBanner('warning', 'Missing Info', 'Please fill in the Submitter Name on Page 1 before using AI Feedback.');
+            return;
+        }
+
+        let fieldValue = this.formValues[fieldApiName] || '';
+        const rtEl = this.template.querySelector(`[contenteditable="true"][data-field="${fieldApiName}"]`);
+        if (rtEl) {
+            fieldValue = this._sanitizeHtml(rtEl.innerHTML);
+            this.formValues[fieldApiName] = fieldValue;
+        }
+
+        const plain = this.stripHtml(fieldValue).replace(/\u00A0/g, ' ').trim();
+        if (!plain) {
+            this.showBanner('warning', 'Empty Field', 'Please write something in this field before requesting AI feedback.');
+            return;
+        }
+
+        if (fieldApiName === 'Legal_Structure__c') {
+            let legalType = this.formValues.Legal_Type__c || '';
+            if (legalType === 'Other') {
+                legalType += ' ' + (this.formValues.Legal_Type_Other__c || '');
+            }
+            let regJurisdiction = this.formValues.Registration_Jurisdiction__c || '';
+            if (regJurisdiction === 'Other') {
+                regJurisdiction += ' ' + (this.formValues.Registration_Jurisdiction_Other__c || '');
+            }
+            fieldValue = ' Legal Type: ' + legalType + ' Registration Jurisdiction: ' + regJurisdiction + ' ' + fieldValue;
+        }
+
+        this.isAIModalOpen = true;
+        const titleMap = {
+            'Revenue_Explanation__c': 'AI Feedback – Explanation of Deviation',
+            'Livelihood_Approach__c': 'AI Feedback – Your Livelihood Upliftment Approach',
+            'Job_Creation_Approach__c': 'AI Feedback – Your Job Creation Approach',
+            'Skilling_Approach__c': 'AI Feedback – Your Skilling Approach',
+            'Organizational_Sustainability__c': 'AI Feedback – Organizational Sustainability',
+            'Use_of_Additional_Funding__c': 'AI Feedback – Use of Additional Funds',
+            'Operational_Synergies_with_WOF__c': 'AI Feedback – Operational Synergies with GenieAI'
+        };
+        this.aiModalTitle = titleMap[fieldApiName] || 'AI Feedback – Legal Structure';
+        this.isAiLoading = true;
+        this.aiResponse = '';
+
+        upsertAIFeedback({
+            fieldApiName: fieldApiName,
+            fieldValue: fieldValue,
+            submitterName: submitterName
+        })
+            .then(() => {
+                setTimeout(() => {
+                    this.loadAIFeedback(fieldApiName, submitterName);
+                }, 6000);
+            })
+            .catch(err => {
+                console.error('Apex upsertAIFeedback call failed:', err);
+                this.aiResponse = 'Error generating AI feedback.';
+                this.isAiLoading = false;
+            });
+    }
+
+    loadAIFeedback(fieldApiName, submitterName) {
+        getAIFeedbackRecord({ submitterName })
+            .then(result => {
+                if (result) {
+                    const flexFieldMap = {
+                        'Legal_Structure__c': 'Legal_Structure_FR__c',
+                        'Revenue_Explanation__c': 'Revenue_Explanation_FR__c',
+                        'Skilling_Approach__c': 'Skilling_Approach_FR__c',
+                        'Job_Creation_Approach__c': 'Job_Creation_Approach_FR__c',
+                        'Livelihood_Approach__c': 'Livelihood_Approach_FR__c',
+                        'Operational_Synergies_with_WOF__c': 'Operational_Synergies_with_WOF_FR__c',
+                        'Organizational_Sustainability__c': 'Organizational_Sustainability_FR__c',
+                        'Use_of_Additional_Funding__c': 'Use_of_Additional_Funding_FR__c'
+                    };
+                    const flexField = flexFieldMap[fieldApiName] || 'Legal_Structure_FR__c';
+                    this.aiResponse = result[flexField] || 'No feedback available yet.';
+                } else {
+                    this.aiResponse = 'No feedback available yet.';
+                }
+                this.isAiLoading = false;
+            })
+            .catch(err => {
+                console.error('Failed to load AI feedback:', err);
+                this.aiResponse = 'Error loading AI feedback.';
+                this.isAiLoading = false;
+            });
+    }
+
+    closeAIModal() {
+        this.isAIModalOpen = false;
+        this.aiResponse = '';
+        this.isAiLoading = false;
+    }
+
+    get formattedAiSections() {
+        if (!this.aiResponse) return [];
+
+        const labels = ['Rating', 'Strengths', 'Weaknesses', 'Summary'];
+        const pattern = new RegExp(`(${labels.join('|')})\\s*:?`, 'gi');
+        const parts = this.aiResponse.split(pattern).filter(p => p !== undefined && p.trim() !== '');
+
+        const sections = [];
+        for (let i = 0; i < parts.length; i++) {
+            if (labels.includes(parts[i])) {
+                const label = parts[i];
+                const body = parts[i + 1] || '';
+                const points = body
+                    .split(/\n|(?<=\.)\s+(?=[A-Z])/)
+                    .map(s => s.replace(/^[-•*]\s*/, '').trim())
+                    .filter(s => s.length > 0);
+                sections.push({ title: label, points });
+                i++;
+            }
+        }
+
+        if (sections.length === 0 && this.aiResponse.trim()) {
+            sections.push({
+                title: 'Feedback',
+                points: this.aiResponse.split(/\n+/).map(l => l.trim()).filter(l => l)
+            });
+        }
+        return sections;
+    }
+
+    // ── Accepted File Format Getters (Q24 & Q28) ────────────────────────
+    get pdfAcceptFormats() {
+        return ['.pdf'];
+    }
+
+    get supportingDocsAcceptFormats() {
+        return ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
+    }
+
+    // ── File Upload Stock Error Interceptors (Q24 & Q28) ───────────────
+    _q24FileObserver;
+    _q28FileObserver;
+    _observedQ24El;
+    _observedQ28El;
+
+    _setupFileUploadObservers() {
+        const q24Uploader = this.template.querySelector('lightning-file-upload[name="q24Upload"]');
+        if (q24Uploader && (!this._q24FileObserver || this._observedQ24El !== q24Uploader)) {
+            if (this._q24FileObserver) this._q24FileObserver.disconnect();
+            this._observedQ24El = q24Uploader;
+            this._q24FileObserver = this._createFileUploadObserver(
+                q24Uploader,
+                ext => `Only PDF files (.pdf) are supported. Unsupported file type: ${ext}`
+            );
+        } else if (!q24Uploader && this._q24FileObserver) {
+            this._q24FileObserver.disconnect();
+            this._q24FileObserver = null;
+            this._observedQ24El = null;
+        }
+
+        const q28Uploader = this.template.querySelector('lightning-file-upload[name="q28Upload"]');
+        if (q28Uploader && (!this._q28FileObserver || this._observedQ28El !== q28Uploader)) {
+            if (this._q28FileObserver) this._q28FileObserver.disconnect();
+            this._observedQ28El = q28Uploader;
+            this._q28FileObserver = this._createFileUploadObserver(
+                q28Uploader,
+                ext => `Only PDF, Word, Excel, or PowerPoint files are accepted. Unsupported file type: ${ext}`
+            );
+        } else if (!q28Uploader && this._q28FileObserver) {
+            this._q28FileObserver.disconnect();
+            this._q28FileObserver = null;
+            this._observedQ28El = null;
+        }
+    }
+
+    _createFileUploadObserver(uploaderEl, messageBuilder) {
+        const checkAndReplaceNode = (node) => {
+            if (!node) return;
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.nodeValue || '';
+                if (/support the following file types/i.test(text)) {
+                    const colonIdx = text.lastIndexOf(':');
+                    const ext = colonIdx !== -1 ? text.substring(colonIdx + 1).trim() : '';
+                    node.nodeValue = messageBuilder(ext);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const text = node.textContent || '';
+                if (/support the following file types/i.test(text)) {
+                    const colonIdx = text.lastIndexOf(':');
+                    const ext = colonIdx !== -1 ? text.substring(colonIdx + 1).trim() : '';
+                    const friendlyMsg = messageBuilder(ext);
+
+                    let foundTextNode = false;
+                    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null, false);
+                    let childTextNode;
+                    while ((childTextNode = walker.nextNode())) {
+                        if (/support the following file types/i.test(childTextNode.nodeValue)) {
+                            childTextNode.nodeValue = friendlyMsg;
+                            foundTextNode = true;
+                        }
+                    }
+                    if (!foundTextNode) {
+                        node.textContent = friendlyMsg;
+                    }
+                }
+            }
+        };
+
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                checkAndReplaceNode(mutation.target);
+                if (mutation.addedNodes && mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach(n => checkAndReplaceNode(n));
+                }
+            }
+        });
+
+        observer.observe(uploaderEl, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+
+        checkAndReplaceNode(uploaderEl);
+        return observer;
+    }
+
+    _sizeCheckDiagnostic = '';
+
+    async _fetchUploadedFileSizes(files) {
+        const sizeByDocId = {};
+        this._sizeCheckDiagnostic = '';
+        const docIds = (files || []).map(f => f.documentId).filter(Boolean);
+        if (docIds.length === 0) {
+            this._sizeCheckDiagnostic = 'The upload did not return a document Id.';
+            return sizeByDocId;
+        }
+        try {
+            const details = await getUploadedFileDetails({ contentDocumentIds: docIds });
+            console.log('Uploaded file sizes from Apex:', JSON.stringify(details), 'sent:', JSON.stringify(docIds));
+            (details || []).forEach(d => {
+                if (d && d.documentId) {
+                    sizeByDocId[String(d.documentId).substring(0, 15)] = Number(d.sizeInBytes) || 0;
+                }
+            });
+            if (!details || details.length === 0) {
+                this._sizeCheckDiagnostic = `The server found no file record for ${docIds.join(', ')}.`;
+            } else if (docIds.some(id => sizeByDocId[String(id).substring(0, 15)] === undefined)) {
+                this._sizeCheckDiagnostic = `The server returned ${details.map(d => d.documentId).join(', ')} but the upload sent ${docIds.join(', ')}.`;
+            }
+        } catch (err) {
+            const msg = (err && err.body && err.body.message) || (err && err.message) || JSON.stringify(err);
+            this._sizeCheckDiagnostic = `The size check failed: ${msg}`;
+            console.error('Could not verify uploaded file size:', JSON.stringify(err));
+        }
+        return sizeByDocId;
+    }
+    // ── Q24 Third-Party Verification File Upload ──────────────────────────
+    @track q24UploadedFiles = [];
+
+    get hasQ24UploadedFiles() {
+        return this.q24UploadedFiles && this.q24UploadedFiles.length > 0;
+    }
+
+    async handleQ24UploadFinished(event) {
+        const uploaded = event.detail.files || [];
+        if (uploaded.length > 0) {
+            const MAX_Q24_SIZE = 25 * 1024 * 1024; // 25 MB
+            const sizeByDocId = await this._fetchUploadedFileSizes(uploaded);
+            const currentFiles = this.q24UploadedFiles || [];
+            const validFiles = [];
+            const duplicateNames = [];
+            const oversizedNames = [];
+            const unverifiedNames = [];
+
+            uploaded.forEach(f => {
+                const key = f.documentId ? String(f.documentId).substring(0, 15) : '';
+                const size = sizeByDocId[key];
+                const isDup = currentFiles.some(existing => existing.name && existing.name.toLowerCase() === f.name.toLowerCase()) ||
+                    validFiles.some(v => v.name && v.name.toLowerCase() === f.name.toLowerCase());
+                if (size === undefined || size > MAX_Q24_SIZE) {
+                    (size === undefined ? unverifiedNames : oversizedNames).push(f.name);
+                    if (f.documentId) {
+                        deleteUploadedFile({ documentId: f.documentId, recordId: this.recordId })
+                            .catch(err => console.warn('Rejected file cleanup warning:', err));
+                    }
+                } else if (isDup) {
+                    duplicateNames.push(f.name);
+                    if (f.documentId) {
+                        deleteUploadedFile({ documentId: f.documentId, recordId: this.recordId })
+                            .catch(err => console.warn('Duplicate file cleanup warning:', err));
+                    }
+                } else {
+                    validFiles.push({
+                        name: f.name,
+                        documentId: f.documentId,
+                        contentVersionId: f.contentVersionId
+                    });
+                }
+            });
+
+            if (validFiles.length > 0) {
+                this.q24UploadedFiles = [...currentFiles, ...validFiles];
+            }
+
+            const uploadedNote = validFiles.length > 0
+                ? ` ${validFiles.length} other file(s) uploaded successfully.`
+                : '';
+            const duplicateNote = duplicateNames.length > 0
+                ? ` Duplicate file(s) skipped: "${duplicateNames.join(', ')}".`
+                : '';
+
+            if (oversizedNames.length > 0) {
+                this.showBanner(
+                    'error',
+                    'File Size Limit Exceeded',
+                    `File "${oversizedNames.join(', ')}" exceeds the 25 MB per-file limit and was not uploaded. Please upload a PDF of 25 MB or less.${duplicateNote}${uploadedNote}`,
+                    8000
+                );
+            } else if (unverifiedNames.length > 0) {
+                this.showBanner(
+                    'error',
+                    'Upload Not Verified',
+                    `We couldn't verify the size of "${unverifiedNames.join(', ')}", so it was not uploaded. ${this._sizeCheckDiagnostic}${duplicateNote}${uploadedNote}`,
+                    15000
+                );
+            } else if (duplicateNames.length > 0) {
+                this.showBanner(
+                    'warning',
+                    'Duplicate File',
+                    `File "${duplicateNames.join(', ')}" is already uploaded. Duplicate files are not allowed.${uploadedNote}`
+                );
+            } else if (validFiles.length > 0) {
+                this.showBanner('success', 'File Uploaded', 'Verification Report uploaded successfully.');
+            }
+        }
+    }
+
+
+    handleRemoveQ24File(event) {
+        const docId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        this.q24UploadedFiles = this.q24UploadedFiles.filter(f => f.documentId !== docId);
+        if (docId) {
+            deleteUploadedFile({ documentId: docId, recordId: this.recordId })
+                .catch(err => console.warn('File delete warning:', err));
+        }
+    }
+
+    // ── Q28 Additional Supporting Documents File Upload ─────────────────
+    @track q28UploadedFiles = [];
+
+    get hasQ28UploadedFiles() {
+        return this.q28UploadedFiles && this.q28UploadedFiles.length > 0;
+    }
+
+    async handleQ28UploadFinished(event) {
+        const uploaded = event.detail.files || [];
+        if (uploaded.length > 0) {
+            const MAX_Q28_SIZE = 25 * 1024 * 1024; // 25 MB
+            const sizeByDocId = await this._fetchUploadedFileSizes(uploaded);
+            const currentFiles = this.q28UploadedFiles || [];
+            const validFiles = [];
+            const duplicateNames = [];
+            const oversizedNames = [];
+            const unverifiedNames = [];
+
+            uploaded.forEach(f => {
+                const key = f.documentId ? String(f.documentId).substring(0, 15) : '';
+                const size = sizeByDocId[key];
+                const isDup = currentFiles.some(existing => existing.name && existing.name.toLowerCase() === f.name.toLowerCase()) ||
+                    validFiles.some(v => v.name && v.name.toLowerCase() === f.name.toLowerCase());
+                if (size === undefined || size > MAX_Q28_SIZE) {
+                    (size === undefined ? unverifiedNames : oversizedNames).push(f.name);
+                    if (f.documentId) {
+                        deleteUploadedFile({ documentId: f.documentId, recordId: this.recordId })
+                            .catch(err => console.warn('Rejected file cleanup warning:', err));
+                    }
+                } else if (isDup) {
+                    duplicateNames.push(f.name);
+                    if (f.documentId) {
+                        deleteUploadedFile({ documentId: f.documentId, recordId: this.recordId })
+                            .catch(err => console.warn('Duplicate file cleanup warning:', err));
+                    }
+                } else {
+                    validFiles.push({
+                        name: f.name,
+                        documentId: f.documentId,
+                        contentVersionId: f.contentVersionId
+                    });
+                }
+            });
+
+            if (validFiles.length > 0) {
+                this.q28UploadedFiles = [...currentFiles, ...validFiles];
+            }
+
+            const uploadedNote = validFiles.length > 0
+                ? ` ${validFiles.length} other file(s) uploaded successfully.`
+                : '';
+            const duplicateNote = duplicateNames.length > 0
+                ? ` Duplicate file(s) skipped: "${duplicateNames.join(', ')}".`
+                : '';
+
+            if (oversizedNames.length > 0) {
+                this.showBanner(
+                    'error',
+                    'File Size Limit Exceeded',
+                    `File "${oversizedNames.join(', ')}" exceeds the 25 MB per-file limit and was not uploaded. Please upload files of 25 MB or less.${duplicateNote}${uploadedNote}`,
+                    8000
+                );
+            } else if (unverifiedNames.length > 0) {
+                this.showBanner(
+                    'error',
+                    'Upload Not Verified',
+                    `We couldn't verify the size of "${unverifiedNames.join(', ')}", so it was not uploaded. ${this._sizeCheckDiagnostic}${duplicateNote}${uploadedNote}`,
+                    15000
+                );
+            } else if (duplicateNames.length > 0) {
+                this.showBanner(
+                    'warning',
+                    'Duplicate File',
+                    `File "${duplicateNames.join(', ')}" is already uploaded. Duplicate files are not allowed.${uploadedNote}`
+                );
+            } else if (validFiles.length > 0) {
+                this.showBanner('success', 'File Uploaded', 'Supporting Document uploaded successfully.');
+            }
+        }
+    }
+
+    handleRemoveQ28File(event) {
+        const docId = event.currentTarget?.dataset?.id || event.target?.dataset?.id;
+        this.q28UploadedFiles = this.q28UploadedFiles.filter(f => f.documentId !== docId);
+        if (docId) {
+            deleteUploadedFile({ documentId: docId, recordId: this.recordId })
+                .catch(err => console.warn('File delete warning:', err));
+        }
+    }
+
+    _syncCalculatedAndAliasFields() {
+        const f = { ...this.formValues };
+
+        // 1. Historical Financial Data (Historical_Data__c)
+        f.CY3_Balance_Start_CFY_3__c = f.START_FY3 || f.CY3_Balance_Start_CFY_3__c || '';
+        f.CY3_Revenue__c = f.REV_FY3 || f.CY3_Revenue__c || '';
+        f.CY3_Capital_Expenditure__c = f.CAP_FY3 || f.CY3_Capital_Expenditure__c || '';
+        f.CY3_Operating_Expenditure__c = f.OP_FY3 || f.CY3_Operating_Expenditure__c || '';
+        f.CY3_Expense__c = String((Number(f.CY3_Capital_Expenditure__c) || 0) + (Number(f.CY3_Operating_Expenditure__c) || 0));
+        f.CY3_Balance_End__c = String((Number(f.CY3_Balance_Start_CFY_3__c) || 0) + (Number(f.CY3_Revenue__c) || 0) - (Number(f.CY3_Expense__c) || 0));
+
+        f.CY2_Balance_Start_CFY_2__c = f.CY3_Balance_End__c;
+        f.CY2_Revenue__c = f.REV_FY2 || f.CY2_Revenue__c || '';
+        f.CY2_Capital_Expenditure__c = f.CAP_FY2 || f.CY2_Capital_Expenditure__c || '';
+        f.CY2_Operating_Expenditure__c = f.OP_FY2 || f.CY2_Operating_Expenditure__c || '';
+        f.CY2_Expense__c = String((Number(f.CY2_Capital_Expenditure__c) || 0) + (Number(f.CY2_Operating_Expenditure__c) || 0));
+        f.CY2_Balance_End__c = String((Number(f.CY2_Balance_Start_CFY_2__c) || 0) + (Number(f.CY2_Revenue__c) || 0) - (Number(f.CY2_Expense__c) || 0));
+
+        f.CY1_Balance_Start_CFY_1__c = f.CY2_Balance_End__c;
+        f.CY1_Revenue__c = f.REV_FY1 || f.CY1_Revenue__c || '';
+        f.CY1_Capital_Expenditure__c = f.CAP_FY1 || f.CY1_Capital_Expenditure__c || '';
+        f.CY1_Operating_Expenditure__c = f.OP_FY1 || f.CY1_Operating_Expenditure__c || '';
+        f.CY1_Expense__c = String((Number(f.CY1_Capital_Expenditure__c) || 0) + (Number(f.CY1_Operating_Expenditure__c) || 0));
+        f.CY1_Balance_End__c = String((Number(f.CY1_Balance_Start_CFY_1__c) || 0) + (Number(f.CY1_Revenue__c) || 0) - (Number(f.CY1_Expense__c) || 0));
+
+        // 2. Current Fiscal Year Data (Current_fiscal_year_data__c)
+        f.Revenue_Budget__c = f.CFY_REV_BUDGET || f.Revenue_Budget__c || '';
+        f.Revenue_Projection__c = f.CFY_REV_PROJ || f.Revenue_Projection__c || '';
+        f.Revenue_Variance__c = String(this.computedRevDeviation);
+
+        f.Capital_Expenditure_Budget__c = f.CFY_CAP_BUDGET || f.Capital_Expenditure_Budget__c || '';
+        f.Capital_Expenditure_Projection__c = f.CFY_CAP_PROJ || f.Capital_Expenditure_Projection__c || '';
+        f.Capital_Expenditure_Variance__c = String(this.computedCapDeviation);
+
+        f.Operating_Expenditure_Budget__c = f.CFY_OP_BUDGET || f.Operating_Expenditure_Budget__c || '';
+        f.Operating_Expenditure_Projection__c = f.CFY_OP_PROJ || f.Operating_Expenditure_Projection__c || '';
+        f.Operating_Expenditure_Variance__c = String(this.computedOpDeviation);
+
+        f.Net_Budget__c = String(this.computedNetBudget);
+        f.Net_Projection__c = String(this.computedNetProjection);
+        f.Net_Variance__c = String(this.computedNetDeviation);
+
+        // 3. Job Fulfillment Outcomes (Outcomes_Data__c)
+        f.Projected_Learner_Enrollments_FY_3__c = f.JF_ENROLL_FY3 || f.Projected_Learner_Enrollments_FY_3__c || f.Actual_Learner_Enrollments_FY_3__c || '';
+        f.Projected_Learner_Placements_FY_3__c = f.JF_PLACE_FY3 || f.Projected_Learner_Placements_FY_3__c || f.Actual_Learner_Placements_FY_3__c || '';
+        f.Projected_Learner_placement_FY_3__c = this.computedJfPlacePctFY3 || f.Projected_Learner_placement_FY_3__c || '';
+        f.Avg_Cost_per_Placement_FY_3__c = f.JF_COST_FY3 || f.Avg_Cost_per_Placement_FY_3__c || f.Avg_Cost_per_Placement_FY3__c || '';
+        f.Manual_Avg_Cost_per_Placement_FY_3__c = f.JF_COST_FY3 || f.Manual_Avg_Cost_per_Placement_FY_3__c || '';
+
+        f.Projected_Learner_Enrollments_FY_2__c = f.JF_ENROLL_FY2 || f.Projected_Learner_Enrollments_FY_2__c || f.Actual_Learner_Enrollments_FY_2__c || '';
+        f.Projected_Learner_Placements_FY_2__c = f.JF_PLACE_FY2 || f.Projected_Learner_Placements_FY_2__c || f.Actual_Learner_Placements_FY_2__c || '';
+        f.Projected_Learner_placement_FY_2__c = this.computedJfPlacePctFY2 || f.Projected_Learner_placement_FY_2__c || '';
+        f.Avg_Cost_per_Placement_FY_2__c = f.JF_COST_FY2 || f.Avg_Cost_per_Placement_FY_2__c || f.Avg_Cost_per_Placement_FY2__c || '';
+        f.Manual_Avg_Cost_per_Placement_FY_2__c = f.JF_COST_FY2 || f.Manual_Avg_Cost_per_Placement_FY_2__c || '';
+
+        f.Projected_Learner_Enrollments_FY_1__c = f.JF_ENROLL_FY1 || f.Projected_Learner_Enrollments_FY_1__c || f.Actual_Learner_Enrollments_FY_1__c || '';
+        f.Projected_Learner_Placements_FY_1__c = f.JF_PLACE_FY1 || f.Projected_Learner_Placements_FY_1__c || f.Actual_Learner_Placements_FY_1__c || '';
+        f.Projected_Learner_placement_FY_1__c = this.computedJfPlacePctFY1 || f.Projected_Learner_placement_FY_1__c || '';
+        f.Avg_Cost_per_Placement_FY_1__c = f.JF_COST_FY1 || f.Avg_Cost_per_Placement_FY_1__c || f.Avg_Cost_per_Placement_FY1__c || '';
+        f.Manual_Avg_Cost_per_Placement_FY_1__c = f.JF_COST_FY1 || f.Manual_Avg_Cost_per_Placement_FY_1__c || '';
+
+        f.Projected_Learner_Enrollments_CFY__c = f.JF_ENROLL_PROJ || f.Projected_Learner_Enrollments_CFY__c || '';
+        f.Projected_Learner_Placements_CFY__c = f.JF_PLACE_PROJ || f.Projected_Learner_Placements_CFY__c || '';
+        f.Projected_Learner_placement_CFY__c = this.computedJfPlacePctProj || f.Projected_Learner_placement_CFY__c || '';
+        f.Avg_Cost_per_Placement_CFY__c = f.JF_COST_PROJ || f.Avg_Cost_per_Placement_CFY__c || '';
+        f.Manual_Avg_Cost_per_Placement_CFY__c = f.JF_COST_PROJ || f.Manual_Avg_Cost_per_Placement_CFY__c || '';
+
+        // Also populate legacy actual field names for safety
+        f.Actual_Learner_Enrollments_FY_3__c = f.Projected_Learner_Enrollments_FY_3__c;
+        f.Actual_Learner_Placements_FY_3__c = f.Projected_Learner_Placements_FY_3__c;
+        f.Actual_Learner_placement_FY_3__c = f.Projected_Learner_placement_FY_3__c;
+        f.Avg_Cost_per_Placement_FY3__c = f.Avg_Cost_per_Placement_FY_3__c;
+        f.Actual_Learner_Enrollments_FY_2__c = f.Projected_Learner_Enrollments_FY_2__c;
+        f.Actual_Learner_Placements_FY_2__c = f.Projected_Learner_Placements_FY_2__c;
+        f.Actual_Learner_placement_FY_2__c = f.Projected_Learner_placement_FY_2__c;
+        f.Avg_Cost_per_Placement_FY2__c = f.Avg_Cost_per_Placement_FY_2__c;
+        f.Actual_Learner_Enrollments_FY_1__c = f.Projected_Learner_Enrollments_FY_1__c;
+        f.Actual_Learner_Placements_FY_1__c = f.Projected_Learner_Placements_FY_1__c;
+        f.Actual_Learner_placement_FY_1__c = f.Projected_Learner_placement_FY_1__c;
+        f.Avg_Cost_per_Placement_FY1__c = f.Avg_Cost_per_Placement_FY_1__c;
+
+        // 4. Job Creation Outcomes (Outcomes_Data__c)
+        f.Projected_New_Businesses_FY_3__c = f.JC_NEW_BIZ_FY3 || f.Projected_New_Businesses_FY_3__c || '';
+        f.Projected_Jobs_from_New_Businesses_FY3__c = f.JC_NEW_JOBS_FY3 || f.Projected_Jobs_from_New_Businesses_FY3__c || f.Jobs_from_New_Businesses_FY_3__c || '';
+        f.Growing_Businesses_Supported_FY_3__c = f.JC_EXIST_BIZ_FY3 || f.Growing_Businesses_Supported_FY_3__c || '';
+        f.Jobs_from_Growing_Businesses_FY_3__c = f.JC_EXIST_JOBS_FY3 || f.Jobs_from_Growing_Businesses_FY_3__c || '';
+        f.Avg_Cost_per_Job_FY_3__c = f.JC_COST_FY3 || f.Avg_Cost_per_Job_FY_3__c || '';
+        f.Manual_Avg_Cost_per_Job_FY_3__c = f.JC_COST_FY3 || f.Manual_Avg_Cost_per_Job_FY_3__c || '';
+
+        f.Projected_New_Businesses_FY_2__c = f.JC_NEW_BIZ_FY2 || f.Projected_New_Businesses_FY_2__c || '';
+        f.Projected_Jobs_from_New_Businesses_FY2__c = f.JC_NEW_JOBS_FY2 || f.Projected_Jobs_from_New_Businesses_FY2__c || f.Jobs_from_New_Businesses_FY_2__c || '';
+        f.Growing_Businesses_Supported_FY_2__c = f.JC_EXIST_BIZ_FY2 || f.Growing_Businesses_Supported_FY_2__c || '';
+        f.Jobs_from_Growing_Businesses_FY_2__c = f.JC_EXIST_JOBS_FY2 || f.Jobs_from_Growing_Businesses_FY_2__c || '';
+        f.Avg_Cost_per_Job_FY_2__c = f.JC_COST_FY2 || f.Avg_Cost_per_Job_FY_2__c || '';
+        f.Manual_Avg_Cost_per_Job_FY_2__c = f.JC_COST_FY2 || f.Manual_Avg_Cost_per_Job_FY_2__c || '';
+
+        f.Projected_New_Businesses_FY_1__c = f.JC_NEW_BIZ_FY1 || f.Projected_New_Businesses_FY_1__c || '';
+        f.Projected_Jobs_from_New_Businesses_FY1__c = f.JC_NEW_JOBS_FY1 || f.Projected_Jobs_from_New_Businesses_FY1__c || f.Jobs_from_New_Businesses_FY_1__c || '';
+        f.Growing_Businesses_Supported_FY_1__c = f.JC_EXIST_BIZ_FY1 || f.Growing_Businesses_Supported_FY_1__c || '';
+        f.Jobs_from_Growing_Businesses_FY_1__c = f.JC_EXIST_JOBS_FY1 || f.Jobs_from_Growing_Businesses_FY_1__c || '';
+        f.Avg_Cost_per_Job_FY_1__c = f.JC_COST_FY1 || f.Avg_Cost_per_Job_FY_1__c || '';
+        f.Manual_Avg_Cost_per_Job_FY_1__c = f.JC_COST_FY1 || f.Manual_Avg_Cost_per_Job_FY_1__c || '';
+
+        f.Projected_New_Businesses_CFY__c = f.JC_NEW_BIZ_PROJ || f.Projected_New_Businesses_CFY__c || '';
+        f.Projected_Jobs_from_New_Businesses_CFY__c = f.JC_NEW_JOBS_PROJ || f.Projected_Jobs_from_New_Businesses_CFY__c || f.Jobs_from_New_Businesses_CFY__c || '';
+        f.Growing_Businesses_Supported_CFY__c = f.JC_EXIST_BIZ_PROJ || f.Growing_Businesses_Supported_CFY__c || '';
+        f.Jobs_from_Growing_Businesses_CFY__c = f.JC_EXIST_JOBS_PROJ || f.Jobs_from_Growing_Businesses_CFY__c || '';
+        f.Avg_Cost_per_Job_CFY__c = f.JC_COST_PROJ || f.Avg_Cost_per_Job_CFY__c || '';
+        f.Manual_Avg_Cost_per_Job_CFY__c = f.JC_COST_PROJ || f.Manual_Avg_Cost_per_Job_CFY__c || '';
+
+        // Also populate legacy field names for safety
+        f.Jobs_from_New_Businesses_FY_3__c = f.Projected_Jobs_from_New_Businesses_FY3__c;
+        f.Jobs_from_New_Businesses_FY_2__c = f.Projected_Jobs_from_New_Businesses_FY2__c;
+        f.Jobs_from_New_Businesses_FY_1__c = f.Projected_Jobs_from_New_Businesses_FY1__c;
+        f.Jobs_from_New_Businesses_CFY__c = f.Projected_Jobs_from_New_Businesses_CFY__c;
+
+        // 5. Livelihood Outcomes (Outcomes_Data__c)
+        f.LIV_SERVED_FY3__c = f.LIV_SERVED_FY3 || f.LIV_SERVED_FY3__c || '';
+        f.LIV_ENROLL_FY3__c = f.LIV_ENROLL_FY3 || f.LIV_ENROLL_FY3__c || '';
+        f.LIV_OUTCOME_FY3__c = f.LIV_OUTCOME_FY3 || f.LIV_OUTCOME_FY3__c || '';
+        f.LIV_COST_FY3__c = f.LIV_COST_FY3 || f.LIV_COST_FY3__c || '';
+
+        f.LIV_SERVED_FY2__c = f.LIV_SERVED_FY2 || f.LIV_SERVED_FY2__c || '';
+        f.LIV_ENROLL_FY2__c = f.LIV_ENROLL_FY2 || f.LIV_ENROLL_FY2__c || '';
+        f.LIV_OUTCOME_FY2__c = f.LIV_OUTCOME_FY2 || f.LIV_OUTCOME_FY2__c || '';
+        f.LIV_COST_FY2__c = f.LIV_COST_FY2 || f.LIV_COST_FY2__c || '';
+
+        f.LIV_SERVED_FY1__c = f.LIV_SERVED_FY1 || f.LIV_SERVED_FY1__c || '';
+        f.LIV_ENROLL_FY1__c = f.LIV_ENROLL_FY1 || f.LIV_ENROLL_FY1__c || '';
+        f.LIV_OUTCOME_FY1__c = f.LIV_OUTCOME_FY1 || f.LIV_OUTCOME_FY1__c || '';
+        f.LIV_COST_FY1__c = f.LIV_COST_FY1 || f.LIV_COST_FY1__c || '';
+
+        f.LIV_SERVED_PROJ__c = f.LIV_SERVED_PROJ || f.LIV_SERVED_PROJ__c || '';
+        f.LIV_ENROLL_PROJ__c = f.LIV_ENROLL_PROJ || f.LIV_ENROLL_PROJ__c || '';
+        f.LIV_OUTCOME_PROJ__c = f.LIV_OUTCOME_PROJ || f.LIV_OUTCOME_PROJ__c || '';
+        f.LIV_COST_PROJ__c = f.LIV_COST_PROJ || f.LIV_COST_PROJ__c || '';
+
+        // 6. Section 5: Why Wadhwani Grants & Verification & Rich-Text Approaches
+        f.Skilling_Approach__c = f.Skilling_Approach__c || f.Skilling_Approach_FR__c || '';
+        f.Job_Creation_Approach__c = f.Job_Creation_Approach__c || f.Job_Creation_Approach_FR__c || '';
+        f.Livelihood_Approach__c = f.Livelihood_Approach__c || f.Livelihood_Approach_FR__c || '';
+        f.Q24_VERIFIED__c = f.Q24_VERIFIED || f.Q24_VERIFIED__c || '';
+        f.Job_Verification_3rd_Party_CFY__c = f.Q24_VERIFIED || f.Job_Verification_3rd_Party_CFY__c || '';
+        f.Job_Verification_3rd_Party_FY1__c = f.Q24_VERIFIED || f.Job_Verification_3rd_Party_FY1__c || '';
+        f.Details_of_Ethical_Received__c = f.Details_of_Ethical_Received__c || '';
+        f.X3rd_Party_Verification_Description_FY_1__c = f.Details_of_Ethical_Received__c || f.X3rd_Party_Verification_Description_FY_1__c || '';
+        f.Organizational_Sustainability__c = f.Organizational_Sustainability__c || f.Organizational_Sustainability_FR__c || '';
+        f.Use_of_Additional_Funding__c = f.Use_of_Additional_Funding__c || f.Use_of_Additional_Funding_FR__c || '';
+        f.GenieAI_Interest_Level__c = f.GenieAI_Interest_Level__c || '';
+        f.Operational_Synergies_with_WOF__c = f.Operational_Synergies_with_WOF__c || '';
+        f.Leader_Tenure__c = (f.Leader_Tenure__c !== undefined && f.Leader_Tenure__c !== null && String(f.Leader_Tenure__c).trim() !== '') ? String(f.Leader_Tenure__c).trim() : '';
+
+        return f;
+    }
+
+    // ── Draft & Submit Apex Integration ────────────────────────────────
+    handleSaveDraft(showToast = true) {
+        this._syncRichTextFieldsFromDOM();
+        if (showToast) {
+            this.isLoading = true;
+        }
+        const q24DocIds = this.q24UploadedFiles.map(f => f.documentId);
+        const q28DocIds = this.q28UploadedFiles.map(f => f.documentId);
+        const syncedValues = this._syncCalculatedAndAliasFields();
+        // Persist attestation fields only if the user actually set them
+        syncedValues.Attesting_User_Name__c = this._attestNameEdited ? (this.formValues.Attesting_User_Name__c || '') : '';
+        syncedValues.Attesting_User_Title__c = this._attestTitleEdited ? (this.formValues.Attesting_User_Title__c || '') : '';
+
+        const payload = {
+            ...syncedValues,
+            activeTabId: this.activeTabId,
+            skillingDomains: this.skillingDomainRows,
+            businessSectors: this.businessSectorRows,
+            livelihoodPrograms: this.livelihoodProgramRows,
+            communities: this.communityRows,
+            documents: this.docRows,
+            q24DocumentIds: q24DocIds,
+            q28DocumentIds: q28DocIds,
+            uploadedDocumentIds: [...q24DocIds, ...q28DocIds]
+        };
+        return saveDynamicDraft({
+            recordId: this.recordId,
+            selectedTracks: this.selectedTracks,
+            payloadJson: JSON.stringify(payload)
+        })
+            .then(result => {
+                if (result && result.isSuccess) {
+                    this._recordId = result.recordId;
+                    this.isDirty = false;
+                    if (showToast) {
+                        this.showBanner('success', 'Draft Saved', 'Your RFI application draft has been saved successfully.');
+                    }
+                } else if (showToast) {
+                    this.showBanner('error', 'Error Saving Draft', result ? result.message : 'Draft save failed.');
+                }
+            })
+            .catch(err => {
+                console.error('Draft save failed:', err);
+                if (showToast) {
+                    this.showBanner('error', 'Error Saving Draft', err.body ? err.body.message : err.message || 'Draft save failed.');
+                }
+            })
+            .finally(() => {
+                if (showToast) {
+                    this.isLoading = false;
+                }
+            });
+    }
+
+    async handleSubmit() {
+        if (this.isLoading) return;
+        this._syncRichTextFieldsFromDOM();
+
+        // Validate attestation on current review tab
+        if (!this.validateTabReviewSubmit()) {
+            return;
+        }
+
+        // Validate all required tabs directly without cycling DOM
+        if (!this.validateTabAboutOrg()) {
+            this.activeTabId = 'tabAboutOrg';
+            return;
+        }
+        if (this.hasJobFulfillmentTrack && !this.validateTabJobFulfillment()) {
+            this.activeTabId = 'tabJobFulfillment';
+            return;
+        }
+        if (this.hasJobCreationTrack && !this.validateTabJobCreation()) {
+            this.activeTabId = 'tabJobCreation';
+            return;
+        }
+        if (this.hasLivelihoodTrack && !this.validateTabLivelihood()) {
+            this.activeTabId = 'tabLivelihood';
+            return;
+        }
+        if (!this.validateTabWhyWadhwani()) {
+            this.activeTabId = 'tabWhyWadhwani';
+            return;
+        }
+
+        this.isLoading = true;
+        const q24DocIds = this.q24UploadedFiles.map(f => f.documentId);
+        const q28DocIds = this.q28UploadedFiles.map(f => f.documentId);
+        const syncedValues = this._syncCalculatedAndAliasFields();
+        // On submit, always send the effective values (typed value, or the live submitter name/title)
+        syncedValues.Attesting_User_Name__c = this.attestingUserName;
+        syncedValues.Attesting_User_Title__c = this.attestingUserTitle;
+
+        const payload = {
+            ...syncedValues,
+            activeTabId: 'tabReviewSubmit',
+            skillingDomains: this.skillingDomainRows,
+            businessSectors: this.businessSectorRows,
+            livelihoodPrograms: this.livelihoodProgramRows,
+            communities: this.communityRows,
+            documents: this.docRows,
+            q24DocumentIds: q24DocIds,
+            q28DocumentIds: q28DocIds,
+            uploadedDocumentIds: [...q24DocIds, ...q28DocIds]
+        };
+        submitDynamicApplication({
+            recordId: this.recordId,
+            selectedTracks: this.selectedTracks,
+            payloadJson: JSON.stringify(payload)
+        })
+            .then(result => {
+                if (result && result.isSuccess) {
+                    this.isDirty = false;
+                    this.showBanner('success', 'Submitted', 'Your RFI application has been successfully submitted.');
+                    this.dispatchEvent(new CustomEvent('submitted', { detail: { recordId: result.recordId } }));
+                    setTimeout(() => {
+                        window.location.href = '/wcf/s/';
+                    }, 1500);
+                } else {
+                    this.showBanner('error', 'Submission Error', result ? result.message : 'Submission failed.');
+                }
+            })
+            .catch(err => {
+                console.error('Submit failed:', err);
+                this.showBanner('error', 'Submission Error', err.body ? err.body.message : err.message || 'Submission failed.');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+}

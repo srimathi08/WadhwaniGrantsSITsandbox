@@ -1,0 +1,250 @@
+import { LightningElement, api, track, wire } from 'lwc';
+import getReviewData from '@salesforce/apex/WCFApproverListController.getReviewData';
+import getReviewerFormV5Metadata from '@salesforce/apex/WCFReviewerMetadataController.getReviewerFormV5Metadata';
+
+// ── Recommend_for_CEO_review__c helpers ─────────────────────────────
+// Legacy 'Yes' and the new 'Yes - Strongly recommend' / 'Yes - Recommend' /
+// 'Yes - Recommend with reservations' values all mean "recommended".
+function isRecYes(value) {
+    return typeof value === 'string' && value.trim().toLowerCase().startsWith('yes');
+}
+// Display text for a stored value. 'No' reads as 'No - Do not recommend' so it
+// matches the 'Yes - ...' wording; the record itself still holds 'No'.
+function recDisplayLabel(value) {
+    if (!value) return '';
+    return value === 'No' ? 'No - Do not recommend' : value;
+}
+
+const RATING_LABEL = { 5: 'Very strong', 4: 'Strong', 3: 'Adequate', 2: 'Weak', 1: 'Very weak' };
+
+const QUESTION_FIELD_MAP = {
+    '1.1': { rating: 'D1_Governance_Rating__c', comment: 'D1_Governance_Comment__c' },
+    '1.2': { rating: 'D1_Leadership_Rating__c', comment: 'D1_Leadership_Comment__c' },
+    '1.3': { rating: 'D1_FinancialRecords_Rating__c', comment: 'D1_FinancialRecords_Comment__c' },
+    '1.4': { rating: 'D1_SustainabilityVision_Rating__c', comment: 'D1_SustainabilityVision_Comment__c' },
+    '2.1': { rating: 'D2_ProgramAlignment_Rating__c', comment: 'D2_ProgramAlignment_Comment__c' },
+    '2.3': { rating: 'D2_OperationalDepth_Rating__c', comment: 'D2_OperationalDepth_Comment__c' },
+    '2.2': [
+        { rating: 'D2_JF_Distinctiveness_Rating__c', comment: 'D2_JF_Distinctiveness_Comment__c' },
+        { rating: 'D2_JC_Distinctiveness_Rating__c', comment: 'D2_JC_Distinctiveness_Comment__c' },
+            { rating: 'D2_LU_Distinctiveness_Rating__c', comment: 'D2_LU_Distinctiveness_Comment__c' }
+    ],
+    '3.1': [
+        { rating: 'D3_JF_ScaleRecord_Rating__c', comment: 'D3_JF_ScaleRecord_Comment__c' },
+        { rating: 'D3_JC_ScaleRecord_Rating__c', comment: 'D3_JC_ScaleRecord_Comment__c' },
+        { rating: 'D3_LU_ScaleRecord_Rating__c', comment: 'D3_LU_ScaleRecord_Comment__c' }
+    ],
+    '3.2': [
+        { rating: 'D3_JF_ConversionRate_Rating__c', comment: 'D3_JF_ConversionRate_Comment__c' },
+        { rating: 'D3_JC_ConversionRate_Rating__c', comment: 'D3_JC_ConversionRate_Comment__c' },
+       { rating: 'D3_LU_ConversionRate_Rating__c', comment: 'D3_LU_ConversionRate_Comment__c' }
+    ],
+    '3.3': [
+        { rating: 'D3_JF_CostPerPlacement_Rating__c', comment: 'D3_JF_CostPerPlacement_Comment__c' },
+        { rating: 'D3_JC_CostPerJob_Rating__c', comment: 'D3_JC_CostPerJob_Comment__c' },
+        { rating: 'D3_LU_CostPerOutcome_Rating__c', comment: 'D3_LU_CostPerOutcome_Comment__c' }
+    ],
+    '3.4': { rating: 'D3_ValidationEvidence_Rating__c', comment: 'D3_ValidationEvidence_Comment__c' },
+    '4.1': { rating: 'D4_MandateFit_Rating__c', comment: 'D4_MandateFit_Comment__c' },
+    '4.2': { rating: 'D4_Geography_Rating__c', comment: 'D4_Geography_Comment__c' },
+    '4.3': { rating: 'D4_GenieAI_Rating__c', comment: 'D4_GenieAI_Comment__c' },
+    '5.1': { rating: 'D5_FinancialStability_Rating__c', comment: 'D5_FinancialStability_Comment__c' },
+    '5.2': { rating: 'D5_IncrementEstimate_Rating__c', comment: 'D5_IncrementEstimate_Comment__c' },
+    '5.3': { rating: 'D5_OperatingInfra_Rating__c', comment: 'D5_OperatingInfra_Comment__c' },
+    '6.1': { rating: 'D6_MEFunction_Rating__c', comment: 'D6_MEFunction_Comment__c' },
+    '6.2': { rating: 'D6_ExternalVerification_Rating__c', comment: 'D6_ExternalVerification_Comment__c' },
+    '6.3': { rating: 'D6_LongitudinalTracking_Rating__c', comment: 'D6_LongitudinalTracking_Comment__c' },
+    '7.1': { rating: 'D5_RationaleCredibility_Rating__c', comment: 'D5_Rationale_Credibility_Comment__c' },
+    '7.2': { rating: 'D2_JC_SupportModel_Rating__c', comment: 'D2_JC_SupportModel_Comment__c' }
+};
+
+export default class WcfReviewerFormPreview extends LightningElement {
+
+    _reviewId;
+    _outcomeDeveloperName = 'JF';
+    _connected = false;
+
+    @api
+    get reviewId() {
+        return this._reviewId;
+    }
+    set reviewId(val) {
+        this._reviewId = val;
+        if (this._connected && val) {
+            this.loadData();
+        }
+    }
+
+    @api
+    get outcomeDeveloperName() {
+        return this._outcomeDeveloperName;
+    }
+    set outcomeDeveloperName(val) {
+        this._outcomeDeveloperName = val || 'JF';
+        if (this._connected) {
+            this.loadData();
+        }
+    }
+
+    @track reviewRecord = null;
+    @track categories = [];
+    @track isLoading = true;
+
+    connectedCallback() {
+        this._connected = true;
+        this.loadData();
+    }
+
+    async loadData() {
+        this.isLoading = true;
+        try {
+            const [metaRes, reviewRes] = await Promise.all([
+                getReviewerFormV5Metadata({ trackName: this._outcomeDeveloperName }),
+                this._reviewId ? getReviewData({ reviewId: this._reviewId }) : null
+            ]);
+
+            if (metaRes && metaRes.success && metaRes.categories) {
+                this.categories = metaRes.categories;
+            }
+            if (reviewRes) {
+                this.reviewRecord = reviewRes;
+            }
+        } catch (e) {
+            console.error('Error loading review preview:', e);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    get hasData() { return !!this.reviewRecord; }
+
+    get reviewName() { return this.reviewRecord?.Name || ''; }
+    get recommendation() {
+        const r = this.reviewRecord?.Recommend_for_CEO_review__c;
+        return r ? recDisplayLabel(r) : '—';
+    }
+
+    get recClass() {
+        const r = this.reviewRecord?.Recommend_for_CEO_review__c;
+        return isRecYes(r) ? 'rec-pill rec-yes' : r === 'No' ? 'rec-pill rec-no' : 'rec-pill';
+    }
+    get recIcon() {
+        const r = this.reviewRecord?.Recommend_for_CEO_review__c;
+        return isRecYes(r) ? '✓' : r === 'No' ? '✕' : '';
+    }
+
+    get recStrengthNum() {
+        return this.reviewRecord?.Strength_of_recommendation__c
+            || this.reviewRecord?.Strength_of_non_recommendation__c
+            || null;
+    }
+    get recStrengthLabel() {
+        const n = parseInt(this.recStrengthNum, 10);
+        return n ? RATING_LABEL[n] : null;
+    }
+
+    get recComments() {
+        return this.reviewRecord?.Recommendation_Strength_Comments__c
+            || this.reviewRecord?.Non_Recommendation_Strength_Comments__c
+            || this.reviewRecord?.Rejection_Comment__c
+            || null;
+    }
+
+    get overallScoreDisplay() {
+        if (this.reviewRecord?.Overall_Review_Score__c != null) {
+            return Number(this.reviewRecord.Overall_Review_Score__c).toFixed(2);
+        }
+        if (!this.dimensionSummary || !this.dimensionSummary.length) return '—';
+        const validMeans = this.dimensionSummary
+            .map(d => parseFloat(d.mean))
+            .filter(v => !isNaN(v));
+        if (!validMeans.length) return '—';
+        return (validMeans.reduce((s, v) => s + v, 0) / validMeans.length).toFixed(2);
+    }
+
+    get dimensionSummary() {
+        if (!this.reviewRecord) return [];
+        const r = this.reviewRecord;
+
+        // Parse structured JSON answers if available
+        let jsonAnswersMap = {};
+        if (r.Decision_Rationale__c) {
+            try {
+                const parsed = JSON.parse(r.Decision_Rationale__c);
+                const list = Array.isArray(parsed)
+                    ? parsed
+                    : (parsed && Array.isArray(parsed.structuredAnswers) ? parsed.structuredAnswers : []);
+                list.forEach(item => {
+                    if (item && item.questionId) jsonAnswersMap[item.questionId] = item;
+                });
+            } catch (e) {
+                console.error('Could not parse Decision_Rationale__c', e);
+            }
+        }
+
+        return (this.categories || []).map(cat => {
+            const qs = cat.questions || [];
+            const vals = [];
+
+            const questionList = qs.map(q => {
+                const qId = q.questionId;
+                const jsonItem = jsonAnswersMap[qId];
+                const fieldInfo = QUESTION_FIELD_MAP[qId];
+
+                let rating = null;
+                let comment = null;
+                let ladderText = '';
+
+                if (jsonItem && jsonItem.rating != null) {
+                    rating = parseInt(jsonItem.rating, 10);
+                    comment = jsonItem.comment || null;
+                    ladderText = jsonItem.ladderLevelText || '';
+                } else {
+                    const candidates = [].concat(QUESTION_FIELD_MAP[qId] || []);
+                    for (const f of candidates) {
+                        if (rating == null && r[f.rating] != null && r[f.rating] !== '') {
+                            rating = parseInt(r[f.rating], 10);
+                            comment = f.comment ? (r[f.comment] || null) : null;
+                        }
+                    }
+                    const ladderArr = q.ladder || [];
+                    ladderText = rating != null && ladderArr[rating - 1] ? ladderArr[rating - 1] : '';
+                }
+
+                if (rating != null && !isNaN(rating)) {
+                    vals.push(rating);
+                }
+
+                const pipClass = rating != null ? `pip pip-r${rating}` : 'pip pip-empty';
+
+                return {
+                    id: qId,
+                    text: q.questionText,
+                    rating: rating != null ? rating : '—',
+                    ratingLabel: rating != null ? (RATING_LABEL[rating] || rating) : 'Not rated',
+                    ladderText,
+                    comment,
+                    pipClass
+                };
+            });
+
+            const mean = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : '—';
+
+            return {
+                id: cat.categoryNumber,
+                title: cat.title,
+                mean,
+                questions: questionList
+            };
+        });
+    }
+
+    _parseSW(val) {
+        return (val || '').split('\n').map((t, i) => ({ idx: i, num: i + 1, text: t })).filter(s => s.text.trim());
+    }
+
+    get strengthList() { return this._parseSW(this.reviewRecord?.Top_3_proposal_strengths_ranked__c); }
+    get weaknessList() { return this._parseSW(this.reviewRecord?.Top_3_proposal_weaknesses_ranked__c); }
+    get hasStrengths() { return this.strengthList.length > 0; }
+    get hasWeaknesses() { return this.weaknessList.length > 0; }
+}

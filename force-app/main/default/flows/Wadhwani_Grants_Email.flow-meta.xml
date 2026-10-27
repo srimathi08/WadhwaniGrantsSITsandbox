@@ -1,0 +1,2494 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>Copy_1_of_Email_to_Validator_on_Application_submission</name>
+        <label>Resubmission Email to Validator on Application submission</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>ValidatorEmailAddresses</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Resubmission_Application_Validator_Queue</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>WCFValidatorContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Draft_Mail_to_Applicant</name>
+        <label>Draft Mail to Applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <connector>
+            <targetReference>Mark_Draft_Email_Send</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Draft_Saved</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Duplicate_Org_eail_to_validator</name>
+        <label>Duplicate Org eail to validator</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>WCFValidatorContactIds</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Duplicate_Organization_Validator_Alert</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>WCFValidatorContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Email_to_alert_validator_on_due_near_ending</name>
+        <label>Email to alert validator on due near ending</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>ValidatorEmailAddresses</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Validation_Due_Soon</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>WCFValidatorContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Email_to_Validator_on_Application_submission</name>
+        <label>Email to Validator on Application submission</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>ValidatorEmailAddresses</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/New_Application_Validator_Queue</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>WCFValidatorContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Grant_Approved_Mail_to_Applicant</name>
+        <label>Grant Approved Mail to Applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Application_Approved</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Grant_not_approved_mail_for_applicant</name>
+        <label>Grant not approved mail for applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>composeEmailContent</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailSubject</name>
+            <value>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+                <stringValue>Your Wadhwani Grants application was NOT approved </stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailBody</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>{!ApplicationDeclined}</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendRichBody</name>
+            <value>
+                <booleanValue>true</booleanValue>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Resubmitted_mail_to_Applicant</name>
+        <label>Resubmitted mail to Applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <connector>
+            <targetReference>resubmission_Round_assignment</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Resubmission_Received_Partner</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Returned_to_Validator_Alert</name>
+        <label>The reviewer needs more information (E-48)</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>ValidatorEmailAddresses</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>composeEmailContent</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailSubject</name>
+            <value>
+                <elementReference>Subject</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailBody</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>{!Reviewer_needs_more_information}</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendRichBody</name>
+            <value>
+                <booleanValue>true</booleanValue>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>WCFValidatorContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Revision_Request_mail_to_applicant</name>
+        <label>Revision Request mail to applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>composeEmailContent</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailSubject</name>
+            <value>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+                <stringValue>Action required: update your Wadhwani Grants application </stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailBody</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>{!Actionrequired_updateyourapplication}</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendRichBody</name>
+            <value>
+                <booleanValue>true</booleanValue>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Send_100_Day_Closure_Email</name>
+        <label>Send 100 Day Closure Email</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/We_are_closing_your_application_for_now</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Send_30_Day_Revision_Reminder_Email</name>
+        <label>Send 30 Day Revision Reminder Email</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Additional_Information_Reminder</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Send_Information_Located_Email_to_Reviewer</name>
+        <label>Information located, review can resume (E-49)</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <connector>
+            <targetReference>Under_Review_mail_to_applicant</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>Get_Reviewer_Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Information_Located_Review_Can_Resume</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>Get_Reviewer_Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Send_Onboarding_Complete_Email_to_Applicant</name>
+        <label>Send Onboarding Complete Email to Applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Your_onboarding_with_Wadhwani_Grants_is_complete</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Send_Returned_by_Approver_Email_to_Reviewer</name>
+        <label>Returned for additional detail (E-51)</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>Get_Reviewer_Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Approver_Further_Detail_Request_PL</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>Get_Reviewer_Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Submitted_Mail_to_Applicant</name>
+        <label>Submitted Mail to Applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <connector>
+            <targetReference>Update_Submission_Round</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Application_Received</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <actionCalls>
+        <name>Under_Review_mail_to_applicant</name>
+        <label>Under Review mail to applicant</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Account.PersonEmail</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>grants.support@wadhwanifoundation.org</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>useEmailTemplate</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailTemplateName</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <setupReference>WCF_Folder/Application_Validated_Under_Review</setupReference>
+                <setupReferenceType>EmailTemplate</setupReferenceType>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recipientId</name>
+            <value>
+                <elementReference>$Record.Account.PersonContactId</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>relatedRecordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>3.0.1</versionString>
+    </actionCalls>
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Copy_1_of_getting_email_Ids</name>
+        <label>Copy 1 of getting email Ids</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>ValidatorEmailAddresses</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Copy_1_of_Loop_1.PersonEmail</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>HasWCFValidator</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>WCFValidatorContactId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Copy_1_of_Loop_1.PersonContactId</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Copy_1_of_Loop_1</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>getting_email_Ids</name>
+        <label>getting email Ids</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>ValidatorEmailAddresses</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_1.PersonEmail</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>HasWCFValidator</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>WCFValidatorContactId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_1.PersonContactId</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_1</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>resubmission_Round_assignment</name>
+        <label>resubmission Round assignment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>NewSubmissionRound</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>SubmissionRoundPlusOne</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Update_Resubmission_round</targetReference>
+        </connector>
+    </assignments>
+    <decisions>
+        <name>Application_Status_change</name>
+        <label>Application Status change</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Draft</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Draft</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Draft_Email_Sent__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Draft_Mail_to_Applicant</targetReference>
+            </connector>
+            <label>Draft</label>
+        </rules>
+        <rules>
+            <name>Submitted</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Submitted</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Submitted</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Submitted_Mail_to_Applicant</targetReference>
+            </connector>
+            <label>Submitted</label>
+        </rules>
+        <rules>
+            <name>Revision_Requested</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Revision Requested</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Revision Requested</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Update_Due_Date</targetReference>
+            </connector>
+            <label>Revision Requested</label>
+        </rules>
+        <rules>
+            <name>Resubmitted</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Application Resubmitted</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Application Resubmitted</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Resubmitted_mail_to_Applicant</targetReference>
+            </connector>
+            <label>Resubmitted</label>
+        </rules>
+        <rules>
+            <name>Under_Review_From_Validator_Return</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Under Review</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Returned to Validator</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_Information_Located_Email_to_Reviewer</targetReference>
+            </connector>
+            <label>Under Review (From Validator Return)</label>
+        </rules>
+        <rules>
+            <name>Under_Review</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Under Review</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Under Review</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Under_Review_mail_to_applicant</targetReference>
+            </connector>
+            <label>Under Review</label>
+        </rules>
+        <rules>
+            <name>Recommended_for_Fund</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Recommend for Fund</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Recommend for Fund</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Grant_Approved_Mail_to_Applicant</targetReference>
+            </connector>
+            <label>Recommended for Fund</label>
+        </rules>
+        <rules>
+            <name>Not_Recommended_for_Fund</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Not Recommend for Fund</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Not Recommend for Fund</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Grant_not_approved_mail_for_applicant</targetReference>
+            </connector>
+            <label>Not  Recommended for Fund</label>
+        </rules>
+        <rules>
+            <name>Returned_to_Validator</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Returned to Validator</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Returned to Validator</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Returned_to_Validator_Alert</targetReference>
+            </connector>
+            <label>Returned to Validator</label>
+        </rules>
+        <rules>
+            <name>Returned_by_Approver</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Returned by Approver</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Returned by Approver</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Approver_Returned_Due_Date</targetReference>
+            </connector>
+            <label>Returned by Approver</label>
+        </rules>
+        <rules>
+            <name>Onboarded</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Onboarded</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Onboarded</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_Onboarding_Complete_Email_to_Applicant</targetReference>
+            </connector>
+            <label>Onboarded</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Check_If_Still_Revision_Requested</name>
+        <label>Check If Still Revision Requested</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Still_In_Revision_Requested_30_Days</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Latest_Record_For_Reminder.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Revision Requested</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_30_Day_Revision_Reminder_Email</targetReference>
+            </connector>
+            <label>Still In Revision Requested 30 Days</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Check_If_Still_Revision_Requested_100</name>
+        <label>Check If Still Revision Requested 100</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Still_In_Revision_Requested_100_Days</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Latest_Record_For_Closure.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Revision Requested</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_100_Day_Closure_Email</targetReference>
+            </connector>
+            <label>Still In Revision Requested 100 Days</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Copy_1_of_is_it_Validator_record</name>
+        <label>Copy 1 of is it Validator record</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Copy_1_of_Loop_1</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Copy_1_of_yes</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Copy_1_of_Loop_1.WCFs_Validator__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Copy_1_of_getting_email_Ids</targetReference>
+            </connector>
+            <label>Copy 1 of yes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>is_it_Validator_record</name>
+        <label>is it Validator record</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Loop_1</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>yes</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_1.WCFs_Validator__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>getting_email_Ids</targetReference>
+            </connector>
+            <label>yes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>status_equal_to_submitted</name>
+        <label>status equal to submitted</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Status_still_in_submitted</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Latest_Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Submitted</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Email_to_alert_validator_on_due_near_ending</targetReference>
+            </connector>
+            <label>Status still in submitted</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>to_validator_email_alert</name>
+        <label>to validator email alert</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Duplicate_organization_match</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>HasWCFValidator</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Is_Duplicate_Org_Match__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Duplicate_Org_eail_to_validator</targetReference>
+            </connector>
+            <label>Duplicate organization match</label>
+        </rules>
+        <rules>
+            <name>when_status_is_Submitted</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>HasWCFValidator</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Email_to_Validator_on_Application_submission</targetReference>
+            </connector>
+            <label>when status is Submitted</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>validator_email_alert_after_resubmission</name>
+        <label>validator email alert after resubmission</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>when_status_is_ReSubmitted</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>HasWCFValidator</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Copy_1_of_Email_to_Validator_on_Application_submission</targetReference>
+            </connector>
+            <label>when status is ReSubmitted</label>
+        </rules>
+    </decisions>
+    <description>Wcf related email</description>
+    <environments>Default</environments>
+    <formulas>
+        <name>ApproverReturnedReviewerDueDate</name>
+        <dataType>Date</dataType>
+        <expression>CASE(WEEKDAY(TODAY()),
+  1, TODAY() + 12,
+  7, TODAY() + 13,
+  TODAY() + 14
+)</expression>
+    </formulas>
+    <formulas>
+        <name>CurrentYear</name>
+        <dataType>String</dataType>
+        <expression>TEXT(YEAR(TODAY()))</expression>
+    </formulas>
+    <formulas>
+        <name>RevisionDueDate</name>
+        <dataType>Date</dataType>
+        <expression>CASE(WEEKDAY(TODAY()),
+  1, TODAY() + 5,
+  7, TODAY() + 6,
+  TODAY() + 7
+)</expression>
+    </formulas>
+    <formulas>
+        <name>Subject</name>
+        <dataType>String</dataType>
+        <expression>&quot;Reviewer needs more information:&quot; &amp; {!$Record.ApplicationName}</expression>
+    </formulas>
+    <formulas>
+        <name>SubmissionRoundPlusOne</name>
+        <dataType>Number</dataType>
+        <expression>BLANKVALUE({!$Record.Submission_Round__c}, 0) + 1</expression>
+        <scale>0</scale>
+    </formulas>
+    <formulas>
+        <name>ValidatorName</name>
+        <dataType>String</dataType>
+        <expression>BLANKVALUE({!$Record.WG_Validator_Name__c}, BLANKVALUE({!Get_Proposal_Review.CreatedBy.Contact.Name}, {!Get_Proposal_Review.CreatedBy.Name}))</expression>
+    </formulas>
+    <interviewLabel>WCF - Email {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Wadhwani Grants - Email</label>
+    <loops>
+        <name>Copy_1_of_Loop_1</name>
+        <label>Copy 1 of Loop 1</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <collectionReference>Copy_1_of_Get_Validator_account</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Copy_1_of_is_it_Validator_record</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>status_equal_to_submitted</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <loops>
+        <name>Loop_1</name>
+        <label>Loop 1</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <collectionReference>Get_Validator_account</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>is_it_Validator_record</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Get_Proposal_Review</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <name>Copy_1_of_Get_Validator_account</name>
+        <label>Copy 1 of Get Validator account</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Copy_1_of_Loop_1</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>WCFs_Validator__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Account</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Account_Details</name>
+        <label>Get Account Details</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_Validator_account</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>Get_IA_details.AccountId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Account</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Application_Decision</name>
+        <label>Get Application Decision</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_Account_Details</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>ApplicationId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>ApplicationDecision</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_custom_notification</name>
+        <label>Get custom notification</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_Reviewer_Account</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>CustomNotifTypeName</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>RFI_Updates</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>CustomNotificationType</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_IA_details</name>
+        <label>Get IA details</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_Application_Decision</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>IndividualApplication</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Latest_Record</name>
+        <label>Get Latest Record</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Copy_1_of_Get_Validator_account</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>IndividualApplication</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Latest_Record_For_Closure</name>
+        <label>Get Latest Record For Closure</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Check_If_Still_Revision_Requested_100</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>IndividualApplication</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Latest_Record_For_Reminder</name>
+        <label>Get Latest Record For Reminder</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Check_If_Still_Revision_Requested</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>IndividualApplication</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Proposal_Review</name>
+        <label>Get Proposal Review</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_custom_notification</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>ApplicationId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>ApplicationReview</object>
+        <sortField>CreatedDate</sortField>
+        <sortOrder>Desc</sortOrder>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Reviewer_Account</name>
+        <label>Get Reviewer Account</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Application_Status_change</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>WCF_Reviewer__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Account</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Validator_account</name>
+        <label>Get Validator account</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_1</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>WCFs_Validator__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Account</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordUpdates>
+        <name>Due_Date_for_Resubmission</name>
+        <label>Due_Date_for_Resubmission</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>validator_email_alert_after_resubmission</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Due_Date_for_Resubmission__c</field>
+            <value>
+                <elementReference>RevisionDueDate</elementReference>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <recordUpdates>
+        <name>Mark_Draft_Email_Send</name>
+        <label>Mark Draft Email Send</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <inputAssignments>
+            <field>Draft_Email_Sent__c</field>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <recordUpdates>
+        <name>Set_Approver_Returned_Due_Date</name>
+        <label>Set Approver Returned Due Date</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Send_Returned_by_Approver_Email_to_Reviewer</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Approver_returned_to_reviewer_due_date__c</field>
+            <value>
+                <elementReference>ApproverReturnedReviewerDueDate</elementReference>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <recordUpdates>
+        <name>Update_Due_Date</name>
+        <label>Update Due Date</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Revision_Request_mail_to_applicant</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Due_Date_for_Resubmission__c</field>
+            <value>
+                <elementReference>RevisionDueDate</elementReference>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <recordUpdates>
+        <name>Update_Resubmission_round</name>
+        <label>Update Resubmission round</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Due_Date_for_Resubmission</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Submission_Round__c</field>
+            <value>
+                <elementReference>NewSubmissionRound</elementReference>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <recordUpdates>
+        <name>Update_Submission_Round</name>
+        <label>Update Submission Round</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>to_validator_email_alert</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Submission_Round__c</field>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_IA_details</targetReference>
+        </connector>
+        <filterLogic>1 AND (2 OR 3 OR 4)</filterLogic>
+        <filters>
+            <field>Status</field>
+            <operator>IsNull</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
+        <filters>
+            <field>Organizational_Area_s_for_Funding_Inves1__c</field>
+            <operator>Contains</operator>
+            <value>
+                <stringValue>Job Fulfillment</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>Organizational_Area_s_for_Funding_Inves1__c</field>
+            <operator>Contains</operator>
+            <value>
+                <stringValue>Job Creation</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>Organizational_Area_s_for_Funding_Inves1__c</field>
+            <operator>Contains</operator>
+            <value>
+                <stringValue>Livelihood</stringValue>
+            </value>
+        </filters>
+        <object>IndividualApplication</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <scheduledPaths>
+            <name>X80_due_validate</name>
+            <connector>
+                <targetReference>Get_Latest_Record</targetReference>
+            </connector>
+            <label>80% due validate</label>
+            <offsetNumber>7</offsetNumber>
+            <offsetUnit>Days</offsetUnit>
+            <recordField>Initial_Submission_Date__c</recordField>
+            <timeSource>RecordField</timeSource>
+        </scheduledPaths>
+        <scheduledPaths>
+            <name>X30_Days_Revision_Reminder</name>
+            <connector>
+                <targetReference>Get_Latest_Record_For_Reminder</targetReference>
+            </connector>
+            <label>30 Days Revision Reminder</label>
+            <offsetNumber>29</offsetNumber>
+            <offsetUnit>Days</offsetUnit>
+            <recordField>Initial_Submission_Date__c</recordField>
+            <timeSource>RecordField</timeSource>
+        </scheduledPaths>
+        <scheduledPaths>
+            <name>X100_Days_Revision_Closure</name>
+            <connector>
+                <targetReference>Get_Latest_Record_For_Closure</targetReference>
+            </connector>
+            <label>100 Days Revision Closure</label>
+            <offsetNumber>99</offsetNumber>
+            <offsetUnit>Days</offsetUnit>
+            <recordField>Initial_Submission_Date__c</recordField>
+            <timeSource>RecordField</timeSource>
+        </scheduledPaths>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+    <textTemplates>
+        <description>Action required: update your application-E-04</description>
+        <name>Actionrequired_updateyourapplication</name>
+        <isViewedAsPlainText>false</isViewedAsPlainText>
+        <text>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xmlns:v=&quot;urn:schemas-microsoft-com:vml&quot; xmlns:o=&quot;urn:schemas-microsoft-com:office:office&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;UTF-8&quot;/&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;/&gt;
+&lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;IE=edge&quot;/&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;/&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;light&quot;/&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;light&quot;/&gt;
+&lt;title&gt;{!Get_Account_Details.WCF_Organizational_Name__c} Action required: please update your application&lt;/title&gt;
+
+&lt;style&gt;
+html,body{margin:0 !important;padding:0 !important;width:100% !important;}
+body{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table{border-collapse:collapse !important;mso-table-lspace:0pt !important;mso-table-rspace:0pt !important;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
+a{color:#BF2026;}
+div[style*=&quot;margin: 16px 0&quot;]{margin:0 !important;}
+
+@media only screen and (max-width:620px){
+.frame{padding:0 !important;}
+.container{width:100% !important;max-width:100% !important;border-radius:0 !important;border-left:0 !important;border-right:0 !important;}
+.pad{padding-left:22px !important;padding-right:22px !important;}
+.hdr{padding:20px 22px !important;}
+.logo-hdr{width:100px !important;}
+.logo-ftr{width:114px !important;}
+.btn{width:100% !important;}
+.btn a{display:block !important;}
+.bh{font-size:19px !important;line-height:1.25 !important;}
+}
+&lt;/style&gt;
+
+&lt;/head&gt;
+
+&lt;body width=&quot;100%&quot; bgcolor=&quot;#F4F4F5&quot; style=&quot;margin:0;padding:0 !important;background-color:#F4F4F5;&quot;&gt;
+&lt;center role=&quot;article&quot; aria-roledescription=&quot;email&quot; lang=&quot;en&quot; style=&quot;width:100%;background-color:#F4F4F5;&quot;&gt;
+
+&lt;!-- PREHEADER (hidden) --&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#F4F4F5;&quot;&gt;
+{!Get_Account_Details.WCF_Organizational_Name__c} &amp;middot; A few items need updating before your application can move ahead.
+&lt;/div&gt;
+
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#F4F4F5&quot;&gt;
+&lt;tr&gt;
+&lt;td class=&quot;frame&quot; align=&quot;center&quot; style=&quot;padding:24px 12px;&quot;&gt;
+
+&lt;table role=&quot;presentation&quot; class=&quot;container&quot; align=&quot;center&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #E6E6E6;border-radius:8px;&quot;&gt;
+
+&lt;!-- HEADER --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;hdr&quot; bgcolor=&quot;#BF2026&quot; style=&quot;padding:24px 32px;border-radius:8px 8px 0 0;&quot;&gt;
+
+&lt;!-- Header: text left, logo right (same row) --&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;left&quot; valign=&quot;middle&quot;&gt;
+
+&lt;p style=&quot;margin:0 0 6px;font-family:&apos;Barlow&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#F9C9A8;&quot;&gt;
+A few updates needed.
+&lt;/p&gt;
+
+&lt;h1 class=&quot;bh&quot; style=&quot;margin:0;font-family:&apos;Barlow&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:24px;line-height:1.25;font-weight:700;color:#ffffff;&quot;&gt;
+Application {!$Record.Name}- {!$Record.Organization_Name__c}
+&lt;/h1&gt;
+
+&lt;/td&gt;
+&lt;td align=&quot;right&quot; valign=&quot;middle&quot; width=&quot;136&quot; style=&quot;padding-left:16px;&quot;&gt;
+
+&lt;img src=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.salesforce.com/servlet/servlet.ImageServer?id=015hy000000J2Cd&amp;oid=00Dhy0000005e85&quot; width=&quot;136&quot; alt=&quot;Wadhwani Grants&quot; class=&quot;logo-hdr&quot; style=&quot;display:block;width:136px;height:auto;border:0;outline:none;text-decoration:none;&quot;&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- ORANGE DIVIDER --&gt;
+&lt;tr&gt;
+&lt;td bgcolor=&quot;#F2672A&quot; height=&quot;4&quot; style=&quot;height:4px;background:#F2672A;&quot;&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- BODY --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;pad&quot; style=&quot;padding:28px 32px 10px;&quot;&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Hi {!$Record.Account.Name},
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Thank you for your application for {!$Record.Account.WCF_Organizational_Name__c}. We have checked it for completeness, and a few items are missing or need correcting before it can go to review. Your application has not been rejected.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+What we need
+&lt;/p&gt;
+
+&lt;!-- PANEL --&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;background:#F7F2F2;border-left:3px solid #F2672A;border-radius:3px;margin:4px 0 18px;&quot;&gt;
+&lt;tr&gt;
+&lt;td style=&quot;padding:16px 20px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:14.5px;line-height:1.6;color:#414042;&quot;&gt;
+What we need: {!Get_Proposal_Review.Consolidated_Return_Comments__c}
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Sign in, update the items listed above, and submit your application again by {!$Record.Due_Date_for_Resubmission__c}. Everything else you entered is saved, so you only need to change these items.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+If we do not hear from you, we will send you a reminder after 30 days. If we still have not heard from you 100 days from now, we will close the application, and you would be welcome to apply again.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+In case of any queries, please write to us at grants.support@wadhwanifoundation.org
+&lt;/p&gt;
+
+&lt;!-- BUTTON --&gt;
+&lt;table role=&quot;presentation&quot; class=&quot;btn&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:8px 0 6px;&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; bgcolor=&quot;#BF2026&quot; style=&quot;border-radius:4px;&quot;&gt;
+&lt;a href=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.site.com/partnerportal/s/login/&quot; target=&quot;_blank&quot; style=&quot;display:inline-block;padding:13px 30px;font-family:&apos;Barlow&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:4px;&quot;&gt;
+Update your application
+&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p style=&quot;margin:18px 0 8px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#414042;&quot;&gt;
+Kind Regards,&lt;br/&gt;
+{!$Record.WG_Validator_Name__c}&lt;br/&gt;
+Wadhwani Grants, application checks
+&lt;/p&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- DIVIDER --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;pad&quot; style=&quot;padding:0 32px;&quot;&gt;
+&lt;hr style=&quot;border:none;border-top:1px solid #E6E6E6;margin:6px 0 0;&quot;/&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- FOOTER --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;pad&quot; style=&quot;padding:22px 32px 26px;background:#ffffff;border-radius:0 0 8px 8px;&quot;&gt;
+
+&lt;img src=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.salesforce.com/servlet/servlet.ImageServer?id=015hy000000J4UZ&amp;oid=00Dhy0000005e85&quot; width=&quot;132&quot; alt=&quot;Wadhwani Grants&quot; class=&quot;logo-ftr&quot; style=&quot;display:block;width:132px;height:auto;margin:0 0 12px;&quot;/&gt;
+
+&lt;p style=&quot;margin:0 0 4px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:11.5px;line-height:1.55;color:#6D6E71;&quot;&gt;
+Wadhwani Grants, the grant-making arm of the Wadhwani Foundation.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 4px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:11.5px;line-height:1.55;color:#6D6E71;&quot;&gt;
+Questions? Just reply to this email; it reaches me and the Wadhwani Grants team at
+&lt;a href=&quot;mailto:grants.support@wadhwanifoundation.org&quot; style=&quot;color:#6D6E71;text-decoration:underline;&quot;&gt;grants.support@wadhwanifoundation.org&lt;/a&gt;.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 4px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:11.5px;line-height:1.55;color:#6D6E71;&quot;&gt;
+&amp;copy; {!CurrentYear} Wadhwani Charitable Foundation. All rights reserved.
+&lt;/p&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;/table&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;/center&gt;
+&lt;/body&gt;
+&lt;/html&gt;</text>
+    </textTemplates>
+    <textTemplates>
+        <description>Application not Approved</description>
+        <name>ApplicationDeclined</name>
+        <isViewedAsPlainText>false</isViewedAsPlainText>
+        <text>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;UTF-8&quot;/&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;/&gt;
+&lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;IE=edge&quot;/&gt;
+&lt;meta name=&quot;x-apple-disable-message-reformatting&quot;/&gt;
+&lt;title&gt;Your Wadhwani Grants application was NOT approved&lt;/title&gt;
+
+&lt;style&gt;
+html,body{margin:0 !important;padding:0 !important;width:100% !important;}
+body{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table{border-collapse:collapse !important;}
+img{border:0;outline:none;text-decoration:none;}
+a{color:#BF2026;}
+
+@media only screen and (max-width:620px){
+.container{width:100% !important;max-width:100% !important;}
+.pad{padding-left:22px !important;padding-right:22px !important;}
+.logo-hdr{width:100px !important;}
+.logo-ftr{width:114px !important;}
+.hdr-text{font-size:19px !important;}
+}
+&lt;/style&gt;
+&lt;/head&gt;
+
+&lt;body style=&quot;margin:0;padding:0;background-color:#F4F4F5;&quot;&gt;
+
+&lt;!-- PREHEADER (hidden) --&gt;
+&lt;div style=&quot;display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;&quot;&gt;
+{!$Record.Organization_Name__c} &amp;middot; Your application was NOT approved. The reasons are below.
+&lt;/div&gt;
+
+&lt;center style=&quot;width:100%;background-color:#F4F4F5;&quot;&gt;
+
+&lt;table width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#F4F4F5&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:24px 12px;&quot;&gt;
+
+&lt;table class=&quot;container&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;max-width:600px;background:#ffffff;border:1px solid #E6E6E6;border-radius:8px;&quot;&gt;
+
+&lt;!-- HEADER --&gt;
+&lt;tr&gt;
+&lt;td bgcolor=&quot;#BF2026&quot; style=&quot;padding:24px 32px;border-radius:8px 8px 0 0;&quot;&gt;
+
+&lt;table width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;
+&lt;tr&gt;
+
+&lt;!-- LEFT: text --&gt;
+&lt;td align=&quot;left&quot; valign=&quot;middle&quot;&gt;
+&lt;p style=&quot;margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#F9C9A8;text-align:left;&quot;&gt;
+Application decision
+&lt;/p&gt;
+
+&lt;h1 class=&quot;hdr-text&quot; style=&quot;margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:24px;line-height:1.25;font-weight:700;color:#ffffff;text-align:left;&quot;&gt;
+Your application was NOT approved
+&lt;/h1&gt;
+
+&lt;p style=&quot;margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.4;color:#F9C9A8;text-align:left;&quot;&gt;
+Application {!$Record.ApplicationName} &amp;middot; {!$Record.Organization_Name__c}
+&lt;/p&gt;
+&lt;/td&gt;
+
+&lt;!-- RIGHT: logo --&gt;
+&lt;td align=&quot;right&quot; valign=&quot;middle&quot; width=&quot;136&quot; style=&quot;padding-left:16px;&quot;&gt;
+&lt;img src=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.salesforce.com/servlet/servlet.ImageServer?id=015hy000000J2Cd&amp;oid=00Dhy0000005e85&quot; width=&quot;136&quot; alt=&quot;Wadhwani Grants&quot; class=&quot;logo-hdr&quot; style=&quot;display:block;width:136px;height:auto;border:0;outline:none;text-decoration:none;&quot;&gt;
+&lt;/td&gt;
+
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- ORANGE DIVIDER --&gt;
+&lt;tr&gt;
+&lt;td bgcolor=&quot;#F2672A&quot; height=&quot;4&quot; style=&quot;height:4px;font-size:4px;line-height:4px;&quot;&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- BODY --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;pad&quot; style=&quot;padding:14px 32px 10px;&quot;&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Hi {!$Record.Account.Name},
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Your application to Wadhwani Grants has NOT been approved.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+What our reviewers recorded:
+&lt;/p&gt;
+
+&lt;!-- PANEL --&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;background:#F7F2F2;border-left:3px solid #F2672A;border-radius:3px;margin:4px 0 18px;&quot;&gt;
+&lt;tr&gt;
+&lt;td style=&quot;padding:16px 20px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:14.5px;line-height:1.6;color:#414042;&quot;&gt;
+&lt;strong&gt;What our reviewers recorded:&lt;/strong&gt;&lt;br/&gt;&lt;br/&gt;
+{!Get_Proposal_Review.Rejection_Comment__c}
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+The decision is on this application. It is not a reflection of your work or your organization.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Thank you for the time and care your team put into the application, and for sharing your work with us.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.62;color:#414042;&quot;&gt;
+Kind Regards,&lt;br/&gt;
+The Wadhwani Grants Team
+&lt;/p&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- DIVIDER --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;pad&quot; style=&quot;padding:0 32px;&quot;&gt;
+&lt;hr style=&quot;border:none;border-top:1px solid #E6E6E6;margin:6px 0 0;&quot;/&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;!-- FOOTER --&gt;
+&lt;tr&gt;
+&lt;td class=&quot;pad&quot; style=&quot;padding:22px 32px 26px;background:#ffffff;border-radius:0 0 8px 8px;&quot;&gt;
+
+&lt;img src=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.salesforce.com/servlet/servlet.ImageServer?id=015hy000000J4UZ&amp;oid=00Dhy0000005e85&quot; width=&quot;132&quot; alt=&quot;Wadhwani Grants&quot; class=&quot;logo-ftr&quot; style=&quot;display:block;width:132px;height:auto;margin:0 0 12px;&quot;/&gt;
+
+&lt;p style=&quot;margin:0 0 4px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:11.5px;line-height:1.55;color:#6D6E71;&quot;&gt;
+Wadhwani Grants, the grant-making arm of the Wadhwani Foundation.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 4px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:11.5px;line-height:1.55;color:#6D6E71;&quot;&gt;
+Questions? Just reply to this email; it reaches the Wadhwani Grants team at
+&lt;a href=&quot;mailto:grants.support@wadhwanifoundation.org&quot; style=&quot;color:#6D6E71;text-decoration:underline;&quot;&gt;grants.support@wadhwanifoundation.org&lt;/a&gt;.
+&lt;/p&gt;
+
+&lt;p style=&quot;margin:0 0 4px;font-family:&apos;Open Sans&apos;,&apos;Segoe UI&apos;,Arial,Helvetica,sans-serif;font-size:11.5px;line-height:1.55;color:#6D6E71;&quot;&gt;
+&amp;copy; {!CurrentYear} Wadhwani Charitable Foundation. All rights reserved.
+&lt;/p&gt;
+
+&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;/table&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;/center&gt;
+&lt;/body&gt;
+&lt;/html&gt;</text>
+    </textTemplates>
+    <textTemplates>
+        <name>Reviewer_needs_more_information</name>
+        <isViewedAsPlainText>false</isViewedAsPlainText>
+        <text>&lt;table width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#F4F4F5&quot; style=&quot;background-color:#F4F4F5;&quot;&gt;&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;padding:28px 12px;&quot;&gt;&lt;table width=&quot;640&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;width:100%;max-width:640px;background:#ffffff;border:1px solid #E6E6E6;border-radius:8px;&quot;&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#BF2026&quot; style=&quot;padding:28px 32px;background-color:#BF2026;border-radius:8px 8px 0 0;&quot;&gt;&lt;table width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot;&gt;&lt;tr&gt;&lt;td align=&quot;left&quot; valign=&quot;middle&quot;&gt;&lt;p style=&quot;margin:0 0 8px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#F9C9A8;&quot;&gt;Returned for input&lt;/p&gt;&lt;h1 style=&quot;margin:0 0 10px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;&quot;&gt;Returned to you for input&lt;/h1&gt;&lt;p style=&quot;margin:0;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#F9C9A8;&quot;&gt;Application {!$Record.ApplicationName} · {!$Record.Organization_Name__c}&lt;/p&gt;&lt;/td&gt;&lt;td align=&quot;right&quot; valign=&quot;middle&quot; width=&quot;140&quot; style=&quot;padding-left:16px;&quot;&gt;&lt;img src=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.salesforce.com/servlet/servlet.ImageServer?id=015hy000000J2Cd&amp;amp;oid=00Dhy0000005e85&quot; width=&quot;140&quot; alt=&quot;Wadhwani Grants&quot; style=&quot;display:block;width:140px;height:auto;border:0;outline:none;text-decoration:none;&quot;&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td bgcolor=&quot;#F2672A&quot; height=&quot;4&quot; style=&quot;height:4px;font-size:4px;line-height:4px;background-color:#F2672A;&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;padding:32px 32px 12px;&quot;&gt;&lt;p style=&quot;margin:0 0 16px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#414042;&quot;&gt;Hi {!$Record.WG_Validator_Name__c},&lt;/p&gt;&lt;p style=&quot;margin:0 0 16px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#414042;&quot;&gt;The reviewer has returned this application to you. They need more information before they can finish the evaluation.&lt;/p&gt;&lt;table width=&quot;100%&quot; cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; bgcolor=&quot;#F7F2F2&quot; style=&quot;background:#F7F2F2;border-left:4px solid #F2672A;border-radius:4px;margin:8px 0 22px;&quot;&gt;&lt;tr&gt;&lt;td style=&quot;padding:18px 22px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#414042;&quot;&gt;&lt;p style=&quot;margin:0 0 8px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6D6E71;&quot;&gt;What the reviewer asked for&lt;/p&gt;&lt;p style=&quot;margin:0 0 14px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#414042;&quot;&gt;{!Get_Proposal_Review.Reviewer_Return_Comment__c}&lt;/p&gt;&lt;p style=&quot;margin:0;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#6D6E71;&quot;&gt;Application round: {!$Record.Submission_Round__c}&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;p style=&quot;margin:0 0 10px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;font-weight:600;color:#414042;&quot;&gt;Two steps to close this:&lt;/p&gt;&lt;ol style=&quot;margin:0 0 16px;padding-left:22px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#414042;&quot;&gt;&lt;li style=&quot;margin:0 0 8px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#414042;&quot;&gt;Check whether the answer is already in the application. If it is, point the reviewer to the page and question where it sits.&lt;/li&gt;&lt;li style=&quot;margin:0;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#414042;&quot;&gt;If it is genuinely missing, return the application to the applicant and ask for that detail.&lt;/li&gt;&lt;/ol&gt;&lt;p style=&quot;margin:0 0 20px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#414042;&quot;&gt;The applicant sees no change until you return it to them. Please act by &lt;strong&gt;{!$Record.Due_Date__c}&lt;/strong&gt;, so the evaluation is not held up.&lt;/p&gt;&lt;table cellpadding=&quot;0&quot; cellspacing=&quot;0&quot; border=&quot;0&quot; style=&quot;margin:4px 0 8px;&quot;&gt;&lt;tr&gt;&lt;td align=&quot;center&quot; bgcolor=&quot;#BF2026&quot; style=&quot;background-color:#BF2026;border-radius:6px;&quot;&gt;&lt;a href=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.site.com/internal&quot; target=&quot;_blank&quot; style=&quot;display:inline-block;padding:14px 34px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:6px;&quot;&gt;Open the application&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;p style=&quot;margin:24px 0 10px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#414042;&quot;&gt;Wadhwani Grants Platform&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;padding:0 32px;&quot;&gt;&lt;hr style=&quot;border:none;border-top:1px solid #E6E6E6;margin:8px 0 0;&quot;&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td style=&quot;padding:24px 32px 28px;background:#ffffff;border-radius:0 0 8px 8px;&quot;&gt;&lt;img src=&quot;https://wadhwanifoundation--sitsandbox.sandbox.my.salesforce.com/servlet/servlet.ImageServer?id=015hy000000J4UZ&amp;amp;oid=00Dhy0000005e85&quot; width=&quot;136&quot; alt=&quot;Wadhwani Grants&quot; style=&quot;display:block;width:136px;height:auto;margin:0 0 14px;border:0;&quot;&gt;&lt;p style=&quot;margin:0 0 8px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#6D6E71;&quot;&gt;Wadhwani Grants, the grant-making arm of the Wadhwani Foundation.&lt;/p&gt;&lt;p style=&quot;margin:0 0 8px;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#6D6E71;&quot;&gt;An automated notice from the Wadhwani Grants Platform. The applicant is not copied on this email, and replies to this address are not read.&lt;/p&gt;&lt;p style=&quot;margin:0;font-family:&apos;Segoe UI&apos;,Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#6D6E71;&quot;&gt;&amp;copy; {!CurrentYear} Wadhwani Charitable Foundation. All rights reserved.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;</text>
+    </textTemplates>
+    <variables>
+        <name>HasWCFValidator</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <value>
+            <booleanValue>false</booleanValue>
+        </value>
+    </variables>
+    <variables>
+        <name>NewSubmissionRound</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+    </variables>
+    <variables>
+        <name>ValidatorEmailAddresses</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>WCFValidatorContactId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>WCFValidatorContactIds</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+</Flow>

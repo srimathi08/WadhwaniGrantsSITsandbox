@@ -1,0 +1,81 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   wcfApproverListView — Approver Queue
+   Same structure and look as the Validator and Reviewer queues.
+   All visuals come from commonStyleTheme + wcfPortalUi.
+   This file holds layout only. No hex values below by design.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+}
+
+.wcf-aq-filter {
+    align-items: center;
+    margin-bottom: var(--wg-space-4);
+    --slds-c-icon-color-foreground-default: var(--wg-info);
+}
+
+/* ── Summary tiles: compact, 7 buckets ── */
+.wcf-aq-stats {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-6);
+}
+
+.wcf-aq-stats .wg-stat {
+    padding: var(--wg-space-4);
+}
+
+.wcf-aq-stats .wg-stat-head {
+    min-height: 34px;
+    margin-bottom: var(--wg-space-1);
+}
+
+/* ── Table ── */
+.wcf-aq-table {
+    min-width: 960px;
+}
+
+.wcf-trunc {
+    display: block;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wcf-aq-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+}
+
+/* ── Numbered page buttons ── */
+.wcf-pg-num {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+}
+
+.wcf-pg-num--active,
+.wcf-pg-num--active:hover:not(:disabled) {
+    background: var(--wg-red);
+    border-color: var(--wg-red);
+    color: var(--wg-white);
+}
+
+/* ── Rows-per-page selector ── */
+.wcf-aq-pagesize {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+}
+
+
+@media (max-width: 768px) {
+    .wg-pagination { justify-content: center; }
+}

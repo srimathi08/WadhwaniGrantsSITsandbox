@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Competitive_Advantage__c</fullName>
+    <inlineHelpText>Explain how project is novel, more efficacious or cost effective compared to existing global / national products / technologies</inlineHelpText>
+    <label>3.10 Competitive Landscape</label>
+    <length>30000</length>
+    <trackHistory>false</trackHistory>
+    <type>Html</type>
+    <visibleLines>25</visibleLines>
+</CustomField>

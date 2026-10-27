@@ -1,0 +1,61 @@
+/* ===== Fonts ===== */
+@font-face { font-family: 'Barlow'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/Barlow-Bold.ttf') format('truetype'); font-weight: 700; }
+@font-face { font-family: 'Barlow'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/Barlow-SemiBold.ttf') format('truetype'); font-weight: 600; }
+@font-face { font-family: 'Open Sans'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/OpenSans-Regular.ttf') format('truetype'); font-weight: 400; }
+@font-face { font-family: 'Open Sans'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/OpenSans-SemiBold.ttf') format('truetype'); font-weight: 600; }
+@font-face { font-family: 'Open Sans'; src: url('/sfsites/c/resource/MyCustomFonts/MyFonts/OpenSans-Bold.ttf') format('truetype'); font-weight: 700; }
+
+body {
+  font-family: 'Open Sans', sans-serif;
+}
+
+/* ===== Tile menu ===== */
+.comm-tile-menu__item-tile {
+  font-size: 16px;
+  height: auto !important;
+  min-height: 28px;
+  padding: 10px;
+  white-space: normal;
+  word-wrap: break-word;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 300px;
+  max-width: 100%;
+}
+
+.slds-grid_align-center,
+.slds-grid--align-center {
+  justify-content: right !important;
+}
+
+/* ===== Login form ===== */
+/* Forgot password link - always visible */
+.salesforceIdentityLoginForm2 a,
+.salesforceIdentityLoginForm2 a:link,
+.salesforceIdentityLoginForm2 a:visited {
+  color: #414041 !important;
+}
+.salesforceIdentityLoginForm2 a:hover,
+.salesforceIdentityLoginForm2 a:focus {
+  color: #BF2026 !important;
+  text-decoration: underline;
+}
+
+/* Log in button - white text */
+.salesforceIdentityLoginForm2 button,
+.salesforceIdentityLoginForm2 button span,
+.salesforceIdentityLoginForm2 .loginButton,
+.salesforceIdentityLoginForm2 .loginButton span {
+  color: #FFFFFF !important;
+}
+
+/* ===== Remove extra space above portal header ===== */
+.siteforceStarterBody .cCenterPanel {
+  margin-top: 0 !important;
+}
+.siteforceStarterBody .comm-content-header {
+  padding-top: 0 !important;
+}
+:root { --dxp-c-section-columns-max-width: 1170px; }

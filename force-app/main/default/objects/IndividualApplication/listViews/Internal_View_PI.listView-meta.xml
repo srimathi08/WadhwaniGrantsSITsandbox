@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Internal_View_PI</fullName>
+    <columns>Name</columns>
+    <columns>Account</columns>
+    <columns>Project_Title__c</columns>
+    <columns>PI_Name__c</columns>
+    <columns>PI_Email__c</columns>
+    <columns>Co_Principal_Investigator_Co_PI__c</columns>
+    <columns>CO_PI_Email__c</columns>
+    <filterScope>Everything</filterScope>
+    <label>Internal View PI</label>
+    <sharedTo>
+        <allInternalUsers></allInternalUsers>
+    </sharedTo>
+</ListView>

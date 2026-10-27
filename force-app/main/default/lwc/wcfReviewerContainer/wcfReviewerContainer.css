@@ -1,0 +1,624 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════
+   wcfReviewerContainer — review form + RFI drawer shell
+   Visuals come from commonStyleTheme + wcfPortalUi, matching
+   the Validator split screen. This file holds layout only.
+   No hex values below by design.
+   ═══════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+
+    --rc-topbar-h: 56px;   /* sticky top bar height; the drawer sits below it */
+
+    /* Height of the Experience Cloud site header above this component.
+       In split view the screen fills the rest of the viewport, so both
+       panes scroll on their own and the form footer stays visible.
+       Adjust this ONE value if the bottom is cut off or leaves a gap. */
+    --rc-offset: 110px;
+}
+
+/* ── Shell ── */
+.rc-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--wg-surface-page);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+}
+
+/* ══ TOP BAR ═══════════════════════════════════════════════ */
+.rc-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--wg-space-3);
+    height: var(--rc-topbar-h);
+    padding: 0 var(--wg-space-4);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.rc-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-4);
+    min-width: 0;
+}
+
+.rc-topbar-title {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    min-width: 0;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    --slds-c-icon-color-foreground-default: var(--wg-red);
+}
+
+/* ══ CONTENT AREA (drawer left, review right) ══════════════
+   Full page width — no max-width cap (was 1600px, which left
+   empty space on both sides on wide screens). */
+.rc-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    align-items: flex-start;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;              /* panels run edge to edge — no grey frame (was 16px) */
+    box-sizing: border-box;
+}
+
+/* ── Review panel ── */
+.rc-review-panel {
+    order: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
+    transition: flex-basis 0.2s ease;
+}
+
+.rc-review-panel--with-drawer {
+    flex: 0 0 55%;
+    flex-shrink: 1 !important;
+    min-width: 320px;
+    background: var(--wg-white);
+    border: 0;               /* flat, edge to edge (was a rounded card) */
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.rc-form-inner {
+    min-width: 0;
+}
+
+.rc-review-panel--with-drawer .rc-form-inner {
+    padding: 0;              /* the form fills the panel, like the Validator form */
+}
+
+/* ══ SPLIT VIEW — independent scrolling (same as the Validator) ══
+   When the RFI drawer is open the shell gets a fixed height, and the
+   RFI panel and the review panel each scroll on their own. The review
+   form's sticky footer (Previous / Save draft / Next) then stays pinned
+   to the bottom of the review panel while its content scrolls. */
+.rc-shell:has(.rc-drawer) {
+    height: calc(100vh - var(--rc-offset));
+    min-height: 0;
+    overflow: hidden;
+}
+
+.rc-shell:has(.rc-drawer) .rc-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+}
+
+.rc-shell:has(.rc-drawer) .rc-drawer {
+    position: relative;
+    top: auto;
+    height: auto;
+    min-height: 0;          /* never taller than the split view */
+    align-self: stretch;
+}
+
+.rc-review-panel--with-drawer .rc-form-inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* When a field gets focus (Tab, validation jump), scroll it clear of the
+       sticky Previous / Save draft / Next footer instead of behind it */
+    scroll-padding-bottom: 80px;
+}
+
+.rc-review-panel--with-drawer .rc-form-inner::-webkit-scrollbar       { width: 8px; }
+.rc-review-panel--with-drawer .rc-form-inner::-webkit-scrollbar-track { background: transparent; }
+.rc-review-panel--with-drawer .rc-form-inner::-webkit-scrollbar-thumb {
+    background: var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+}
+
+/* ══ RFI DRAWER ════════════════════════════════════════════ */
+.rc-drawer {
+    order: 1;
+    position: sticky;
+    top: var(--rc-topbar-h);
+    flex: 0 0 45%;
+    display: flex;
+    flex-direction: column;
+    max-width: calc(100% - 320px);
+    height: calc(100vh - var(--rc-topbar-h) - var(--wg-space-6));
+    background: var(--wg-white);
+    border: 0;               /* flat, edge to edge (was a rounded card) */
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+    animation: rc-drawer-in 0.25s ease both;
+}
+
+@keyframes rc-drawer-in {
+    from { transform: translateX(-24px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+}
+
+/* Resize handle on the drawer's right edge — neutral at rest, red on hover (same as the validator divider) */
+.rc-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 8px;
+    height: 100%;
+    background: var(--wg-border);
+    cursor: col-resize;
+    transition: background 0.15s ease;
+}
+
+.rc-resize-handle:hover,
+.rc-resize-handle:active {
+    background: var(--wg-red);
+}
+
+.rc-resize-grip {
+    width: 2px;
+    height: 32px;
+    border-radius: 2px;
+    background: var(--wg-input-border);
+    pointer-events: none;
+}
+
+.rc-resize-handle:hover .rc-resize-grip {
+    background: var(--wg-white);
+}
+
+.rc-drawer-body {
+    flex: 1 1 auto;
+    min-height: 0;        /* lets the body shrink and scroll instead of growing to the full RFI length */
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* FIX: was padding-right, which moved the content but NOT the scrollbar —
+       the scrollbar stayed at the drawer's right edge, hidden under the 8px
+       resize handle. A margin ends the whole scroll area (scrollbar included)
+       before the handle starts. */
+    margin-right: 8px;
+    scrollbar-width: thin;                                        /* Firefox */
+    scrollbar-color: var(--wg-text-muted) transparent;            /* Firefox */
+}
+
+.rc-drawer-body::-webkit-scrollbar       { width: 8px; }
+.rc-drawer-body::-webkit-scrollbar-track { background: transparent; }
+.rc-drawer-body::-webkit-scrollbar-thumb {
+    background: var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+}
+.rc-drawer-body::-webkit-scrollbar-thumb:hover {
+    background: var(--wg-text-muted);
+}
+
+/* ══ PANE LABEL BARS (both panes) ══════════════════════════ */
+.rc-pane-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--wg-space-2);
+    min-height: 48px;
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    flex-shrink: 0;
+    box-sizing: border-box;
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+.rc-review-panel .rc-pane-label {
+    justify-content: flex-start;
+}
+
+.rc-pane-label-left,
+.rc-pane-label-right {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    min-width: 0;
+}
+
+.rc-pane-label-text {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rc-pane-label .wg-tag {
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-caption);
+}
+
+.rc-pane-toggle {
+    width: var(--wg-control-height);
+    height: var(--wg-control-height);
+}
+
+/* ── Rail-collapse (never both at once — enforced in JS) ── */
+.rc-pane-collapsed {
+    flex: 0 0 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    overflow: hidden;
+}
+
+.rc-pane-collapsed .rc-pane-label {
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: var(--wg-space-3) var(--wg-space-1);
+    border-bottom: none;
+}
+
+.rc-pane-collapsed .rc-pane-label-left,
+.rc-pane-collapsed .rc-pane-label-text,
+.rc-pane-collapsed .rc-drawer-close {
+    display: none;
+}
+
+.rc-pane-collapsed .rc-pane-label-right {
+    flex-direction: column;
+}
+
+.rc-pane-collapsed .rc-resize-handle {
+    pointer-events: none;
+}
+
+.rc-content:has(.rc-drawer.rc-pane-collapsed) .rc-review-panel:not(.rc-pane-collapsed),
+.rc-content:has(.rc-review-panel.rc-pane-collapsed) .rc-drawer:not(.rc-pane-collapsed) {
+    flex: 1 1 auto !important;
+    max-width: none;
+}
+
+/* ══ APPROVER RETURN NOTICE — same language as the validator's
+   "Returned by Reviewer" banner: error left edge, white card ══ */
+.rc-notice {
+    margin-bottom: var(--wg-space-6);
+    padding: var(--wg-space-6);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-left: var(--wg-border-width-banner) solid var(--wg-error);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+}
+
+.rc-notice-head {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    margin-bottom: var(--wg-space-2);
+    --slds-c-icon-color-foreground-default: var(--wg-error);
+}
+
+.rc-notice-title {
+    margin: 0;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.rc-notice-sub {
+    margin: 0 0 var(--wg-space-5);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.6;
+    color: var(--wg-text-muted);
+}
+
+.rc-notice-section {
+    margin-bottom: var(--wg-space-4);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-error-bg);
+    border-radius: var(--wg-radius-sm);
+}
+
+.rc-notice-label {
+    margin-bottom: var(--wg-space-1);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-error);
+}
+
+.rc-notice-value {
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.rc-reason-list {
+    margin: 0;
+    padding-left: var(--wg-space-5);
+}
+
+.rc-reason-list li {
+    margin-bottom: var(--wg-space-1);
+    line-height: 1.5;
+}
+
+.rc-return-comments {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--wg-space-4);
+    margin-bottom: var(--wg-space-5);
+}
+
+.rc-return-comment {
+    min-width: 0;
+}
+
+.rc-req-hint {
+    display: block;
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-regular);
+    color: var(--wg-text-muted);
+}
+
+.rc-textarea {
+    min-height: 88px;
+    resize: vertical;
+    line-height: var(--wg-line-height-base);
+}
+
+.rc-notice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+/* ══ VALIDATOR FLAG NOTICE ═════════════════════════════════ */
+.rc-flag {
+    margin-bottom: var(--wg-space-4);
+    --slds-c-icon-color-foreground-default: var(--wg-warning);
+}
+
+.rc-flag-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.rc-flag-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+    margin-top: var(--wg-space-2);
+}
+
+.rc-flag-pills .wg-tag {
+    white-space: normal;
+}
+
+.rc-flag-other {
+    margin-top: var(--wg-space-2);
+    padding-top: var(--wg-space-2);
+    border-top: var(--wg-border-width-thin) dashed var(--wg-warning);
+    font-size: var(--wg-font-size-label);
+}
+
+/* ══ EMPTY STATE ═══════════════════════════════════════════ */
+.rc-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: var(--wg-space-8);
+    background: var(--wg-surface-page);
+}
+
+.rc-empty-card {
+    max-width: 440px;
+    width: 100%;
+}
+
+.rc-empty-btn {
+    margin-top: var(--wg-space-4);
+}
+
+/* ══ CUSTOM TOAST — same look as the portal status banners ══
+   (and as the site-wide toast style): pale tint, colored text,
+   4px colored left edge, bold title followed by the message.   */
+.rc-toast {
+    position: fixed;
+    top: var(--wg-space-5);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: calc(100% - 40px);
+    max-width: 640px;
+    padding: 12px 16px;
+    background: var(--wg-info-bg);
+    color: var(--wg-info-text);
+    border: 0;
+    border-left: 4px solid var(--wg-info);
+    border-radius: var(--wg-radius-sm);
+    box-shadow: 0 2px 8px rgba(65, 64, 65, 0.12);   /* rgb of --wg-gray: light lift over the page */
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: 1.45;
+    box-sizing: border-box;
+    animation: rc-toast-in 0.25s ease both;
+}
+
+.rc-toast--success {
+    background: var(--wg-success-bg);
+    color: var(--wg-success);
+    border-left-color: var(--wg-success);
+    --slds-c-icon-color-foreground-default: var(--wg-success);
+}
+
+.rc-toast--error {
+    background: var(--wg-error-bg);
+    color: var(--wg-error);
+    border-left-color: var(--wg-error);
+    --slds-c-icon-color-foreground-default: var(--wg-error);
+}
+
+.rc-toast--warning {
+    background: var(--wg-warning-bg);
+    color: var(--wg-warning-text);
+    border-left-color: var(--wg-warning);
+    --slds-c-icon-color-foreground-default: var(--wg-warning-text);
+}
+
+.rc-toast-icon {
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* Title and message on one line: "Comment Required. Please explain …" */
+.rc-toast-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.rc-toast-title {
+    display: inline;
+    margin-right: 6px;
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-bold);
+    color: inherit;
+}
+
+.rc-toast-title::after { content: "."; }
+
+.rc-toast-message {
+    display: inline;
+    font-size: var(--wg-font-size-body);
+    color: inherit;
+}
+
+.rc-toast-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 2px;
+    background: none;
+    border: 0;
+    border-radius: var(--wg-radius-sm);
+    cursor: pointer;
+    --slds-c-icon-color-foreground-default: currentColor;
+}
+
+.rc-toast-close:hover { background: rgba(65, 64, 65, 0.06); }   /* rgb of --wg-gray */
+
+.rc-toast-close:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+@keyframes rc-toast-in {
+    from { transform: translate(-50%, -12px); opacity: 0; }
+    to   { transform: translate(-50%, 0);     opacity: 1; }
+}
+
+/* ══ RESPONSIVE — stack on narrow screens ══════════════════ */
+@media (max-width: 860px) {
+    /* Stacked panes: back to normal page scrolling */
+    .rc-shell:has(.rc-drawer) { height: auto; overflow: visible; }
+    .rc-review-panel--with-drawer .rc-form-inner { overflow: visible; }
+
+    .rc-content {
+        flex-direction: column;
+        padding: 0;
+    }
+
+    .rc-topbar { padding: 0 var(--wg-space-4); }
+
+    .rc-review-panel--with-drawer {
+        flex: unset !important;
+        width: 100%;
+        min-width: 0;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .rc-drawer {
+        position: static;
+        flex: unset !important;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: 60vh;
+        border-radius: 0;
+        border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    }
+
+    .rc-resize-handle { display: none; }
+    .rc-drawer-body   { margin-right: 0; }
+
+    /* Rail-collapse makes no sense when stacked */
+    .rc-pane-collapsed {
+        flex: unset !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .rc-pane-collapsed .rc-pane-label       { flex-direction: row; padding: var(--wg-space-2) var(--wg-space-4); }
+    .rc-pane-collapsed .rc-pane-label-left,
+    .rc-pane-collapsed .rc-pane-label-text,
+    .rc-pane-collapsed .rc-drawer-close     { display: flex; }
+
+    .rc-return-comments { grid-template-columns: 1fr; }
+}
+
+/* ══ MOTION ════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    .rc-drawer,
+    .rc-toast { animation: none; }
+
+    .rc-review-panel,
+    .rc-resize-handle { transition: none; }
+}

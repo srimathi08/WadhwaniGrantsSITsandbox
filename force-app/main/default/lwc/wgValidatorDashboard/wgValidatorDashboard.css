@@ -1,0 +1,42 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   Validator Dashboard
+   All colors, fonts, tiles, pills, buttons and the table come from
+   commonStyleTheme + wcfPortalUi. The local --wcf-* token block that
+   used to live here is gone — it duplicated those two modules.
+   This file holds layout only. No hex values below by design.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+}
+
+.vd-page {
+    min-height: 100vh;
+}
+
+/* Tile grid comes from wcfPortalUi (.wg-dash-stats) — identical on all dashboards */
+
+/* Table scrolls sideways instead of squashing on narrow screens */
+.vd-table {
+    min-width: 720px;
+}
+
+/* ── Due date emphasis (classes from JS) ── */
+.due-date {
+    white-space: nowrap;
+    color: var(--wg-gray);
+}
+
+.due-date.due-urgent {
+    color: var(--wg-warning-text);
+    font-weight: var(--wg-weight-semibold);
+}
+
+.due-date.due-overdue {
+    color: var(--wg-error);
+    font-weight: var(--wg-weight-semibold);
+}

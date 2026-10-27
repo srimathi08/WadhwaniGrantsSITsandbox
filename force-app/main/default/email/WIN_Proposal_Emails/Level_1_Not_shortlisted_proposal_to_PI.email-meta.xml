@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>Email sent when application is not  shortlisted for Level 1 presentation -PI</description>
+    <encodingKey>UTF-8</encodingKey>
+    <letterhead>WIN</letterhead>
+    <name>Level 1 Not  shortlisted proposal to PI</name>
+    <style>freeForm</style>
+    <subject>Application Status Update – {!IndividualApplication.Name}: {!IndividualApplication.Project_Title__c}</subject>
+    <type>html</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

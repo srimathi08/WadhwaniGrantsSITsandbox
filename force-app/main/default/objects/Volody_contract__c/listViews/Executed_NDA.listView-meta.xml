@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Executed_NDA</fullName>
+    <columns>NAME</columns>
+    <columns>Account__c</columns>
+    <columns>clm_status__c</columns>
+    <columns>Name_of_the_Counterparty__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>clm_status__c</field>
+        <operation>equals</operation>
+        <value>Executed</value>
+    </filters>
+    <filters>
+        <field>Account__c</field>
+        <operation>notEqual</operation>
+    </filters>
+    <filters>
+        <field>Account__c</field>
+        <operation>notEqual</operation>
+        <value>Test Reviewer</value>
+    </filters>
+    <label>Executed NDA</label>
+</ListView>

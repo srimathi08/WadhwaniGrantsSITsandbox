@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <help><!-- Potential Revenue Generation Strategy for Project --></help>
+    <label><!-- 4.5 Project Revenue Strategy --></label>
+    <name>Project_Revenue_Strategy__c</name>
+</CustomFieldTranslation>

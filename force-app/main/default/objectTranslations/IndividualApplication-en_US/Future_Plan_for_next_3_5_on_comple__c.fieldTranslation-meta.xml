@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <help><!-- Future Plan for next 3-5 Years on completion of Project --></help>
+    <label><!-- 7.3 Future Plan for next 3-5 Years --></label>
+    <name>Future_Plan_for_next_3_5_on_comple__c</name>
+</CustomFieldTranslation>

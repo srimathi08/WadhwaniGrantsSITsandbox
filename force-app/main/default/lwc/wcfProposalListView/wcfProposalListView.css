@@ -1,0 +1,111 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   wcfProposalListView — Reviewer Queue
+   All colors, fonts, tiles, pills, tags, buttons, table, search,
+   pagination and states come from commonStyleTheme + wcfPortalUi,
+   exactly like the Validator Queue (wcfApplicationList).
+   This file holds layout only. No hex values below by design.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* ── Filter banner ── */
+.wcf-rq-filter {
+    align-items: center;
+    margin-bottom: var(--wg-space-4);
+    --slds-c-icon-color-foreground-default: var(--wg-info);
+}
+
+/* ── Summary tiles: compact, 8 buckets ── */
+.wcf-rq-stats {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-6);
+}
+
+.wcf-rq-stats .wg-stat {
+    padding: var(--wg-space-4);
+}
+
+.wcf-rq-stats .wg-stat-head {
+    min-height: 34px;
+    margin-bottom: var(--wg-space-1);
+}
+
+/* ── Table ──
+   Scrolls sideways below this width instead of squeezing columns */
+.wcf-rq-table {
+    min-width: 980px;
+}
+
+/* Long free text stays on one line with an ellipsis; full value on hover */
+.wcf-trunc {
+    display: block;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wcf-trunc-wide {
+    max-width: 260px;
+}
+
+.wcf-rq-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+}
+
+/* ── Due date emphasis (classes from JS) ── */
+.due-date {
+    white-space: nowrap;
+    color: var(--wg-gray);
+}
+
+.due-date.due-urgent {
+    color: var(--wg-warning-text);
+    font-weight: var(--wg-weight-semibold);
+}
+
+.due-date.due-overdue {
+    color: var(--wg-error);
+    font-weight: var(--wg-weight-semibold);
+}
+
+/* ── Numbered page buttons (extend the shared square icon button) ── */
+.wcf-pg-num {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+}
+
+.wcf-pg-num--active,
+.wcf-pg-num--active:hover:not(:disabled) {
+    background: var(--wg-red);
+    border-color: var(--wg-red);
+    color: var(--wg-white);
+}
+
+/* ── Rows-per-page selector ── */
+.wcf-rq-pagesize {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+}
+
+
+/* ── Empty state button spacing ── */
+.wcf-rq-clear {
+    margin-top: var(--wg-space-4);
+}
+
+@media (max-width: 768px) {
+    .wg-pagination { justify-content: center; }
+}

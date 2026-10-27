@@ -1,0 +1,155 @@
+/* ======================================================
+   SECTION CARD
+====================================================== */
+
+.section-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+    border: 1px solid #eef2f6;
+}
+
+/* ======================================================
+   HEADER
+====================================================== */
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8f7ef;
+    font-weight: 700;
+}
+
+.title-group h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.title-group p {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ======================================================
+   CARD GRID – FIXED DASHBOARD LAYOUT
+====================================================== */
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 👈 clean 3x2 grid */
+    gap: 16px;
+    margin: 14px 0 16px;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+    .card-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ======================================================
+   SUMMARY CARD – BASE
+====================================================== */
+
+.summary-card {
+    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid #edf1f7;
+
+    /* Visual polish */
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    transition: all 0.2s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+}
+
+.summary-card h4 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.summary-card p {
+    margin: 8px 0 0;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+/* ======================================================
+   COLOR VARIANTS
+====================================================== */
+
+.summary-card.blue {
+    background: #f0f7ff;
+}
+
+.summary-card.green {
+    background: #eefcf5;
+}
+
+.summary-card.purple {
+    background: #f3f4ff;
+    border-color: #e6e8ff;
+}
+
+.summary-card.lavender {
+    background: #f5f3ff;
+    border-color: #e6e8ff;
+}
+
+/* ======================================================
+   PRIMARY BUTTON
+====================================================== */
+
+.primary-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    background: #8b1a1a;
+    color: #fff;
+    transition: all 0.25s ease;
+}
+
+.primary-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(139,26,26,0.35);
+}

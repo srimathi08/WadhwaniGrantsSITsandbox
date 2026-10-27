@@ -1,0 +1,991 @@
+/* ============================================================
+   c/wcfPortalUi
+   Shared UI PATTERN module for the WCF Validator / Reviewer /
+   Approver portal LWCs.
+
+   Layering:
+     c/commonStyleTheme  → brand tokens + base classes
+                           (.primary-btn, .ghost-btn, banners,
+                           .field-label, .form-input, .spinner)
+     c/wcfPortalUi       → portal patterns built ONLY from those
+                           tokens (page header, cards, stats,
+                           tables, status pills, tags, search,
+                           pagination, empty/loading states)
+     component .css      → that component's own layout only
+
+   Usage — first two lines of every portal component's .css:
+
+       @import "c/commonStyleTheme";
+       @import "c/wcfPortalUi";
+
+   Order matters: commonStyleTheme must come first so the
+   --wg-* tokens this file reads are defined.
+
+   Rules for this file:
+   - No hardcoded brand/status hex. Every color is a --wg-* token.
+     The only literals are the four neutral extension tokens in
+     :host below (flagged, pending port to commonStyleTheme).
+   - Every class is prefixed .wg- (or extends a commonStyleTheme
+     button name) so nothing collides with component classes.
+   - Buttons are pills (commonStyleTheme --wg-radius-pill, UAT ST-05).
+   ============================================================ */
+
+:host {
+    /* ---- Portal extension tokens ----------------------------
+       Not in commonStyleTheme yet. Neutral values only —
+       candidates to port into commonStyleTheme once signed off. */
+    --wg-surface-page: #F7F7F7;     /* page background behind cards */
+    --wg-surface-subtle: #FAFAFA;   /* table header, row hover, zebra-free tint */
+    --wg-shadow-card: 0 1px 3px rgba(65, 64, 65, 0.08);    /* rgb of --wg-gray */
+    --wg-shadow-hover: 0 4px 12px rgba(65, 64, 65, 0.12);
+    --wg-focus-ring: 0 0 0 3px rgba(242, 103, 42, 0.18);   /* rgb of --wg-orange, same as .form-input:focus */
+
+    /* ---- Layout metrics ---- */
+    --wg-control-height: 32px;      /* compact buttons, pagination, table actions */
+    --wg-input-height: 36px;        /* search boxes, icon buttons */
+    --wg-row-height: 56px;          /* table body rows */
+    --wg-gutter: var(--wg-space-8); /* single source of horizontal page alignment */
+
+    /* ---- lightning-button → brand, via SLDS styling hooks ----
+       Applies to every <lightning-button variant="brand"> and
+       neutral button inside a component that imports this file,
+       so base components match the custom .primary-btn. */
+    --slds-c-button-radius-border: var(--wg-radius-pill);
+    --slds-c-button-brand-color-background: var(--wg-red);
+    --slds-c-button-brand-color-border: var(--wg-red);
+    --slds-c-button-brand-color-background-hover: var(--wg-red-deep);
+    --slds-c-button-brand-color-border-hover: var(--wg-red-deep);
+    --slds-c-button-brand-color-background-active: var(--wg-red-deep);
+    --slds-c-button-brand-text-color: var(--wg-white);
+    --slds-c-button-brand-text-color-hover: var(--wg-white);
+    --slds-c-button-neutral-color-border: var(--wg-red);
+    --slds-c-button-text-color: var(--wg-red);
+}
+
+/* ============================================================
+   PAGE
+   ============================================================ */
+.wg-page {
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+    background: var(--wg-surface-page);
+    width: 100%;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+.wg-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-4);
+    padding: var(--wg-space-6) var(--wg-gutter);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    box-sizing: border-box;
+}
+
+.wg-page-heading {
+    min-width: 0;
+}
+
+.wg-page-eyebrow {
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+    margin: 0 0 var(--wg-space-1);
+}
+
+.wg-page-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-page-title);
+    font-weight: var(--wg-weight-bold);
+    line-height: 1.25;
+    color: var(--wg-gray);
+    margin: 0;
+}
+
+.wg-page-title-accent {
+    color: var(--wg-gray);
+}
+
+.wg-page-subtitle {
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+    margin: var(--wg-space-1) 0 0;
+}
+
+.wg-page-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+.wg-page-body {
+    padding: var(--wg-space-6) var(--wg-gutter) var(--wg-space-8);
+    box-sizing: border-box;
+}
+
+/* ============================================================
+   SECTION HEADINGS
+   ============================================================ */
+.wg-section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-4);
+}
+
+.wg-section-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.3;
+    color: var(--wg-gray);
+    margin: 0;
+}
+
+.wg-section-subtitle {
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+    margin: var(--wg-space-1) 0 0;
+}
+
+.wg-link {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-red);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.wg-link:hover {
+    color: var(--wg-red-deep);
+    text-decoration: underline;
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.wg-card {
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.wg-card + .wg-card {
+    margin-top: var(--wg-space-6);
+}
+
+.wg-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-4) var(--wg-space-6);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.wg-card-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.4;
+    color: var(--wg-gray);
+    margin: 0;
+}
+
+.wg-card-subtitle {
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+    margin: var(--wg-space-1) 0 0;
+}
+
+.wg-card-body {
+    padding: var(--wg-space-6);
+}
+
+/* ============================================================
+   STATS  (dashboard KPI tiles + list summary buckets)
+   Use on a <button> so tiles are keyboard reachable.
+   ============================================================ */
+.wg-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--wg-space-4);
+}
+
+.wg-stat {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    margin: 0;
+    padding: var(--wg-space-5) var(--wg-space-6);
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.wg-stat:hover {
+    box-shadow: var(--wg-shadow-hover);
+}
+
+.wg-stat:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+/* Currently applied filter */
+.wg-stat--active {
+    border-color: var(--wg-red);
+    box-shadow: inset 0 3px 0 var(--wg-red), var(--wg-shadow-card);
+}
+
+/* Needs attention (e.g. resubmissions / returned by reviewer > 0) */
+.wg-stat--alert {
+    background: var(--wg-error-bg);
+    border-left: var(--wg-border-width-banner) solid var(--wg-error);
+}
+
+.wg-stat-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--wg-space-2);
+    min-height: 36px; /* keeps values on one baseline when labels wrap */
+    margin-bottom: var(--wg-space-2);
+}
+
+.wg-stat-label {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    color: var(--wg-text-muted);
+}
+
+.wg-stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: var(--wg-space-1);
+    background: var(--wg-text-muted);
+}
+
+.wg-stat-dot--info     { background: var(--wg-info); }
+.wg-stat-dot--warning  { background: var(--wg-warning); }
+.wg-stat-dot--success  { background: var(--wg-success); }
+.wg-stat-dot--error    { background: var(--wg-error); }
+.wg-stat-dot--returned { background: var(--wg-orange); }
+.wg-stat-dot--brand    { background: var(--wg-red); }
+
+.wg-stat-value {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-page-title);
+    font-weight: var(--wg-weight-bold);
+    line-height: 1.1;
+    color: var(--wg-gray);
+}
+
+.wg-stat-caption {
+    font-size: var(--wg-font-size-caption);
+    color: var(--wg-text-muted);
+    line-height: var(--wg-line-height-base);
+    margin-top: auto;
+    padding-top: var(--wg-space-1);
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.wg-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--wg-font-size-label);
+}
+
+.wg-table th {
+    height: var(--wg-control-height);
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--wg-text-muted);
+}
+
+.wg-table td {
+    height: var(--wg-row-height);
+    padding: var(--wg-space-2) var(--wg-space-4);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    vertical-align: middle;
+    color: var(--wg-gray);
+    line-height: var(--wg-line-height-base);
+}
+
+.wg-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.wg-table tbody tr:hover td {
+    background: var(--wg-surface-subtle);
+}
+
+/* Sortable header — render the label inside a <button class="wg-sort"> */
+.wg-sort {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--wg-space-1);
+    padding: 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+.wg-sort:hover,
+.wg-sort--active {
+    color: var(--wg-gray);
+    --slds-c-icon-color-foreground-default: var(--wg-gray);
+}
+
+.wg-sort:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+/* Column helpers */
+.wg-col-index {
+    width: 48px;
+    color: var(--wg-text-muted);
+}
+
+.wg-col-action {
+    width: 1%;
+    text-align: center;      /* header, equal-size buttons and "No action" share one center line */
+    white-space: nowrap;
+}
+
+/* "No action" placeholder — same width as the action buttons, text centered,
+   so it sits exactly under the buttons in the rows above/below */
+.wg-col-action .wg-no-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 196px;
+    height: var(--wg-control-height);
+    color: var(--wg-text-muted);
+    font-size: var(--wg-font-size-label);
+}
+
+.wg-cell-id {
+    font-weight: var(--wg-weight-semibold);
+    white-space: nowrap;
+}
+
+.wg-cell-link {
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-red);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.wg-cell-link:hover {
+    color: var(--wg-red-deep);
+    text-decoration: underline;
+}
+
+.wg-cell-link:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+.wg-cell-sub {
+    font-size: var(--wg-font-size-caption);
+    color: var(--wg-text-muted);
+    margin-top: 2px;
+}
+
+.wg-cell-muted {
+    color: var(--wg-text-muted);
+    white-space: nowrap;
+}
+
+/* Row states — inset shadow instead of a border, so rows never shift */
+.wg-row--success td {
+    background: var(--wg-success-bg);
+}
+
+.wg-row--attention td:first-child {
+    box-shadow: inset var(--wg-border-width-banner) 0 0 var(--wg-error);
+}
+
+.wg-row--attention td {
+    background: var(--wg-error-bg);
+}
+
+.wg-table-empty {
+    text-align: center;
+    color: var(--wg-text-muted);
+    padding: var(--wg-space-8) var(--wg-space-4);
+}
+
+/* ============================================================
+   STATUS PILLS  — one vocabulary for every screen
+   --info      Submitted / Awaiting validation / Under review
+   --warning   In progress / Draft resumed / Awaiting applicant
+   --success   Validated / Approved
+   --error     Rejected
+   --returned  Returned / Resubmitted / Revision requested
+   --neutral   Draft / Not started
+   ============================================================ */
+.wg-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--wg-space-1);
+    min-width: 96px;
+    min-height: 24px;
+    max-width: 100%;
+    padding: var(--wg-padding-tag);
+    border: var(--wg-border-width-thin) solid transparent;
+    border-radius: var(--wg-radius-badge);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.3;
+    text-align: center;
+    box-sizing: border-box;
+    --slds-c-icon-color-foreground-default: currentColor;
+}
+
+.wg-pill--info {
+    background: var(--wg-info-bg);
+    color: var(--wg-info-text);
+    border-color: var(--wg-info);
+}
+
+.wg-pill--warning {
+    background: var(--wg-warning-bg);
+    color: var(--wg-warning-text);
+    border-color: var(--wg-warning);
+}
+
+.wg-pill--success {
+    background: var(--wg-success-bg);
+    color: var(--wg-success);
+    border-color: var(--wg-success);
+}
+
+.wg-pill--error {
+    background: var(--wg-error-bg);
+    color: var(--wg-error);
+    border-color: var(--wg-error);
+}
+
+/* White fill on purpose: --wg-orange and --wg-warning are close
+   hues, so "returned" is told apart from "in progress" by fill. */
+.wg-pill--returned {
+    background: var(--wg-white);
+    color: var(--wg-orange-deep);
+    border-color: var(--wg-orange);
+}
+
+.wg-pill--neutral {
+    background: var(--wg-surface-subtle);
+    color: var(--wg-text-muted);
+    border-color: var(--wg-border);
+}
+
+/* ============================================================
+   TAGS  (track labels: Job Fulfillment / Job Creation / Livelihood)
+   ============================================================ */
+.wg-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-1);
+    margin-top: var(--wg-space-1);
+}
+
+.wg-tag {
+    display: inline-block;
+    padding: 2px var(--wg-space-2);
+    border: var(--wg-border-width-thin) solid transparent;
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.wg-tag--info    { background: var(--wg-info-bg);    color: var(--wg-info-text);    border-color: var(--wg-info); }
+.wg-tag--warning { background: var(--wg-warning-bg); color: var(--wg-warning-text); border-color: var(--wg-warning); }
+.wg-tag--success { background: var(--wg-success-bg); color: var(--wg-success);      border-color: var(--wg-success); }
+
+/* ============================================================
+   BUTTONS — extends commonStyleTheme's .primary-btn / .ghost-btn
+   ============================================================ */
+
+/* Secondary action (e.g. Resume, View Review) — styled as the brand
+   secondary (ghost) button so Partner and staff match (U139, ST-06). */
+.neutral-btn,
+.success-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--wg-space-2);
+    padding: 0 26px; /* vertical comes from min-height + flex centring, so icons do not push it past 40px */
+    border-radius: var(--wg-radius-pill);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-button);
+    font-weight: var(--wg-weight-semibold);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.neutral-btn {
+    background: var(--wg-white);
+    color: var(--wg-red);
+    border: var(--wg-border-width-ghost) solid var(--wg-red);
+}
+
+.neutral-btn:hover:not(:disabled) {
+    background: var(--wg-error-bg);
+    border-color: var(--wg-red-deep);
+}
+
+.success-btn {
+    background: var(--wg-success);
+    color: var(--wg-white);
+    border: 0;
+}
+
+.success-btn:hover:not(:disabled) {
+    background: var(--wg-success-deep);
+}
+
+.neutral-btn:disabled,
+.success-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.neutral-btn:focus-visible,
+.success-btn:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+/* Compact size for table rows / toolbars — add alongside any button class */
+.wg-btn-sm {
+    height: var(--wg-control-height);
+    min-width: 112px;
+    padding: 0 var(--wg-space-4);
+    font-size: var(--wg-font-size-button);
+    white-space: nowrap;
+    box-sizing: border-box;
+    min-height: 0;
+}
+
+/* Icons inside buttons follow the label color */
+.primary-btn lightning-icon,
+.success-btn lightning-icon  { --slds-c-icon-color-foreground-default: var(--wg-white); }
+.ghost-btn lightning-icon    { --slds-c-icon-color-foreground-default: var(--wg-red); }
+.neutral-btn lightning-icon  { --slds-c-icon-color-foreground-default: var(--wg-red); }
+
+.primary-btn lightning-icon,
+.ghost-btn lightning-icon,
+.neutral-btn lightning-icon,
+.success-btn lightning-icon {
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+/* Square icon-only button (refresh, collapse, etc.) — needs a title/aria-label */
+.wg-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--wg-input-height);
+    height: var(--wg-input-height);
+    padding: 0;
+    flex-shrink: 0;
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-pill);
+    color: var(--wg-gray);
+    cursor: pointer;
+    box-sizing: border-box;
+    --slds-c-icon-color-foreground-default: var(--wg-gray);
+    transition: border-color 0.15s ease;
+}
+
+.wg-icon-btn:hover:not(:disabled) {
+    border-color: var(--wg-red);
+    --slds-c-icon-color-foreground-default: var(--wg-red);
+}
+
+.wg-icon-btn:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+.wg-icon-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+.wg-search {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    height: var(--wg-input-height);
+    padding: 0 var(--wg-space-3);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    box-sizing: border-box;
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wg-search:focus-within {
+    border-color: var(--wg-orange);
+    box-shadow: var(--wg-focus-ring);
+}
+
+.wg-search input {
+    flex: 1;
+    width: 240px;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    color: var(--wg-gray);
+}
+
+.wg-search input::placeholder {
+    color: var(--wg-text-muted);
+}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+.wg-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+    padding: var(--wg-space-3) var(--wg-space-6);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+}
+
+.wg-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+}
+
+.wg-pagination-page {
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    padding: 0 var(--wg-space-1);
+}
+
+.wg-pagination .wg-icon-btn {
+    width: var(--wg-control-height);
+    height: var(--wg-control-height);
+    font-size: var(--wg-font-size-button);
+}
+
+/* ============================================================
+   DASHBOARD TILE GRID — one definition for all three dashboards
+   (Validator, Reviewer, Approver), so tile size, spacing and
+   background are identical everywhere.
+   Desktop: 3 tiles per row (built on a 6-column track so rows can
+   also hold 1 full-width or 2 half-width tiles):
+     .wg-stat--wide  → full row   (Approver: 1 + 3 + 3 for 7 tiles)
+     .wg-stat--half  → half row   (Validator: 3 + 2 for 5 tiles)
+   Tablet: 2 per row · Phone: 1 per row.
+   ============================================================ */
+.wg-dash-stats {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin-bottom: var(--wg-space-8);
+}
+
+.wg-dash-stats > .wg-stat          { grid-column: span 2; }
+.wg-dash-stats > .wg-stat--half    { grid-column: span 3; }
+.wg-dash-stats > .wg-stat--wide    { grid-column: 1 / -1; }
+
+@media (max-width: 1024px) {
+    .wg-dash-stats                     { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wg-dash-stats > .wg-stat,
+    .wg-dash-stats > .wg-stat--half    { grid-column: span 1; }
+    .wg-dash-stats > .wg-stat--wide    { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+    .wg-dash-stats                     { grid-template-columns: 1fr; }
+    .wg-dash-stats > .wg-stat,
+    .wg-dash-stats > .wg-stat--half,
+    .wg-dash-stats > .wg-stat--wide    { grid-column: 1 / -1; }
+}
+
+/* Rows-per-page selector (native <select>, so its menu is never
+   clipped by the card's overflow:hidden) */
+.wg-pagesize {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    white-space: nowrap;
+}
+
+.wg-pagesize-select {
+    height: var(--wg-control-height);
+    min-width: 72px;
+    margin: 0;
+    padding: 0 32px 0 var(--wg-space-3);
+    background-color: var(--wg-white);
+    /* chevron drawn with a gradient pair, so no image or hex is needed */
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--wg-gray) 50%),
+        linear-gradient(135deg, var(--wg-gray) 50%, transparent 50%);
+    background-position:
+        calc(100% - 16px) 50%,
+        calc(100% - 11px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    border: var(--wg-border-width-thin) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-gray);
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+}
+
+.wg-pagesize-select:hover { border-color: var(--wg-text-muted); }
+
+.wg-pagesize-select:focus {
+    outline: none;
+    border-color: var(--wg-orange);
+    box-shadow: var(--wg-focus-ring);
+}
+
+/* ============================================================
+   TABLE ACTION BUTTONS — one fixed size everywhere
+   Start / Resume / View / Request Compliance / Start Approve …
+   all get the same width and height so the action column lines
+   up neatly. The extra class in each selector also outranks the
+   site theme's global button styles that leak into Aura sites.
+   ============================================================ */
+.wg-col-action .primary-btn,
+.wg-col-action .ghost-btn,
+.wg-col-action .neutral-btn,
+.wg-col-action .success-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--wg-space-2);
+    width: 196px;       /* fits the longest label: "Request Compliance" + icon */
+    min-width: 196px;
+    height: var(--wg-control-height);
+    min-height: 0;
+    margin: 0;
+    padding: 0 var(--wg-space-3);
+    border-radius: var(--wg-radius-pill);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-button);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    box-shadow: none;
+    box-sizing: border-box;
+}
+
+/* Keep outline buttons the same outer size as filled ones */
+.wg-col-action .primary-btn,
+.wg-col-action .success-btn {
+    border: var(--wg-border-width-thin) solid transparent;
+}
+
+.wg-col-action .primary-btn lightning-icon,
+.wg-col-action .ghost-btn lightning-icon,
+.wg-col-action .neutral-btn lightning-icon,
+.wg-col-action .success-btn lightning-icon {
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   STATES — loading / empty
+   ============================================================ */
+.wg-loading {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: var(--wg-space-8) var(--wg-gutter);
+}
+
+.wg-loading-text {
+    margin-top: var(--wg-space-16);
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+}
+
+.wg-empty {
+    text-align: center;
+    padding: var(--wg-space-8) var(--wg-gutter);
+    --slds-c-icon-color-foreground-default: var(--wg-input-border);
+}
+
+.wg-empty-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    margin: var(--wg-space-3) 0 var(--wg-space-1);
+}
+
+.wg-empty-text {
+    font-size: var(--wg-font-size-label);
+    color: var(--wg-text-muted);
+    margin: 0;
+}
+
+/* ============================================================
+   BANNER HELPERS — pair with commonStyleTheme's *-banner classes
+   ============================================================ */
+.wg-banner-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.wg-banner-title {
+    display: block;
+    font-weight: var(--wg-weight-semibold);
+}
+
+.wg-banner-action {
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.wg-visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ============================================================
+   RESPONSIVE — one variable keeps every screen aligned
+   ============================================================ */
+@media (max-width: 1024px) {
+    :host { --wg-gutter: var(--wg-space-6); }
+}
+
+@media (max-width: 768px) {
+    :host { --wg-gutter: var(--wg-space-4); }
+
+    .wg-page-title { font-size: var(--wg-font-size-section-heading); }
+
+    .wg-page-actions,
+    .wg-search { width: 100%; }
+
+    .wg-search input { width: 100%; }
+
+    .wg-card-body { padding: var(--wg-space-4); }
+}
+
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    .wg-stat,
+    .wg-search,
+    .wg-icon-btn,
+    .neutral-btn,
+    .success-btn {
+        transition: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .wg-card,
+    .wg-stat,
+    .wg-pill,
+    .wg-tag,
+    .wg-icon-btn,
+    .neutral-btn,
+    .success-btn {
+        border: 1px solid CanvasText;
+    }
+}

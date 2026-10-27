@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <encodingKey>UTF-8</encodingKey>
+    <letterhead>WIN</letterhead>
+    <name>PI Resubmitted Proposal to COE</name>
+    <style>freeForm</style>
+    <subject>Proposal Resubmitted to COE</subject>
+    <textOnly>Dear {!Contact.Name},
+
+
+
+Proposal-{!IndividualApplication.ApplicationName}, titled as &apos;{!IndividualApplication.Project_Title__c}&apos; is resubmitted by {!IndividualApplication.PI_Name__c}.
+
+
+
+
+
+
+
+Best Regards,
+WIN Management Team</textOnly>
+    <type>html</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

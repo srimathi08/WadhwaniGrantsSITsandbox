@@ -1,0 +1,102 @@
+<template>
+    <!-- ══ LIST VIEW MODE ══════════════════════════════════════ -->
+    <template lwc:if={isListMode}>
+        <div class="wcf-list-mode">
+
+            <!-- Filter banner — only visible when navigated from the dashboard -->
+            <template lwc:if={hasStatusFilter}>
+                <div class="info-banner wcf-filter-banner" role="status">
+                    <lightning-icon icon-name="utility:filter" size="x-small" alternative-text=""></lightning-icon>
+                    <div class="wg-banner-body">
+                        Filtered by: <strong>{activeFilterLabel}</strong>
+                    </div>
+                    <button class="ghost-btn wg-banner-action" onclick={clearFilter}>
+                        <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                        Show all
+                    </button>
+                </div>
+            </template>
+
+            <c-wcf-application-list
+                status-filter={statusFilter}
+                onvalidateclick={handleValidateClick}>
+            </c-wcf-application-list>
+        </div>
+    </template>
+
+    <!-- ══ SPLIT PANE MODE ═════════════════════════════════════ -->
+    <template lwc:else>
+        <div class="wcf-split-shell">
+
+            <!-- Top bar -->
+            <div class="wcf-split-topbar">
+                <button class="neutral-btn" onclick={handleBack}>
+                    <lightning-icon icon-name="utility:chevronleft" size="xx-small" alternative-text=""></lightning-icon>
+                    Back to proposals
+                </button>
+                <div class="wcf-split-title">
+                    <lightning-icon icon-name="utility:shield" size="x-small" alternative-text=""></lightning-icon>
+                    <span class="wcf-split-title-text">Validating: <strong>{currentRecordName}</strong></span>
+                </div>
+            </div>
+
+            <!-- Split body -->
+            <div class="wcf-split-body" data-id="splitBody">
+
+                <!-- LEFT PANEL — application preview -->
+                <div class={leftPaneClass} data-id="leftPanel">
+                    <div class="wcf-panel-header">
+                        <lightning-icon icon-name="utility:file" size="x-small" alternative-text=""></lightning-icon>
+                        <span class="wcf-panel-label-text">Application preview</span>
+                        <span class="wcf-panel-hint wcf-panel-label-text">Read-only</span>
+                        <lightning-button-icon
+                            icon-name={leftToggleIcon}
+                            alternative-text={leftToggleTitle}
+                            title={leftToggleTitle}
+                            size="small"
+                            onclick={handleToggleLeftPane}
+                            class="wcf-pane-toggle">
+                        </lightning-button-icon>
+                    </div>
+                    <template lwc:if={isLeftOpen}>
+                        <div class="wcf-panel-body wcf-panel-scroll">
+                            <c-wcf-form-preview record-id={currentRecordId}></c-wcf-form-preview>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- DRAGGABLE DIVIDER — only when both panes are open -->
+                <template lwc:if={showResizer}>
+                    <div class="wcf-divider" data-id="divider" title="Drag to resize" aria-hidden="true">
+                        <div class="wcf-divider-handle"></div>
+                    </div>
+                </template>
+
+                <!-- RIGHT PANEL — validator form -->
+                <div class={rightPaneClass} data-id="rightPanel">
+                    <div class="wcf-panel-header">
+                        <lightning-button-icon
+                            icon-name={rightToggleIcon}
+                            alternative-text={rightToggleTitle}
+                            title={rightToggleTitle}
+                            size="small"
+                            onclick={handleToggleRightPane}
+                            class="wcf-pane-toggle">
+                        </lightning-button-icon>
+                        <lightning-icon icon-name="utility:shield" size="x-small" alternative-text="" class="wcf-panel-label-text"></lightning-icon>
+                        <span class="wcf-panel-label-text">Validator form</span>
+                    </div>
+                    <template lwc:if={isRightOpen}>
+                        <div class="wcf-panel-body wcf-panel-scroll">
+                            <c-wcf-validator-form
+                                record-id={currentRecordId}
+                                onsealcomplete={handleSealComplete}>
+                            </c-wcf-validator-form>
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+        </div>
+    </template>
+</template>

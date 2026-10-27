@@ -1,0 +1,628 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   wcfApproverContainer — Approver decision screen
+   RFI (left) + Reviewer evaluation (right) + decision action bar.
+   Visuals come from commonStyleTheme + wcfPortalUi, matching the
+   Validator and Reviewer split screens. Class names used by the JS
+   (decision-tag dec-*, modal-header modal-*, modal-btn btn-confirm-*,
+   pane-*, reason-tile*) are unchanged.
+   No hex values below by design.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+
+    /* Height of the site header above this component. The screen fills
+       the rest of the viewport. Raise this if the action bar is cut off. */
+    --ac-offset: 0px;
+}
+
+.ac-shell {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--ac-offset));
+    overflow: hidden;
+    background: var(--wg-surface-page);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+}
+
+/* ══ TOP BAR (white, like every other portal screen) ═══════════ */
+.ac-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    flex-shrink: 0;
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.ac-topbar-left,
+.ac-topbar-right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-3);
+    min-width: 0;
+}
+
+.ac-title-block { min-width: 0; }
+
+.ac-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+.ac-title {
+    margin: 0;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.ac-sub {
+    font-size: var(--wg-font-size-caption);
+    color: var(--wg-text-muted);
+}
+
+.ac-status-pill {
+    white-space: normal;
+    text-align: left;
+}
+
+/* Recorded decision (class set by JS) */
+.decision-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--wg-padding-tag);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    white-space: nowrap;
+}
+
+.decision-tag::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.decision-tag.dec-approve     { background: var(--wg-success-bg); border-color: var(--wg-success); color: var(--wg-success); }
+.decision-tag.dec-decline     { background: var(--wg-error-bg);   border-color: var(--wg-error);   color: var(--wg-error); }
+.decision-tag.dec-conditional { background: var(--wg-warning-bg); border-color: var(--wg-warning); color: var(--wg-warning-text); }
+
+.ac-revoke-timer,
+.ac-revoke-expired {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--wg-space-1);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    white-space: nowrap;
+}
+
+.ac-revoke-timer   { color: var(--wg-warning-text); --slds-c-icon-color-foreground-default: var(--wg-warning-text); }
+.ac-revoke-expired { color: var(--wg-text-muted);   --slds-c-icon-color-foreground-default: var(--wg-text-muted); }
+
+/* ══ RETURN CONVERSATION — compact collapsible strip ═══════════
+   Collapsed (default): a single ~44px line with the latest reply,
+   so the RFI and review panels keep their height.
+   Expanded: the thread in time order, capped at ~180px with its
+   own scroll so a long message never pushes the panels down.   */
+.ac-convo {
+    flex-shrink: 0;
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.ac-convo-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border: 0;
+    border-left: 3px solid var(--wg-warning);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-label);
+    line-height: 1.3;
+    color: var(--wg-gray);
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.15s ease;
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+.ac-convo-bar:hover { background: var(--wg-warning-bg); }
+
+.ac-convo-bar:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: -2px;
+}
+
+.ac-convo-icon { flex-shrink: 0; }
+
+.ac-convo-title {
+    flex-shrink: 0;
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--wg-gray);
+}
+
+.ac-convo-count {
+    flex-shrink: 0;
+    padding: 1px var(--wg-space-2);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    white-space: nowrap;
+}
+
+/* One-line preview of the latest reply, truncated with … */
+.ac-convo-preview {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: var(--wg-space-2);
+    padding-left: var(--wg-space-3);
+    border-left: var(--wg-border-width-thin) solid var(--wg-border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--wg-text-muted);
+}
+
+.ac-convo-preview strong {
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.ac-convo-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--wg-space-1);
+    flex-shrink: 0;
+    margin-left: auto;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-red);
+    --slds-c-icon-color-foreground-default: var(--wg-red);
+}
+
+/* Expanded thread */
+.ac-convo-thread {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wg-space-2);
+    max-height: 180px;
+    overflow-y: auto;
+    padding: var(--wg-space-3) var(--wg-space-4);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+    box-sizing: border-box;
+}
+
+.ac-msg {
+    max-width: 760px;
+    padding: var(--wg-space-2) var(--wg-space-3);
+    border-left: 3px solid transparent;
+    border-radius: var(--wg-radius-sm);
+}
+
+.ac-msg--approver { background: var(--wg-warning-bg); border-left-color: var(--wg-warning); }
+.ac-msg--reviewer { background: var(--wg-info-bg);    border-left-color: var(--wg-info); }
+
+.ac-msg-meta {
+    display: flex;
+    align-items: baseline;
+    gap: var(--wg-space-2);
+    margin-bottom: 2px;
+}
+
+.ac-msg-author {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ac-msg-date {
+    font-size: var(--wg-font-size-caption);
+    color: var(--wg-text-muted);
+}
+
+.ac-msg-text {
+    margin: 0;
+    font-size: var(--wg-font-size-label);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+/* ══ SPLIT PANE ════════════════════════════════════════════════ */
+.split-pane {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    --left-width: 50%;
+    --right-width: 50%;
+}
+
+.pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--wg-white);
+}
+
+.pane-left {
+    flex: 0 0 var(--left-width);
+    max-width: var(--left-width);
+}
+
+.pane-right {
+    flex: 0 0 var(--right-width);
+    max-width: var(--right-width);
+}
+
+.pane-left.pane-collapsed,
+.pane-right.pane-collapsed {
+    flex: 0 0 44px;
+    max-width: 44px;
+    border-right: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.split-pane:has(.pane-left.pane-collapsed) .pane-right:not(.pane-collapsed),
+.split-pane:has(.pane-right.pane-collapsed) .pane-left:not(.pane-collapsed) {
+    flex: 1 1 auto;
+    max-width: none;
+}
+
+.pane-label {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    flex-shrink: 0;
+    min-height: 48px;
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    box-sizing: border-box;
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+.pane-left .pane-label .pane-toggle-btn { margin-left: auto; }
+
+.pane-label-text {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pane-toggle-btn {
+    width: var(--wg-control-height);
+    height: var(--wg-control-height);
+}
+
+.pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--wg-surface-page);
+}
+
+.pane-body--padded {
+    padding: var(--wg-space-4);
+    box-sizing: border-box;
+}
+
+.pane-collapsed .pane-label {
+    flex-direction: column;
+    padding: var(--wg-space-3) var(--wg-space-1);
+    border-bottom: none;
+}
+
+.pane-collapsed .pane-label-text { display: none; }
+.pane-collapsed .pane-label .pane-toggle-btn { margin-left: 0; }
+
+/* Draggable divider — neutral at rest, brand red on hover */
+.resizer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 6px;
+    background: var(--wg-border);
+    cursor: col-resize;
+    transition: background 0.15s ease;
+}
+
+.resizer:hover { background: var(--wg-red); }
+
+.resizer-handle {
+    width: 2px;
+    height: 32px;
+    border-radius: 2px;
+    background: var(--wg-input-border);
+    pointer-events: none;
+}
+
+.resizer:hover .resizer-handle { background: var(--wg-white); }
+
+/* ══ ACTION BAR ════════════════════════════════════════════════ */
+.action-bar {
+    flex-shrink: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-white);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+    box-shadow: 0 -3px 10px rgba(65, 64, 65, 0.08);   /* rgb of --wg-gray */
+}
+
+.action-bar-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wg-space-3);
+}
+
+.ac-field { width: 100%; }
+
+.ac-req {
+    font-weight: var(--wg-weight-regular);
+    color: var(--wg-error);
+}
+
+.ac-textarea {
+    min-height: 64px;
+    resize: vertical;
+    line-height: var(--wg-line-height-base);
+}
+
+.btn-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+/* ── Accept buttons: BLUE per spec ───────────────────────────────
+   Applied on top of the shared success-btn (keeps its size, shape,
+   font and disabled behaviour; only the color changes). The extra
+   class gives this rule higher specificity than success-btn alone.
+   If the design system has a dedicated primary-blue token, replace
+   --wg-info here and in .btn-confirm-approve / .modal-approve below. */
+.success-btn.accept-btn {
+    background: var(--wg-info);
+    border-color: var(--wg-info);
+    color: var(--wg-white);
+}
+
+.success-btn.accept-btn:hover:not(:disabled) {
+    background: var(--wg-info);
+    border-color: var(--wg-info);
+    filter: brightness(0.88);
+}
+
+.success-btn.accept-btn:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+/* Rejection reason tiles — same selection language as the forms */
+.reason-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--wg-space-2);
+}
+
+.reason-tile {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-white);
+    border: var(--wg-border-width-ghost) solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+    font-size: var(--wg-font-size-label);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.reason-tile:hover { border-color: var(--wg-red); }
+
+.reason-tile--selected {
+    background: var(--wg-error-bg);
+    border-color: var(--wg-red);
+}
+
+.reason-tile input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--wg-red);
+    cursor: pointer;
+}
+
+.reason-tile-label {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+/* ══ MODALS ════════════════════════════════════════════════════ */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--wg-space-4);
+    background: rgba(65, 64, 65, 0.55);   /* rgb of --wg-gray */
+}
+
+.modal-box {
+    width: 100%;
+    max-width: 480px;
+    overflow: hidden;
+    background: var(--wg-white);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-hover);
+    animation: ac-modal-in 0.2s ease;
+}
+
+@keyframes ac-modal-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Header: white with a colored top edge that carries the meaning */
+.modal-header {
+    padding: var(--wg-space-4) var(--wg-space-6);
+    background: var(--wg-white);
+    border-top: var(--wg-border-width-banner) solid var(--wg-gray);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.modal-approve     { border-top-color: var(--wg-info); }   /* Accept = blue */
+.modal-return,
+.modal-decline     { border-top-color: var(--wg-error); }
+.modal-conditional { border-top-color: var(--wg-warning); }
+.modal-revoke      { border-top-color: var(--wg-gray); }
+
+.modal-title {
+    margin: 0;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-section-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.modal-body { padding: var(--wg-space-5) var(--wg-space-6); }
+
+.modal-body p {
+    margin: 0 0 var(--wg-space-3);
+    line-height: 1.6;
+}
+
+.modal-comment {
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-surface-subtle);
+    border-left: 3px solid var(--wg-input-border);
+    border-radius: 0 var(--wg-radius-sm) var(--wg-radius-sm) 0;
+    font-size: var(--wg-font-size-label);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--wg-space-2);
+    padding: var(--wg-space-3) var(--wg-space-6);
+    background: var(--wg-surface-subtle);
+    border-top: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+/* Confirm buttons (classes set by JS) — square, like every portal button */
+.modal-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--wg-space-2);
+    min-width: 120px;
+    height: var(--wg-control-height);
+    padding: 0 var(--wg-space-4);
+    border: 0;
+    border-radius: var(--wg-radius-pill);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-white);
+    cursor: pointer;
+    transition: background 0.15s ease, filter 0.15s ease;
+}
+
+.modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.modal-btn:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+/* Confirm Accept = blue */
+.btn-confirm-approve                               { background: var(--wg-info); }
+.btn-confirm-approve:hover:not(:disabled)          { background: var(--wg-info); filter: brightness(0.88); }
+.btn-confirm-return,
+.btn-confirm-decline                               { background: var(--wg-red); }
+.btn-confirm-return:hover:not(:disabled),
+.btn-confirm-decline:hover:not(:disabled)          { background: var(--wg-red-deep); }
+.btn-confirm-conditional                           { background: var(--wg-orange); }
+.btn-confirm-conditional:hover:not(:disabled)      { background: var(--wg-orange-deep); }
+
+/* ══ RESPONSIVE ════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+    .ac-shell { height: auto; overflow: visible; }
+
+    .split-pane { flex-direction: column; overflow: visible; }
+
+    .pane-left,
+    .pane-right {
+        flex: none !important;
+        max-width: 100% !important;
+    }
+
+    .pane-left { max-height: 60vh; border-bottom: var(--wg-border-width-thin) solid var(--wg-border); }
+
+    .resizer { display: none; }
+
+    .ac-convo-preview { display: none; }
+
+    .reason-tile-grid { grid-template-columns: 1fr; }
+
+    .action-bar { position: sticky; bottom: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-box { animation: none; }
+    .resizer, .reason-tile, .modal-btn, .ac-convo-bar { transition: none; }
+}
+.revoke-decision-text {
+    font-weight: 700;
+}

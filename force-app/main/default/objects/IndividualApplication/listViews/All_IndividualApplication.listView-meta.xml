@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>All_IndividualApplication</fullName>
+    <columns>COE_Name__c</columns>
+    <columns>Name</columns>
+    <columns>Project_Title__c</columns>
+    <columns>Primary_Focus_Area__c</columns>
+    <columns>Sub_Focus_Area__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>RecordType</field>
+        <operation>equals</operation>
+        <value>IndividualApplication.Project_Proposal</value>
+    </filters>
+    <label>Project Proposals</label>
+</ListView>

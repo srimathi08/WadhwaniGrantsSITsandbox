@@ -1,0 +1,57 @@
+<template>
+    <div class="section-card fund">
+        <div class="section-header">
+            <div class="header-left">
+                <span class="icon">$</span>
+                <div class="title-group">
+                    <h3>Fund Management</h3>
+                    <p>Distribute funds to approved projects based on milestone completion</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+
+            <!-- TOTAL RECEIVED (Project + Operational) -->
+            <div class="summary-card blue">
+                <h4>Total Received</h4>
+                <p>$ {totalReceived}</p>
+            </div>
+
+            <!-- PROJECT GRANT RECEIVED -->
+            <div class="summary-card">
+                <h4>Total Project Grant Received</h4>
+                <p>$ {projectGrantReceived}</p>
+            </div>
+
+            <!-- OPERATIONAL GRANT RECEIVED -->
+            <div class="summary-card">
+                <h4>Total Operational Grant Received</h4>
+                <p>$ {operationalGrantReceived}</p>
+            </div>
+
+            <!-- DISBURSED (ONLY FROM PROJECT GRANT) -->
+            <div class="summary-card green">
+                <h4>Disbursed to PIs</h4>
+                <p>$ {disbursed}</p>
+            </div>
+
+            <!-- ✅ AVAILABLE PROJECT GRANT (CORRECT FIELD) -->
+            <div class="summary-card purple">
+                <h4>Available Project Grant</h4>
+                <p>$ {availableProjectGrant}</p>
+            </div>
+
+            <!-- ✅ AVAILABLE OPERATIONAL GRANT -->
+            <div class="summary-card lavender">
+                <h4>Available Operational Grant</h4>
+                <p>$ {availableOperationalGrant}</p>
+            </div>
+
+        </div>
+
+        <button class="primary-btn" onclick={navigateToFund}>
+            Manage Fund Distribution →
+        </button>
+    </div>
+</template>

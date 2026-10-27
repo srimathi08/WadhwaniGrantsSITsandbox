@@ -1,0 +1,25 @@
+<table border="0" cellpadding="5" width="550" cellspacing="5" height="400" >
+<tr valign="top" height="400" >
+<td tEditID="c1r1" style=" background-color:#FFFFFF; bEditID:r3st1; color:#000000; bLabel:main; font-size:12pt; font-family:arial;" aEditID="c1r1" locked="0" >
+<![CDATA[<p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">Dear {!IndividualApplication.COE_Approver__c},<o:p></o:p></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><span style="font-size:11.0pt;line-height:107%;
+font-family:&quot;Calibri&quot;,sans-serif;mso-ascii-theme-font:minor-latin;mso-fareast-font-family:
+Calibri;mso-fareast-theme-font:minor-latin;mso-hansi-theme-font:minor-latin;
+mso-bidi-font-family:&quot;Times New Roman&quot;;mso-bidi-theme-font:minor-bidi;
+mso-ansi-language:EN-IN;mso-fareast-language:EN-US;mso-bidi-language:AR-SA">We thank
+you for the submission of application titled&nbsp;<b style="font-family: arial; font-size: 12pt;">“</b><font face="arial" style="font-family: arial; font-size: 12pt;"><b>{!IndividualApplication.Project_Title__c}</b></font><b style="font-family: arial; font-size: 12pt;">”</b>&nbsp;to us.&nbsp;</span></p><p class="MsoNormal" style=""><font face="arial" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><span style="font-size: 12pt;">After careful review of the proposal and the presentation
+before the Selection Committee, we would like to inform you that the application
+titled </span></font><b style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">“</b><font face="arial" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><b>{!IndividualApplication.Project_Title__c}</b></font><b style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">”</b><span style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"> submitted by </span><span style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">has not
+been selected for funding.</span></p><p class="MsoNormal" style=""><span style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><br></span></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">The review panel’s comments and feedback:</p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">{!IndividualApplication.WIN_Approval_Comments__c}.</p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><br></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">You are encouraged to consider these recommendations should
+you wish to revise and resubmit the proposal in future rounds of calls for
+applications.<o:p></o:p></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><br></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">Please don’t hesitate to reach out to {!IndividualApplication.COE_Approver__c} on&nbsp;{!IndividualApplication.Coe_Email_Address__c}<span style="font-size: 12pt;">&nbsp;if you would like to discuss the feedback or next steps.</span></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><span style="font-size: 12pt;"><br></span></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">
+
+
+
+
+
+
+
+</p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">Sincerely,<br>
+<b>Wadhwani Foundation</b><o:p></o:p></p><br><p style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"></p>]]></td>
+</tr>
+</table>

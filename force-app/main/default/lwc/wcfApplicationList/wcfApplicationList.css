@@ -1,0 +1,75 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ═══════════════════════════════════════════════════════════════
+   wcfApplicationList — Validator Queue
+   All colors, fonts, pills, buttons, table and states come from
+   commonStyleTheme + wcfPortalUi. This file holds layout only.
+   No hex values below by design.
+   ═══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+}
+
+/* ── Summary tiles: compact version of the dashboard KPI cards ── */
+.wcf-list-stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--wg-space-3);
+    margin-bottom: var(--wg-space-6);
+}
+
+.wcf-list-stats .wg-stat {
+    padding: var(--wg-space-4);
+}
+
+.wcf-list-stats .wg-stat-head {
+    min-height: 34px; /* two-line labels ("Returned by Reviewer") keep counts aligned */
+    margin-bottom: var(--wg-space-1);
+}
+
+/* ── Error banner spacing ── */
+.wcf-list-error {
+    margin-bottom: var(--wg-space-4);
+}
+
+/* ── Table ──
+   Below this width the card scrolls sideways instead of
+   squeezing the Action column. */
+.wcf-table {
+    min-width: 820px;
+}
+
+/* Application ID column keeps the ID on one line */
+.wcf-table td:nth-child(2) {
+    min-width: 180px;
+}
+
+/* Status pills may wrap for long values, but never get narrower than this */
+.wcf-table td:nth-child(4) {
+    min-width: 150px;
+}
+
+/* ── Duplicate Org / Error Badge ── */
+.wg-tag--error {
+    background: var(--wg-error-bg, #FCECEA);
+    color: var(--wg-error, #B3261E);
+    border: 1px solid var(--wg-error, #B3261E);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: help;
+}
+
+/* ── Inline Duplicate Match Note (no hover required) ── */
+.wg-dup-note {
+    font-size: 11px;
+    color: var(--wg-error, #B3261E);
+    font-weight: 500;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    word-break: break-word;
+}

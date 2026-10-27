@@ -1,0 +1,258 @@
+<template>
+    <template if:true={isReady}>
+        <div class="rc-shell">
+
+            <!-- ══ CUSTOM TOAST ═══════════════════════════════════ -->
+            <template if:true={showToast}>
+                <div class={toastClass} role="alert">
+                    <lightning-icon icon-name={toastIcon} size="x-small" alternative-text="" class="rc-toast-icon"></lightning-icon>
+                    <div class="rc-toast-body">
+                        <div class="rc-toast-title">{toastTitle}</div>
+                        <div class="rc-toast-message">{toastMessage}</div>
+                    </div>
+                    <button class="rc-toast-close" onclick={handleDismissToast} title="Dismiss" aria-label="Dismiss message">
+                        <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                    </button>
+                </div>
+            </template>
+
+            <!-- ══ TOP BAR ═════════════════════════════════════════ -->
+            <div class="rc-topbar">
+                <div class="rc-topbar-left">
+                    <!-- NEW: same "Back to proposals" button as the Validator screen.
+                         Opens the Review Proposals list (reviewer queue). -->
+                    <button class="neutral-btn" onclick={handleBackToProposals}>
+                        <lightning-icon icon-name="utility:chevronleft" size="xx-small" alternative-text=""></lightning-icon>
+                        Back to proposals
+                    </button>
+                    <div class="rc-topbar-title">
+                        <lightning-icon icon-name="utility:rating" size="x-small" alternative-text=""></lightning-icon>
+                        <span>Proposal review</span>
+                    </div>
+                </div>
+
+                <template if:false={showPreview}>
+                    <button class="ghost-btn" onclick={handleShowPreview}>
+                        <lightning-icon icon-name="utility:open_folder" size="xx-small" alternative-text=""></lightning-icon>
+                        View RFI application
+                    </button>
+                </template>
+
+                <template if:true={showPreview}>
+                    <button class="neutral-btn" onclick={handleHidePreview}>
+                        <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                        Close RFI
+                    </button>
+                </template>
+            </div>
+
+            <!-- ══ MAIN CONTENT ════════════════════════════════════ -->
+            <div class="rc-content" data-id="content">
+
+                <!-- REVIEW PANEL -->
+                <div class={reviewFormClass} data-id="reviewPanel">
+
+                    <!-- Pane label bar with rail-collapse toggle — only in split view -->
+                    <template if:true={showPreview}>
+                        <div class="rc-pane-label">
+                            <button class="wg-icon-btn rc-pane-toggle"
+                                    onclick={handleToggleReviewPane}
+                                    title={reviewToggleTitle}
+                                    aria-label={reviewToggleTitle}>
+                                <lightning-icon icon-name={reviewToggleIcon} size="xx-small" alternative-text=""></lightning-icon>
+                            </button>
+                            <span class="rc-pane-label-text">Reviewer evaluation</span>
+                        </div>
+                    </template>
+
+                    <template if:false={reviewCollapsed}>
+                        <div class="rc-form-inner">
+
+                            <!-- ═════════════════════════════════════════
+                                 APPROVER RETURN NOTICE — action required
+                            ═════════════════════════════════════════ -->
+                            <template if:true={showApproverReturnPending}>
+                                <div class="rc-notice">
+
+                                    <div class="rc-notice-head">
+                                        <lightning-icon icon-name="utility:reply" size="x-small" alternative-text="" class="rc-notice-icon"></lightning-icon>
+                                        <h2 class="rc-notice-title">Returned by Approver: action required</h2>
+                                    </div>
+
+                                    <p class="rc-notice-sub">
+                                        The Approver reviewed this application and sent it back with a comment.
+                                        Read their note below, then return it to the Validator for revalidation
+                                        or send it back to the Approver with your note.
+                                    </p>
+
+                                    <div class="rc-notice-section">
+                                        <div class="rc-notice-label">Approver's comment</div>
+                                        <div class="rc-notice-value">{approverReturnComment}</div>
+                                    </div>
+
+                                    <template if:true={approverRejectionReasonItems.length}>
+                                        <div class="rc-notice-section">
+                                            <div class="rc-notice-label">Rejection reason(s)</div>
+                                            <ul class="rc-reason-list">
+                                                <template for:each={approverRejectionReasonItems} for:item="r">
+                                                    <li key={r.key}>{r.label}</li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+
+                                    <!-- Two notes side by side, one per action -->
+                                    <div class="rc-return-comments">
+                                        <div class="rc-return-comment">
+                                            <label class="field-label">
+                                                Your note to the Validator
+                                                <span class="rc-req-hint">Required to return to Validator</span>
+                                            </label>
+                                            <textarea
+                                                class="form-input rc-textarea"
+                                                placeholder="Explain what needs to be revalidated…"
+                                                rows="3"
+                                                oninput={handleReviewerReturnCommentInput}
+                                                value={reviewerReturnComment}
+                                            ></textarea>
+                                        </div>
+
+                                        <!-- FIX: a stray ">" after this block was rendering as visible text -->
+                                        <div class="rc-return-comment">
+                                            <label class="field-label">
+                                                Your note to the Approver
+                                                <span class="rc-req-hint">Required to return to Approver</span>
+                                            </label>
+                                            <textarea
+                                                class="form-input rc-textarea"
+                                                placeholder="Explain your recommendation to the Approver…"
+                                                rows="3"
+                                                oninput={handleReviewerApproveCommentInput}
+                                                value={reviewerApproveComment}
+                                            ></textarea>
+                                        </div>
+                                    </div>
+
+                                    <!-- FIX: buttons now sit in an actions row (they had no wrapper) -->
+                                    <div class="rc-notice-actions">
+                                        <button class="ghost-btn"
+                                                onclick={handleReviewerReturnToValidator}
+                                                disabled={isReturnToApproverBusy}
+                                                aria-busy={isReturnToValidatorBusy}>
+                                            <lightning-icon icon-name="utility:undo" size="xx-small" alternative-text=""></lightning-icon>
+                                            <template if:false={isReturnToValidatorBusy}>Return to Validator</template>
+                                            <template if:true={isReturnToValidatorBusy}>Saving…</template>
+                                        </button>
+
+                                        <button class="primary-btn"
+                                                onclick={handleApproverReturnApprove}
+                                                disabled={isReturnToValidatorBusy}
+                                                aria-busy={isReturnToApproverBusy}>
+                                            <lightning-icon icon-name="utility:forward" size="xx-small" alternative-text=""></lightning-icon>
+                                            <template if:false={isReturnToApproverBusy}>Return to Approver</template>
+                                            <template if:true={isReturnToApproverBusy}>Saving…</template>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ═════════════════════════════════════════
+                                 VALIDATOR FLAG — read-only information
+                            ═════════════════════════════════════════ -->
+                            <template if:true={showFlagNotice}>
+                                <div class="warning-banner rc-flag">
+                                    <lightning-icon icon-name="utility:flag" size="x-small" alternative-text="" class="rc-flag-icon"></lightning-icon>
+                                    <div class="wg-banner-body">
+                                        <span class="wg-banner-title">Flagged by the Validator</span>
+                                        <div class="rc-flag-pills">
+                                            <template for:each={flagRationaleItems} for:item="item">
+                                                <span key={item.key} class="wg-tag wg-tag--warning">{item.label}</span>
+                                            </template>
+                                        </div>
+                                        <template if:true={hasOtherConcern}>
+                                            <div class="rc-flag-other">
+                                                <strong>Other concern:</strong> {otherConcern}
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ═════════════════════════════════════════
+                                 REVIEW FORM / READ-ONLY REVIEW
+                            ═════════════════════════════════════════ -->
+                            <template if:true={showReviewPreview}>
+                                <c-wcf-reviewer-form-preview
+                                    review-id={currentRecordId}
+                                    outcome-developer-name={outcomeDeveloperName}>
+                                </c-wcf-reviewer-form-preview>
+                            </template>
+                            <template if:false={showReviewPreview}>
+                                <template if:true={showReviewForm}>
+                                    <c-wcf-proposal-review-form
+                                        record-id={currentRecordId}
+                                        onsubmitcomplete={handleSubmitComplete}>
+                                    </c-wcf-proposal-review-form>
+                                </template>
+                            </template>
+
+                        </div>
+                    </template>
+                </div>
+
+                <!-- RFI DRAWER -->
+                <template if:true={showPreview}>
+                    <div class={drawerClass} data-id="drawer">
+                        <div class="rc-resize-handle"
+                             data-id="resizeHandle"
+                             title="Drag to resize"
+                             onmousedown={handleResizeStart}>
+                            <div class="rc-resize-grip"></div>
+                        </div>
+                        <div class="rc-pane-label">
+                            <div class="rc-pane-label-left">
+                                <lightning-icon icon-name="utility:file" size="x-small" alternative-text="" class="rc-pane-label-text"></lightning-icon>
+                                <span class="rc-pane-label-text">RFI application</span>
+                                <span class="wg-tag rc-pane-label-text">Read-only</span>
+                            </div>
+                            <div class="rc-pane-label-right">
+                                <button class="wg-icon-btn rc-pane-toggle"
+                                        onclick={handleToggleDrawerPane}
+                                        title={drawerToggleTitle}
+                                        aria-label={drawerToggleTitle}>
+                                    <lightning-icon icon-name={drawerToggleIcon} size="xx-small" alternative-text=""></lightning-icon>
+                                </button>
+                                <button class="wg-icon-btn rc-pane-toggle rc-drawer-close"
+                                        onclick={handleHidePreview}
+                                        title="Close RFI panel"
+                                        aria-label="Close RFI panel">
+                                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                                </button>
+                            </div>
+                        </div>
+                        <template if:false={drawerCollapsed}>
+                            <div class="rc-drawer-body">
+                                <c-wcf-form-preview record-id={previewApplicationId}></c-wcf-form-preview>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+            </div>
+        </div>
+    </template>
+
+    <!-- ══ NO RECORD SELECTED ══════════════════════════════════════ -->
+    <template if:false={isReady}>
+        <div class="rc-empty">
+            <div class="wg-card rc-empty-card">
+                <div class="wg-empty">
+                    <lightning-icon icon-name="utility:warning" size="medium" alternative-text=""></lightning-icon>
+                    <p class="wg-empty-title">No application selected</p>
+                    <p class="wg-empty-text">Open a proposal from the Review Proposals list to begin your review.</p>
+                    <button class="primary-btn rc-empty-btn" onclick={handleBack}>Browse proposals</button>
+                </div>
+            </div>
+        </div>
+    </template>
+</template>

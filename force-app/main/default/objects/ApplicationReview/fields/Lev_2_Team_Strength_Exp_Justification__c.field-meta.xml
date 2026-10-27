@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lev_2_Team_Strength_Exp_Justification__c</fullName>
+    <inlineHelpText>Justify the reasoning behind your answer</inlineHelpText>
+    <label>Justification - Team Strength</label>
+    <length>20768</length>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

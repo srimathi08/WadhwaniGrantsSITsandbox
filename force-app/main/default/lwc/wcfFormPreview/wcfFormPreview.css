@@ -1,0 +1,855 @@
+@import "c/commonStyleTheme";
+@import "c/wcfPortalUi";
+
+/* ══════════════════════════════════════════════════════════════
+   WCF FORM PREVIEW — wcfFormPreview.css
+   Left panel of the validator split screen.
+
+   All colors / fonts / radii come from commonStyleTheme and
+   wcfPortalUi. No hex values below by design.
+
+   Class names (rv-*) are unchanged because the JS builds several
+   of them (rv-tag-*, rv-badge-*). Only their look has changed:
+   navy section bars, red-orange labels and the gradient
+   attestation card are replaced by the shared card language.
+
+   Container queries react to the PANEL width (split-pane
+   divider), not the browser viewport.
+══════════════════════════════════════════════════════════════ */
+
+:host {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--wg-surface-page);
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+    container-type: inline-size;
+    padding-bottom: var(--wg-space-6);
+}
+
+/* ══ LOAD ERROR ═══════════════════════════════════════ */
+.rv-load-error {
+    margin: var(--wg-space-4);
+}
+
+/* ══ ACTION TOOLBAR (sticky) ══════════════════════════ */
+.rv-action-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-2) var(--wg-space-4);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.rv-action-toolbar-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.rv-action-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+}
+
+.rv-pdf-spinner {
+    position: relative;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+}
+
+/* ══ SECTION CARDS ════════════════════════════════════ */
+.rv-section {
+    margin: var(--wg-space-4);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-card);
+    box-shadow: var(--wg-shadow-card);
+    overflow: hidden;
+}
+
+.rv-section-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--wg-space-4) var(--wg-space-5);
+    background: var(--wg-white);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    border-left: var(--wg-border-width-banner) solid var(--wg-gray); /* decorative accent: no brand red outside buttons (ST-04, U140) */
+}
+
+.rv-section-step {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.rv-section-title {
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+/* ══ QUESTION ROWS ════════════════════════════════════ */
+.rv-row {
+    display: flex;
+    align-items: stretch;
+    min-height: 48px;
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.rv-row:last-child {
+    border-bottom: none;
+}
+
+/* Left column — question label */
+.rv-lbl {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wg-space-2);
+    flex-shrink: 0;
+    width: 240px;
+    min-width: 240px;
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border-right: var(--wg-border-width-thin) solid var(--wg-border);
+    box-sizing: border-box;
+}
+
+.rv-lbl-text {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.45;
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+/* Right column — answer */
+.rv-val {
+    flex: 1;
+    min-width: 0;
+    padding: var(--wg-space-3) var(--wg-space-4);
+    font-size: var(--wg-font-size-body);
+    line-height: var(--wg-line-height-base);
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+}
+
+.rv-val-bold {
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+/* Question number — neutral, so red stays reserved for actions */
+.rv-q-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    margin-top: -1px;
+    border-radius: var(--wg-radius-badge);
+    background: var(--wg-gray);
+    color: var(--wg-white);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-bold);
+    box-sizing: border-box;
+}
+
+/* ══ TAGS & BADGES (class names set in JS) ════════════ */
+.rv-opt-tag {
+    display: inline-block;
+    margin-left: var(--wg-space-1);
+    padding: 1px var(--wg-space-2);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    background: var(--wg-white);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    vertical-align: middle;
+}
+
+.rv-tag {
+    display: inline-block;
+    margin-left: var(--wg-space-1);
+    padding: 1px var(--wg-space-2);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-badge);
+    background: var(--wg-surface-subtle);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    line-height: 1.4;
+    color: var(--wg-gray);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Same track colors as the queue's track tags */
+.rv-tag-jf {
+    background: var(--wg-info-bg);
+    color: var(--wg-info-text);
+    border-color: var(--wg-info);
+}
+
+.rv-tag-jc {
+    background: var(--wg-warning-bg);
+    color: var(--wg-warning-text);
+    border-color: var(--wg-warning);
+}
+
+.rv-tag-liv {
+    background: var(--wg-success-bg);
+    color: var(--wg-success);
+    border-color: var(--wg-success);
+}
+
+.rv-tag-both {
+    background: var(--wg-success-bg);
+    color: var(--wg-success);
+    border-color: var(--wg-success);
+}
+
+.rv-tag-navy {
+    background: var(--wg-gray);
+    color: var(--wg-white);
+    border-color: var(--wg-gray);
+}
+
+.rv-track-badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+.rv-track-badge-list .rv-tag {
+    margin-left: 0;
+    padding: var(--wg-padding-tag);
+}
+
+.rv-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: var(--wg-padding-tag);
+    border: var(--wg-border-width-thin) solid transparent;
+    border-radius: var(--wg-radius-badge);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    box-sizing: border-box;
+}
+
+.rv-badge-green {
+    background: var(--wg-success-bg);
+    color: var(--wg-success);
+    border-color: var(--wg-success);
+}
+
+.rv-badge-red {
+    background: var(--wg-error-bg);
+    color: var(--wg-error);
+    border-color: var(--wg-error);
+}
+
+.rv-badge-grey {
+    background: var(--wg-surface-subtle);
+    color: var(--wg-text-muted);
+    border-color: var(--wg-border);
+}
+
+.rv-empty-note {
+    font-size: var(--wg-font-size-label);
+    font-style: italic;
+    color: var(--wg-text-muted);
+    padding: var(--wg-space-1) 0;
+    margin: 0;
+}
+
+.rv-addendum-note {
+    margin-bottom: var(--wg-space-2);
+}
+
+/* ══ INFO GRID (label/value pairs) ════════════════════ */
+.rv-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--wg-space-3) var(--wg-space-5);
+}
+
+.rv-info-grid-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.rv-info-grid-spaced {
+    margin-top: var(--wg-space-2);
+}
+
+/* FIX: this class was used in the HTML but never defined */
+.rv-info-grid .full-width {
+    grid-column: 1 / -1;
+}
+
+.rv-info-cell {
+    min-width: 0;
+}
+
+.rv-info-label {
+    margin-bottom: 2px;
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.rv-info-value {
+    font-size: var(--wg-font-size-body);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+/* ══ RICH TEXT BOX ════════════════════════════════════ */
+.rv-rich-box {
+    margin-top: var(--wg-space-3);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-left: 3px solid var(--wg-input-border);
+    border-radius: var(--wg-radius-sm);
+}
+
+.rv-rich-label {
+    margin-bottom: var(--wg-space-1);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+/* ══ FUNDER / REFERENCE BLOCKS ════════════════════════ */
+.rv-funder-block {
+    margin-bottom: var(--wg-space-2);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-md);
+}
+
+.rv-funder-block:last-child {
+    margin-bottom: 0;
+}
+
+.rv-funder-header {
+    margin-bottom: var(--wg-space-2);
+    padding-bottom: var(--wg-space-2);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-bold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--wg-gray);
+}
+
+.rv-funder-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--wg-space-2) var(--wg-space-4);
+}
+
+.rv-funder-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.rv-funder-label {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.rv-funder-value {
+    font-size: var(--wg-font-size-body);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+/* ══ DATA TABLES — same look as the queue table ═══════ */
+.rv-table-subhead {
+    margin-bottom: var(--wg-space-2);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+/* Wide tables scroll inside their own box instead of crushing cells */
+.rv-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-sm);
+}
+
+.rv-table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: var(--wg-font-size-label);
+}
+
+.rv-table th {
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-surface-subtle);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--wg-text-muted);
+}
+
+.rv-table td {
+    padding: var(--wg-space-2) var(--wg-space-3);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+    vertical-align: top;
+    color: var(--wg-gray);
+}
+
+.rv-table td:first-child {
+    font-weight: var(--wg-weight-semibold);
+}
+
+.rv-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.rv-table tbody tr:hover td {
+    background: var(--wg-surface-subtle);
+}
+
+/* Totals and cost rows — emphasised, not colored */
+.rv-row-total td,
+.rv-cost-row-manual td {
+    background: var(--wg-surface-subtle);
+    font-weight: var(--wg-weight-semibold);
+}
+
+.rv-cost-row-manual td:first-child {
+    box-shadow: inset 3px 0 0 var(--wg-input-border);
+}
+
+/* ══ SUB-QUESTION / SUB-ANSWER ════════════════════════ */
+.rv-sub-q-label {
+    margin-bottom: var(--wg-space-2);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.rv-sub-answer {
+    margin-top: var(--wg-space-3);
+    padding: var(--wg-space-3) var(--wg-space-4);
+    background: var(--wg-success-bg);
+    border-left: 3px solid var(--wg-success);
+    border-radius: var(--wg-radius-sm);
+}
+
+.rv-sub-answer-purple {
+    background: var(--wg-info-bg);
+    border-left-color: var(--wg-info);
+}
+
+.rv-sub-answer-header {
+    margin-bottom: var(--wg-space-1);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-gray);
+}
+
+.rv-sub-answer-body {
+    font-size: var(--wg-font-size-body);
+    line-height: 1.6;
+    color: var(--wg-gray);
+}
+
+/* ══ DOCUMENTS ════════════════════════════════════════ */
+.rv-doc-heading {
+    margin: var(--wg-space-4) 0 var(--wg-space-1);
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.rv-doc-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+    margin-top: var(--wg-space-2);
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-white);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    border-radius: var(--wg-radius-sm);
+    --slds-c-icon-color-foreground-default: var(--wg-text-muted);
+}
+
+/* FIX: file names were tiny uppercase red text that could not wrap */
+.rv-file-link {
+    appearance: none;
+    flex: 1 1 160px;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    text-align: left;
+    font-family: var(--wg-font-body);
+    font-size: var(--wg-font-size-label);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-red);
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.rv-file-link:hover {
+    color: var(--wg-red-deep);
+    text-decoration: underline;
+}
+
+.rv-file-link:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+.rv-doc-open {
+    flex-shrink: 0;
+}
+
+/* ══ GENIE AI ═════════════════════════════════════════ */
+.rv-genie-interest {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--wg-space-2);
+}
+
+.rv-genie-label {
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+/* ══ ATTESTATION — calm success card instead of the gradient ══ */
+.rv-attestation {
+    border-left: var(--wg-border-width-banner) solid var(--wg-success);
+}
+
+.rv-attest-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-4) var(--wg-space-5);
+}
+
+.rv-attest-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--wg-success-bg);
+    border: var(--wg-border-width-thin) solid var(--wg-success);
+    --slds-c-icon-color-foreground-default: var(--wg-success);
+}
+
+.rv-attest-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.rv-attest-title {
+    margin-bottom: var(--wg-space-3);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.rv-attest-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--wg-space-3) var(--wg-space-5);
+}
+
+.rv-attest-cell-label {
+    margin-bottom: 2px;
+    font-size: var(--wg-font-size-caption);
+    font-weight: var(--wg-weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wg-text-muted);
+}
+
+.rv-attest-cell-value {
+    font-size: var(--wg-font-size-body);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    overflow-wrap: break-word;
+}
+
+.rv-attest-date {
+    font-weight: var(--wg-weight-regular);
+}
+
+/* ══ OFFICE DOCUMENT PREVIEW MODAL ════════════════════ */
+.rv-office-container {
+    width: 1000px;
+    max-width: 90%;
+}
+
+.rv-office-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--wg-space-3);
+    padding: var(--wg-space-3) var(--wg-space-5);
+    border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+}
+
+.rv-office-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-sub-heading);
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rv-office-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--wg-space-2);
+    flex-shrink: 0;
+}
+
+.rv-office-content {
+    max-height: 75vh;
+    overflow: auto;
+    padding: var(--wg-space-4);
+    background: var(--wg-white);
+}
+
+.office-preview-body {
+    font-size: var(--wg-font-size-label);
+    line-height: var(--wg-line-height-base);
+}
+
+.office-preview-body table {
+    width: 100%;
+    margin-bottom: var(--wg-space-4);
+    border-collapse: collapse;
+    background: var(--wg-white);
+}
+
+.office-preview-body table th {
+    padding: var(--wg-space-2) var(--wg-space-3);
+    background: var(--wg-surface-subtle);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    font-weight: var(--wg-weight-semibold);
+    text-align: left;
+    color: var(--wg-gray);
+}
+
+.office-preview-body table td {
+    padding: 6px var(--wg-space-3);
+    border: var(--wg-border-width-thin) solid var(--wg-border);
+    color: var(--wg-gray);
+}
+
+.office-preview-body img {
+    max-width: 100%;
+}
+
+/* ══ CONTAINER-RESPONSIVE LAYOUT (panel width) ════════ */
+
+/* Moderately narrow → slimmer label column, 3-col grids go to 2 */
+@container (max-width: 720px) {
+    .rv-lbl {
+        width: 195px;
+        min-width: 195px;
+    }
+
+    .rv-info-grid-3 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Narrow (typical 55/45 split) → label stacks ABOVE its value */
+@container (max-width: 600px) {
+    .rv-row {
+        flex-direction: column;
+    }
+
+    .rv-lbl {
+        width: 100%;
+        min-width: 100%;
+        border-right: none;
+        border-bottom: var(--wg-border-width-thin) solid var(--wg-border);
+        padding: var(--wg-space-2) var(--wg-space-4);
+    }
+
+    .rv-info-grid,
+    .rv-info-grid-3,
+    .rv-funder-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rv-attest-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .rv-section {
+        margin: var(--wg-space-3) var(--wg-space-2);
+    }
+}
+
+/* Very narrow → compact */
+@container (max-width: 480px) {
+    .rv-action-toolbar-title {
+        display: none;
+    }
+
+    .rv-action-toolbar-actions {
+        flex: 1;
+        justify-content: flex-end;
+    }
+}
+
+@container (max-width: 420px) {
+    .rv-attest-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rv-table {
+        min-width: 360px;
+        font-size: var(--wg-font-size-caption);
+    }
+
+    .rv-table th,
+    .rv-table td {
+        padding: 6px var(--wg-space-2);
+    }
+
+    .rv-section {
+        margin: var(--wg-space-2) var(--wg-space-1);
+    }
+}
+
+/* ══ VIEWPORT FALLBACK (true mobile devices) ═════════ */
+@media (max-width: 540px) {
+
+    .rv-info-grid,
+    .rv-info-grid-3,
+    .rv-funder-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rv-attest-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.rv-doc-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.rv-doc-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.rv-doc-name {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.rv-doc-meta {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #706e6b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* lightning-button labels in Barlow semibold like the other buttons (ST-05, U138) */
+lightning-button {
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+}
+
+/* Regular button size (Color System v1, UAT ST-05/ST-06): 40px, 14px, 26px sides.
+   The text-style "Open" links (.rv-doc-open) keep their size. */
+lightning-button:not(.rv-doc-open) {
+    --slds-c-button-line-height: 37px; /* + 1.5px border x2 = 40px */
+    --slds-c-button-sizing-border: 1.5px;
+    --slds-c-button-neutral-spacing-inline-start: 26px;
+    --slds-c-button-neutral-spacing-inline-end: 26px;
+    --slds-c-button-brand-spacing-inline-start: 26px;
+    --slds-c-button-brand-spacing-inline-end: 26px;
+    font-size: 14px;
+}

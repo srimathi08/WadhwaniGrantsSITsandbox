@@ -1,0 +1,14 @@
+<table border="0" cellpadding="5" width="550" cellspacing="5" height="400" >
+<tr valign="top" height="400" >
+<td tEditID="c1r1" style=" background-color:#FFFFFF; bEditID:r3st1; color:#000000; bLabel:main; font-size:12pt; font-family:arial;" aEditID="c1r1" locked="0" >
+<![CDATA[<p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"></p><p class="MsoNormal" style=""><font face="Arial, sans-serif">Dear Centre of Excellence, {!IndividualApplication.COE_Name__c},</font></p>
+
+<p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><span style="color: rgb(0, 0, 0);">We
+are pleased to inform you that the application titled</span><font style="color: rgb(0, 0, 0);">&nbsp;</font><b style="color: rgb(0, 0, 0);">“</b><font style="color: rgb(0, 0, 0);"><b>{!IndividualApplication.Project_Title__c}</b></font><b style="color: rgb(0, 0, 0);">”</b><span style="color: rgb(0, 0, 0);">,&nbsp;</span><span style="color: rgb(0, 0, 0);">has
+been </span><b style="color: rgb(0, 0, 0);">approved</b><span style="color: rgb(0, 0, 0);"> by the Wadhwani Foundation</span></font><font face="Arial, sans-serif">&nbsp;</font><span style="color: rgb(0, 0, 0); font-family: Arial, sans-serif; font-size: 12pt;">&nbsp;as of&nbsp;</span><span style="color: rgb(0, 0, 0); font-family: Arial, sans-serif; font-size: 12pt;">{!IndividualApplication.ApprovedDate}.</span></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif"><br></font></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif">Please go through the approval letter/document, which will be provided shortly, for details on the next steps and compliance&nbsp;<span style="line-height: 107%;">requirements</span>.</font></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif"><br></font></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif">Congratulations to the entire COE team on this successful
+milestone.<o:p></o:p></font></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif"><br></font></p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;">
+
+</p><p class="MsoNormal" style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"><font face="Arial, sans-serif" style="">Sincerely,<br>
+<b style="">Wadhwani Foundation</b></font><font face="arial" style="font-size: 12pt;"><o:p></o:p></font></p><br><p style="color: rgb(0, 0, 0); font-family: arial; font-size: 12pt;"></p>]]></td>
+</tr>
+</table>

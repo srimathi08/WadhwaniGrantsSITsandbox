@@ -1,0 +1,1622 @@
+import { LightningElement, track, wire } from 'lwc';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
+import COMMUNITY_BASE_PATH from '@salesforce/community/basePath';
+import WIN_LOGO from '@salesforce/resourceUrl/WIN_Logo';
+import getReviewerFormV5Metadata from '@salesforce/apex/WCF_ReviewFormJFController.getReviewerFormV5Metadata';
+import saveApplicationReview from '@salesforce/apex/WCF_ReviewFormJFController.saveApplicationReview';
+import getIndividualApplication from '@salesforce/apex/WCF_ReviewFormJFController.getIndividualApplication';
+import hasAlreadyReviewed from '@salesforce/apex/WCF_ReviewFormJFController.hasAlreadyReviewed';
+import getDraftReviewRecord from '@salesforce/apex/WCF_ReviewFormJFController.getDraftReviewRecord';
+import saveDraftReview from '@salesforce/apex/WCF_ReviewFormJFController.saveDraftReview';
+import deleteUploadedFile from '@salesforce/apex/WCF_ReviewFormJFController.deleteUploadedFile';
+import getAttachedFiles from '@salesforce/apex/WCF_ReviewFormJFController.getAttachedFiles';
+//import uploadSupportingDocument from '@salesforce/apex/WCF_ReviewFormJFController.uploadSupportingDocument';
+import linkUploadedFiles from '@salesforce/apex/WCF_ReviewFormJFController.linkUploadedFiles';
+import getRejectionReasonOptions from '@salesforce/apex/WCF_ReviewFormJFController.getRejectionReasonOptions';
+import createReviewRecord from '@salesforce/apex/WCFProposalListController.createReviewRecord';
+
+const RATING_LABEL = { 5: 'Very strong', 4: 'Strong', 3: 'Adequate', 2: 'Weak', 1: 'Very weak' };
+
+const OUTCOME_JF = 'WCF_Job_Fulfillment';
+const OUTCOME_JC = 'WCF_Job_Creation_Review';
+const OUTCOME_LU = 'WCF_Livelihood_Upliftment';
+const OUTCOME_BOTH = 'WCF_Job_Fulfillment_Job_Creation';
+
+const REC_STRONGLY = 'Strongly Recommend';
+const REC_RECOMMEND = 'Recommend';
+const REC_RESERVE = 'Recommend with Reservations';
+const REC_DO_NOT = 'Do Not Recommend';
+const POSITIVE_REC_CHOICES = new Set([REC_STRONGLY, REC_RECOMMEND, REC_RESERVE]);
+
+// UPDATED: each choice saves its own Recommend_for_CEO_review__c picklist value
+// (was a plain 'Yes' for all three positive choices).
+const CEO_REC_VALUE = {
+    [REC_STRONGLY]: 'Yes - Strongly recommend',
+    [REC_RECOMMEND]: 'Yes - Recommend',
+    [REC_RESERVE]: 'Yes - Recommend with reservations',
+    [REC_DO_NOT]: 'No'
+};
+
+function storedRecValue(choice) {
+    return CEO_REC_VALUE[choice] || '';
+}
+
+// Reverse map when a draft is reopened. Legacy plain 'Yes' still maps to
+// Recommend, exactly as before.
+function recChoiceFromStored(value) {
+    const match = Object.keys(CEO_REC_VALUE).find(k => CEO_REC_VALUE[k] === value);
+    if (match) return match;
+    if (value === 'Yes') return REC_RECOMMEND;
+    return null;
+}
+
+const MAX_WORDS = 200;
+
+function countWords(text) {
+    if (!text) return 0;
+    const cleanText = String(text).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim();
+    if (!cleanText) return 0;
+    return cleanText.split(/\s+/).filter(Boolean).length;
+}
+
+function truncateToWordLimit(text, limit) {
+    if (!text) return '';
+    const words = String(text).replace(/&nbsp;/g, ' ').trim().split(/\s+/).filter(Boolean);
+    if (words.length <= limit) return text;
+    return words.slice(0, limit).join(' ');
+}
+
+const ALWAYS_ALLOWED_KEYS = new Set([
+    'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight',
+    'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab',
+    'Enter'
+]);
+
+function resolvePhysicalFields(qId, track) {
+    const normTrack = (track || '').toUpperCase();
+    const isJC = normTrack.includes('CREATION') || normTrack === 'JC';
+    const isLU = normTrack.includes('LIVELIHOOD') || normTrack.includes('UPLIFTMENT') || normTrack === 'LU';
+
+    if (qId === '1.1') return { rating: 'D1_Governance_Rating__c', comment: 'D1_Governance_Comment__c' };
+    if (qId === '1.2') return { rating: 'D1_Leadership_Rating__c', comment: 'D1_Leadership_Comment__c' };
+    if (qId === '1.3') return { rating: 'D1_FinancialRecords_Rating__c', comment: 'D1_FinancialRecords_Comment__c' };
+    if (qId === '1.4') return { rating: 'D1_SustainabilityVision_Rating__c', comment: 'D1_SustainabilityVision_Comment__c' };
+
+    if (qId === '2.1') return { rating: 'D2_ProgramAlignment_Rating__c', comment: 'D2_ProgramAlignment_Comment__c' };
+    if (qId === '2.2') {
+        if (isLU) return { rating: 'D2_LU_Distinctiveness_Rating__c', comment: null };
+        if (isJC) return { rating: 'D2_JC_Distinctiveness_Rating__c', comment: 'D2_JC_Distinctiveness_Comment__c' };
+        return { rating: 'D2_JF_Distinctiveness_Rating__c', comment: 'D2_JF_Distinctiveness_Comment__c' };
+    }
+    if (qId === '2.3') return { rating: 'D2_OperationalDepth_Rating__c', comment: 'D2_OperationalDepth_Comment__c' };
+
+    if (qId === '3.1') {
+        if (isLU) return { rating: 'D3_LU_ScaleRecord_Rating__c', comment: null };
+        if (isJC) return { rating: 'D3_JC_ScaleRecord_Rating__c', comment: 'D3_JC_ScaleRecord_Comment__c' };
+        return { rating: 'D3_JF_ScaleRecord_Rating__c', comment: 'D3_JF_ScaleRecord_Comment__c' };
+    }
+    if (qId === '3.2') {
+        if (isLU) return { rating: 'D3_LU_ConversionRate_Rating__c', comment: null };
+        if (isJC) return { rating: 'D3_JC_ConversionRate_Rating__c', comment: 'D3_JC_ConversionRate_Comment__c' };
+        return { rating: 'D3_JF_ConversionRate_Rating__c', comment: 'D3_JF_ConversionRate_Comment__c' };
+    }
+    if (qId === '3.3') {
+        if (isLU) return { rating: 'D3_LU_CostPerOutcome_Rating__c', comment: null };
+        if (isJC) return { rating: 'D3_JC_CostPerJob_Rating__c', comment: 'D3_JC_CostPerJob_Comment__c' };
+        return { rating: 'D3_JF_CostPerPlacement_Rating__c', comment: 'D3_JF_CostPerPlacement_Comment__c' };
+    }
+    if (qId === '3.4') return { rating: 'D3_ValidationEvidence_Rating__c', comment: 'D3_ValidationEvidence_Comment__c' };
+
+    if (qId === '4.1') return { rating: 'D4_MandateFit_Rating__c', comment: 'D4_MandateFit_Comment__c' };
+    if (qId === '4.2') return { rating: 'D4_Geography_Rating__c', comment: 'D4_Geography_Comment__c' };
+    if (qId === '4.3') return { rating: 'D4_GenieAI_Rating__c', comment: 'D4_GenieAI_Comment__c' };
+
+    if (qId === '5.1') return { rating: 'D5_FinancialStability_Rating__c', comment: 'D5_FinancialStability_Comment__c' };
+    if (qId === '5.2') return { rating: 'D5_IncrementEstimate_Rating__c', comment: 'D5_IncrementEstimate_Comment__c' };
+    if (qId === '5.3') return { rating: 'D5_OperatingInfra_Rating__c', comment: 'D5_OperatingInfra_Comment__c' };
+
+    if (qId === '6.1') return { rating: 'D6_MEFunction_Rating__c', comment: 'D6_MEFunction_Comment__c' };
+    if (qId === '6.2') return { rating: 'D6_ExternalVerification_Rating__c', comment: 'D6_ExternalVerification_Comment__c' };
+    if (qId === '6.3') return { rating: 'D6_LongitudinalTracking_Rating__c', comment: 'D6_LongitudinalTracking_Comment__c' };
+
+    if (qId === '7.1') return { rating: 'D5_RationaleCredibility_Rating__c', comment: 'D5_Rationale_Credibility_Comment__c' };
+    if (qId === '7.2') return { rating: 'D2_JC_SupportModel_Rating__c', comment: 'D2_JC_SupportModel_Comment__c' };
+
+    return null;
+}
+
+export default class WcfProposalReviewForm extends NavigationMixin(LightningElement) {
+
+    logoUrl = WIN_LOGO;
+
+    @track recordId;
+    @track _applicationId = null;
+    @track showForm = false;
+    @track submitted = false;
+    @track _resolvedRecordTypeId = null;
+    @track institutionName = '';
+    @track applicationName = '';
+    @track outcomeDeveloperName = '';
+    @track outcomeDisplayLabel = '';
+
+    @track isLoadingMetadata = true;
+    @track categories = [];
+    @track openLadders = {};
+
+    @track currentStep = 0;
+    @track rubricOpen = false;
+
+    // ── Inline field-level validation state ──────────────────────────
+    // Replaces the old single `validationError` banner string. Each
+    // tracker maps a specific control to whether it's currently invalid
+    // (and the message to render right next to that control).
+    @track invalidQuestions = {}; // { [questionId]: { rating: bool, comment: bool } }
+    @track swErrors = { strength: false, strengthMessage: '', weakness: false, weaknessMessage: '' };
+    @track recErrors = {
+        choice: false, choiceMessage: '',
+        strength: false, strengthMessage: '',
+        comment: false, commentMessage: '',
+        rejectionReasons: false, rejectionReasonsMessage: '',
+        rejectionComment: false, rejectionCommentMessage: ''
+    };
+
+    @track saveStateText = 'Auto-saved · just now';
+    @track saveStateClass = 'save-idle';
+    _saveTimer = null;
+
+    @track ratings = {};
+    @track comments = {};
+
+    @track strengths = ['', '', ''];
+    @track weaknesses = ['', '', ''];
+
+    @track recChoice = null;
+    @track recStrength = null;
+    @track _incomingTrack = null;
+
+    @track uploadedFiles = [];
+
+    @track rejectionReasons = [];
+    @track rejectionReasonOptions = [];
+
+    @wire(getRejectionReasonOptions)
+    wiredRejectionReasons({ data, error }) {
+        if (data) {
+            this.rejectionReasonOptions = data;
+        } else if (error) {
+            console.error('Error loading rejection reason picklist:', error);
+        }
+    }
+
+    //@track isUploadingFile = false;
+
+    get acceptedFormats() {
+        return ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+            '.txt', '.csv', '.png', '.jpg', '.jpeg'];
+    }
+
+    get acceptedFormatsString() {
+        return this.acceptedFormats.join(',');
+    }
+
+    get reviewRecordId() {
+        return this.reviewData.Id || null;
+    }
+
+    get uploadTargetRecordId() {
+        return this.reviewData.Id || null;
+    }
+
+    _cachedDraftReview = null;
+
+    @track reviewData = {
+        ApplicationId: '',
+        Id: null,
+        Recommendation_Strength_Comments__c: '',
+        Recommend_for_CEO_review__c: '',
+        Strength_of_recommendation__c: '',
+        Rejection_Reasons__c: '',
+        Rejection_Comment__c: '',
+        Top_3_proposal_strengths_ranked__c: '',
+        Top_3_proposal_weaknesses_ranked__c: '',
+        Decision_Rationale__c: ''
+    };
+
+    @wire(CurrentPageReference)
+    getStateParameters(currentPageReference) {
+        if (currentPageReference) {
+            const rawRecordId = currentPageReference.state.recordId;
+            this._applicationId = currentPageReference.state.applicationId || rawRecordId;
+            this._incomingTrack = currentPageReference.state.track || null;
+
+            this.recordId = (rawRecordId === 'new') ? null : rawRecordId;
+            this.reviewData = {
+                ...this.reviewData,
+                ApplicationId: this._applicationId,
+                Id: this.recordId || this.reviewData.Id
+            };
+
+            this.checkIfAlreadyReviewed();
+            this.fetchIndividualApplication();
+        }
+    }
+
+    connectedCallback() {
+
+    }
+
+    _metaReqId = 0;
+
+    loadFormMetadata(trackOverride) {
+        const trackParam = trackOverride
+            || this.outcomeDisplayLabel
+            || this._incomingTrack
+            || null;
+        if (!trackParam) return;                      // track not known yet, so don't load
+
+        const reqId = ++this._metaReqId;
+        this.isLoadingMetadata = true;
+
+        getReviewerFormV5Metadata({ trackName: trackParam })
+            .then(res => {
+                if (reqId !== this._metaReqId) return;   // a newer request exists, so ignore this one
+                if (res && res.success && res.categories && res.categories.length > 0) {
+                    this.categories = res.categories;
+                    if (this._cachedDraftReview) {
+                        this.applyDraftReviewData(this._cachedDraftReview);
+                    }
+                }
+                this.isLoadingMetadata = false;
+            })
+            .catch(err => {
+                if (reqId !== this._metaReqId) return;
+                console.error('Error loading reviewer form metadata:', err);
+                this.isLoadingMetadata = false;
+            });
+    }
+
+    checkIfAlreadyReviewed() {
+        if (!this._applicationId) return;
+        hasAlreadyReviewed({ applicationId: this._applicationId })
+            .then(result => {
+                if (result) {
+                    this.showForm = false;
+                    this.submitted = true;
+                } else {
+                    this.showForm = true;
+                    this.loadDraftReview();
+                }
+            })
+            .catch(error => console.error('Error checking review status:', error));
+    }
+
+    fetchIndividualApplication() {
+        if (!this._applicationId) return;
+        getIndividualApplication({ recordId: this._applicationId })
+            .then(result => {
+                if (result) {
+                    this.institutionName = result.institutionName || '';
+                    this.applicationName = result.applicationName || '';
+                    this.outcomeDeveloperName = result.track || OUTCOME_BOTH;
+                    this.outcomeDisplayLabel = result.trackLabel || result.orgArea || '';
+                    this._resolvedRecordTypeId = result.recordTypeId || null;
+
+                    // Reload metadata if track is now known
+                    this.loadFormMetadata();
+                }
+            })
+            .catch(error => console.error('Error fetching application:', error));
+        this.loadFormMetadata('ALL');
+    }
+
+    loadDraftReview() {
+        if (!this._applicationId) return;
+        getDraftReviewRecord({ applicationId: this._applicationId })
+            .then(review => {
+                if (review && review.Id) {
+                    this._cachedDraftReview = review;
+                    this.applyDraftReviewData(review);
+                } else if (!this.reviewData.Id) {              // ← only create if none exists
+                    const trackParam = this.outcomeDeveloperName || this._incomingTrack || 'Both';
+                    createReviewRecord({ applicationId: this._applicationId, track: trackParam })
+                        .then(newReviewId => {
+                            if (newReviewId) this.reviewData = { ...this.reviewData, Id: newReviewId };
+                        })
+                        .catch(err => console.error('Error auto-creating review record:', err));
+                }
+            })
+            .catch(error => {
+                console.error('Error loading draft:', error);
+                this.showToast('Error', error?.body?.message || 'Could not load your saved draft.', 'error');
+            });
+    }
+
+    applyDraftReviewData(review) {
+        if (!review) return;
+
+        // 1. Restore ratings and comments from physical fields
+        const activeTrack = this.outcomeDeveloperName || this._incomingTrack || '';
+        const allQuestions = (this.categories || []).flatMap(c => c.questions || []);
+        allQuestions.forEach(q => {
+            const mapping = resolvePhysicalFields(q.questionId, activeTrack);
+            if (mapping) {
+                if (review[mapping.rating] != null && review[mapping.rating] !== '') {
+                    this.ratings = { ...this.ratings, [q.questionId]: parseInt(review[mapping.rating], 10) };
+                }
+                if (review[mapping.comment]) {
+                    this.comments = { ...this.comments, [q.questionId]: review[mapping.comment] };
+                }
+            }
+        });
+
+        // 2. Also check if structured JSON answers exist in Decision_rationale__c / Decision_Rationale__c
+        const rationaleRaw = review.Decision_rationale__c || review.Decision_Rationale__c;
+        if (rationaleRaw) {
+            try {
+                const parsed = typeof rationaleRaw === 'string' ? JSON.parse(rationaleRaw) : rationaleRaw;
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(item => {
+                        if (item.questionId && item.rating != null) {
+                            this.ratings = { ...this.ratings, [item.questionId]: parseInt(item.rating, 10) };
+                        }
+                        if (item.questionId && item.comment) {
+                            this.comments = { ...this.comments, [item.questionId]: item.comment };
+                        }
+                    });
+                } else if (typeof parsed === 'object' && parsed !== null) {
+                    if (parsed.recChoice) {
+                        this.recChoice = parsed.recChoice;
+                    }
+                    if (parsed.currentStep != null && typeof parsed.currentStep === 'number') {
+                        this.currentStep = parsed.currentStep;
+                    }
+                    if (Array.isArray(parsed.structuredAnswers)) {
+                        parsed.structuredAnswers.forEach(item => {
+                            if (item.questionId && item.rating != null) {
+                                this.ratings = { ...this.ratings, [item.questionId]: parseInt(item.rating, 10) };
+                            }
+                            if (item.questionId && item.comment) {
+                                this.comments = { ...this.comments, [item.questionId]: item.comment };
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing draft decision rationale:', e);
+            }
+        }
+
+        this.strengths = this._parseSW(review.Top_3_proposal_strengths_ranked__c);
+        this.weaknesses = this._parseSW(review.Top_3_proposal_weaknesses_ranked__c);
+
+        if (!this.recChoice) {
+            this.recChoice = recChoiceFromStored(review.Recommend_for_CEO_review__c);
+        }
+
+        this.recStrength = review.Strength_of_recommendation__c
+            ? parseInt(review.Strength_of_recommendation__c, 10)
+            : null;
+
+        this.rejectionReasons = (review.Rejection_Reasons__c || '')
+            .split(';')
+            .map(v => v.trim())
+            .filter(v => v);
+
+        this.reviewData = { ...this.reviewData, ...review };
+
+        if (review.Id) {
+            getAttachedFiles({ reviewRecordId: review.Id })
+                .then(files => {
+                    this.uploadedFiles = (files || []).map(f => ({
+                        documentId: f.documentId,
+                        name: f.name
+                    }));
+                })
+                .catch(err => console.error('Error loading attached files:', err));
+        }
+    }
+
+    _parseSW(val) {
+        const parts = (val || '').split('\n');
+        return [parts[0] || '', parts[1] || '', parts[2] || ''];
+    }
+
+    get totalCategoryCount() {
+        return (this.categories && this.categories.length > 0) ? this.categories.length : 0;
+    }
+
+    get totalStepsDisplay() {
+        // Dynamic categories count + Strengths/Weaknesses + Recommendation + Review
+        return this.totalCategoryCount + 3;
+    }
+
+    get stepTitles() {
+        const titles = (this.categories || []).map(c => `Category ${c.categoryNumber}: ${c.title}`);
+        titles.push('Strengths & Weaknesses');
+        titles.push('Final Recommendation');
+        titles.push('Review & Submit');
+        return titles;
+    }
+
+    get currentStepTitle() {
+        const titles = this.stepTitles;
+        return titles[this.currentStep] || '';
+    }
+
+    get headerTrackBadges() {
+        const raw = this.outcomeDisplayLabel || this.outcomeDeveloperName || this._incomingTrack || '';
+        const lower = raw.toLowerCase();
+        const hasJF = lower.includes('fulfillment') || lower.includes('fulfilment') || lower.includes('jf') || lower.includes('both');
+        const hasJC = lower.includes('creation') || lower.includes('jc') || lower.includes('both');
+        const hasLU = lower.includes('livelihood') || lower.includes('upliftment') || lower.includes('lu');
+
+        const badges = [];
+        if (hasJF) badges.push({ label: 'Job Fulfillment', badgeClass: 'track-badge track-jf' });
+        if (hasJC) badges.push({ label: 'Job Creation', badgeClass: 'track-badge track-jc' });
+        if (hasLU) badges.push({ label: 'Livelihood Upliftment', badgeClass: 'track-badge track-lu' });
+
+        if (badges.length === 0 && raw) {
+            badges.push({ label: raw, badgeClass: 'track-badge' });
+        }
+        return badges;
+    }
+
+    get hasOutcomeType() { return this.headerTrackBadges.length > 0; }
+    get currentStepDisplay() { return this.currentStep + 1; }
+
+    get isDimStep() {
+        const numCats = this.totalCategoryCount;
+        return this.currentStep >= 0 && this.currentStep < numCats;
+    }
+
+    get isSwStep() {
+        const numCats = this.totalCategoryCount;
+        return this.currentStep === numCats;
+    }
+
+    get isRecStep() {
+        const numCats = this.totalCategoryCount;
+        return this.currentStep === numCats + 1;
+    }
+
+    get isReviewStep() {
+        const numCats = this.totalCategoryCount;
+        return this.currentStep === numCats + 2;
+    }
+
+    get isPrevDisabled() { return this.currentStep === 0; }
+    get nextBtnLabel() { return this.isReviewStep ? 'Submit Review' : 'Next Category →'; }
+    get nextBtnClass() { return this.isReviewStep ? 'btn btn-submit' : 'btn btn-primary'; }
+
+    get progressDots() {
+        const total = this.totalStepsDisplay;
+        const titles = this.stepTitles;
+        return Array.from({ length: total }, (_, i) => ({
+            idx: i,
+            cls: i < this.currentStep ? 'done' : i === this.currentStep ? 'curr' : '',
+            title: titles[i] || `Step ${i + 1}`
+        }));
+    }
+
+    get currentDim() {
+        if (!this.isDimStep || !this.categories || !this.categories[this.currentStep]) {
+            return null;
+        }
+        const cat = this.categories[this.currentStep];
+        const LVLS = ['Very weak', 'Weak', 'Adequate', 'Strong', 'Very strong'];
+        const NS = [1, 2, 3, 4, 5];
+        const CLS = ['col col-l1', 'col col-l2', 'col col-l3', 'col col-l4', 'col col-l5'];
+        const TEXTS = [
+            'Level 1: Very weak, unverified claims, or serious institutional/operational deficiencies.',
+            'Level 2: Weak capability, notable omissions, or inconsistent track record.',
+            'Level 3: Adequate baseline meeting minimum operational standards with minor gaps.',
+            'Level 4: Strong capability meeting benchmarks with verifiable documentation.',
+            'Level 5: Exceptional, verified standard across all sub-criteria with robust multi-year evidence.'
+        ];
+
+        return {
+            ...cat,
+            questionCount: cat.questions ? cat.questions.length : 0,
+            rubricCols: NS.map((n, i) => ({
+                n, label: LVLS[i], cls: CLS[i], text: TEXTS[i]
+            }))
+        };
+    }
+
+    get rubricBtnClass() { return this.rubricOpen ? 'btn-soft btn-soft-open' : 'btn-soft'; }
+    get rubricBtnLabel() { return this.rubricOpen ? 'Hide scoring philosophy' : 'View scoring philosophy'; }
+    get rubricClass() { return this.rubricOpen ? 'rubric-panel' : 'rubric-panel rubric-hidden'; }
+
+    get currentQuestions() {
+        if (!this.isDimStep || !this.categories || !this.categories[this.currentStep]) {
+            return [];
+        }
+        const cat = this.categories[this.currentStep];
+        const qs = cat.questions || [];
+
+        return qs.map(q => {
+            const qId = q.questionId;
+            const r = this.ratings[qId];
+            const cmtRequired = r != null;
+            const isComplete = r != null && (!cmtRequired || (this.comments[qId] || '').trim().length > 0);
+            const invalid = this.invalidQuestions[qId] || {};
+
+            // Ladder map
+            const ladderArr = q.ladder || [];
+            const ladderItems = [
+                { level: 1, text: ladderArr[0] || 'Level 1: Very weak' },
+                { level: 2, text: ladderArr[1] || 'Level 2: Weak' },
+                { level: 3, text: ladderArr[2] || 'Level 3: Adequate' },
+                { level: 4, text: ladderArr[3] || 'Level 4: Strong' },
+                { level: 5, text: ladderArr[4] || 'Level 5: Very strong' }
+            ];
+
+            const selectedLadderText = r != null && ladderArr[r - 1] ? ladderArr[r - 1] : '';
+            const showLadder = !!this.openLadders[qId];
+
+            // Word count
+            const wc = countWords(this.comments[qId]);
+            const atLimit = wc >= MAX_WORDS;
+            const nearLimit = wc >= MAX_WORDS - 20;
+            const wordCountDisplay = `${wc} / ${MAX_WORDS}`;
+            const wordCountClass = atLimit ? 'wc-counter wc-limit' : nearLimit ? 'wc-counter wc-near' : 'wc-counter';
+
+            let commentTextareaClass = cmtRequired ? 'lwc-textarea lwc-textarea-req' : 'lwc-textarea';
+            if (invalid.comment) {
+                commentTextareaClass += ' lwc-textarea-error';
+            }
+
+            const segmentedClass = invalid.rating ? 'segmented segmented-error' : 'segmented';
+            const ratingErrorMessage = invalid.rating ? `Please select a rating for question ${qId}.` : '';
+            const commentErrorMessage = invalid.comment ? `Please enter a justification comment for question ${qId}.` : '';
+
+            return {
+                ...q,
+                cardClass: `subq${isComplete ? ' subq-complete' : ''}`,
+                selectedRating: r,
+                selectedLadderText,
+                showLadder,
+                ladderToggleLabel: showLadder ? '▾ Hide 5-Point Ladder Details' : '▸ View 5-Point Ladder Details',
+                ladderItems,
+                segmentedClass,
+                ratingError: !!invalid.rating,
+                ratingErrorMessage,
+                ratingBtns: [1, 2, 3, 4, 5].map(n => {
+                    const sel = r === n;
+                    let cls = '';
+                    if (sel) {
+                        if (n === 2) cls = 'seg-sel-poor';
+                        else if (n === 1) cls = 'seg-sel-vpoor';
+                        else cls = 'seg-sel';
+                    }
+                    const anchorText = ladderArr[n - 1] || RATING_LABEL[n];
+                    return { n, label: RATING_LABEL[n], ladderAnchor: anchorText, cls };
+                }),
+                commentClass: `comment${cmtRequired ? ' comment-req-now' : ''}`,
+                commentRequired: cmtRequired,
+                commentHelp: cmtRequired ? 'Comment required for this rating' : 'Rate first to add justification',
+                commentValue: this.comments[qId] || '',
+                commentPlaceholder: cmtRequired ? 'Required: explain the basis for this rating…' : 'Add context if helpful…',
+                commentTextareaClass,
+                commentError: !!invalid.comment,
+                commentErrorMessage,
+                wordCountDisplay,
+                wordCountClass
+            };
+        });
+    }
+
+    handleToggleQuestionLadder(event) {
+        const qId = event.currentTarget.dataset.qid;
+        this.openLadders = { ...this.openLadders, [qId]: !this.openLadders[qId] };
+    }
+
+    get strengthRows() {
+        return [0, 1, 2].map(i => {
+            const hasError = i === 0 && this.swErrors.strength;
+            return {
+                idx: i, num: i + 1,
+                strengthField: `strength_${i}`,
+                strengthValue: this.strengths[i] || '',
+                sPlaceholder: i === 0 ? 'Primary strength (most material)…' : `Strength #${i + 1}…`,
+                reqMark: i === 0 ? '*' : '',
+                hasError,
+                errorMessage: hasError ? this.swErrors.strengthMessage : '',
+                rowClass: hasError ? 'ranked-row ranked-row-error' : 'ranked-row',
+                inputClass: hasError ? 'wcf-input-error' : ''
+            };
+        });
+    }
+
+    get weaknessRows() {
+        return [0, 1, 2].map(i => {
+            const hasError = i === 0 && this.swErrors.weakness;
+            return {
+                idx: i, num: i + 1,
+                weaknessField: `weakness_${i}`,
+                weaknessValue: this.weaknesses[i] || '',
+                wPlaceholder: i === 0 ? 'Primary concern or weakness (most material)…' : `Weakness #${i + 1}…`,
+                reqMark: i === 0 ? '*' : '',
+                hasError,
+                errorMessage: hasError ? this.swErrors.weaknessMessage : '',
+                rowClass: hasError ? 'ranked-row ranked-row-error' : 'ranked-row',
+                inputClass: hasError ? 'wcf-input-error' : ''
+            };
+        });
+    }
+
+    get isRecPositive() { return POSITIVE_REC_CHOICES.has(this.recChoice); }
+    get isRecNegative() { return this.recChoice === REC_DO_NOT; }
+    get isRecChosen() { return this.recChoice !== null && this.recChoice !== undefined; }
+    get hasRecChoice() { return this.isRecChosen; }
+
+    get recStronglyRecommendClass() {
+        return this.recChoice === REC_STRONGLY ? 'yn rec-sel' : 'yn';
+    }
+    get recRecommendClass() {
+        return this.recChoice === REC_RECOMMEND ? 'yn rec-sel' : 'yn';
+    }
+    get recReservationsClass() {
+        return this.recChoice === REC_RESERVE ? 'yn rec-sel' : 'yn';
+    }
+    get recDoNotRecommendClass() {
+        return this.recChoice === REC_DO_NOT ? 'yn rec-sel-no' : 'yn';
+    }
+
+    get showCeoRecommendationYes() {
+        return POSITIVE_REC_CHOICES.has(this.recChoice);
+    }
+    get showCeoRecommendationNo() {
+        return this.recChoice === REC_DO_NOT;
+    }
+
+    get recStrengthBtns() {
+        return [1, 2, 3, 4, 5].map(n => ({
+            n,
+            label: RATING_LABEL[n],
+            yesSelCls: this.recStrength === n ? 'seg-sel' : ''
+        }));
+    }
+
+    get recYesWordCountDisplay() {
+        const wc = countWords(this.reviewData.Recommendation_Strength_Comments__c);
+        return `${wc} / ${MAX_WORDS}`;
+    }
+    get recYesWordCountClass() {
+        const wc = countWords(this.reviewData.Recommendation_Strength_Comments__c);
+        return wc >= MAX_WORDS ? 'wc-counter wc-limit' : wc >= MAX_WORDS - 20 ? 'wc-counter wc-near' : 'wc-counter';
+    }
+
+    get rejectionReasonRows() {
+        const defaultOpts = [
+            { label: 'Weak Institutional Credibility & Governance', value: 'Weak Institutional Credibility & Governance' },
+            { label: 'Insufficient Operational Scale & Team Maturity', value: 'Insufficient Operational Scale & Team Maturity' },
+            { label: 'Unverified / Poor Historical Outcome Metrics', value: 'Unverified / Poor Historical Outcome Metrics' },
+            { label: 'Misaligned with Wadhwani Grants Core Strategic Priorities', value: 'Misaligned with WCF Core Strategic Priorities' },
+            { label: 'Lack of Absorptive & Financial Capacity', value: 'Lack of Absorptive & Financial Capacity' },
+            { label: 'Inadequate M&E / Measurement Systems', value: 'Inadequate M&E / Measurement Systems' },
+            { label: 'Unjustified Budget Allocation / Cost Structure', value: 'Unjustified Budget Allocation / Cost Structure' },
+            { label: 'Other', value: 'Other' }
+        ];
+        const opts = (this.rejectionReasonOptions && this.rejectionReasonOptions.length > 0)
+            ? this.rejectionReasonOptions
+            : defaultOpts;
+
+        return opts.map(opt => ({
+            ...opt,
+            checked: this.rejectionReasons.includes(opt.value)
+        }));
+    }
+
+    get showRejectionOther() {
+        return this.rejectionReasons.includes('Other');
+    }
+
+    get rejectionCommentWordCountDisplay() {
+        const wc = countWords(this.reviewData.Rejection_Comment__c);
+        return `${wc} / ${MAX_WORDS}`;
+    }
+    get rejectionCommentWordCountClass() {
+        const wc = countWords(this.reviewData.Rejection_Comment__c);
+        return wc >= MAX_WORDS ? 'wc-counter wc-limit' : wc >= MAX_WORDS - 20 ? 'wc-counter wc-near' : 'wc-counter';
+    }
+
+    // ── Field-error-driven class getters (Final Recommendation step) ──
+    get yesnoRowClass() {
+        return this.recErrors.choice ? 'yesno-row yesno-row-error' : 'yesno-row';
+    }
+    get recStrengthSegmentedClass() {
+        return this.recErrors.strength ? 'segmented segmented-error' : 'segmented';
+    }
+    get recYesCommentTextareaClass() {
+        return this.recErrors.comment ? 'lwc-textarea lwc-textarea-error' : 'lwc-textarea';
+    }
+    get rejectionReasonsGroupClass() {
+        return this.recErrors.rejectionReasons ? 'checkbox-grid checkbox-grid-error' : 'checkbox-grid';
+    }
+    get rejectionCommentTextareaClass() {
+        return this.recErrors.rejectionComment ? 'lwc-textarea lwc-textarea-error' : 'lwc-textarea';
+    }
+
+    // Review Step Getters
+    get overallCalculatedScore() {
+        if (!this.categories || !this.categories.length) return '—';
+
+        const categoryMeans = [];
+        this.categories.forEach(cat => {
+            const qs = cat.questions || [];
+            const catRatings = qs
+                .map(q => this.ratings[q.questionId])
+                .filter(r => r != null && !isNaN(r));
+
+            if (catRatings.length > 0) {
+                const catAvg = catRatings.reduce((sum, r) => sum + Number(r), 0) / catRatings.length;
+                categoryMeans.push(catAvg);
+            }
+        });
+
+        if (!categoryMeans.length) return '—';
+        const overall = categoryMeans.reduce((sum, m) => sum + m, 0) / categoryMeans.length;
+        return overall.toFixed(2);
+    }
+
+    get reviewSummaryDims() {
+        return (this.categories || []).map(cat => {
+            const qs = cat.questions || [];
+            const catRatings = qs.map(q => this.ratings[q.questionId]).filter(r => r != null);
+            const mean = catRatings.length ? (catRatings.reduce((s, r) => s + r, 0) / catRatings.length).toFixed(2) : '—';
+            return {
+                id: cat.categoryNumber,
+                title: cat.title,
+                mean,
+                qs: qs.map(q => {
+                    const r = this.ratings[q.questionId];
+                    const ladderArr = q.ladder || [];
+                    return {
+                        id: q.questionId,
+                        text: q.questionText,
+                        pipCls: r != null ? `pip pip-r${r}` : 'pip pip-empty',
+                        ratingLabel: r != null ? (RATING_LABEL[r] || `Level ${r}`) : 'Not rated',
+                        ratingNum: r != null ? `(${r}/5)` : '',
+                        ladderText: r != null && ladderArr[r - 1] ? ladderArr[r - 1] : '',
+                        hasComment: !!(this.comments[q.questionId] && this.comments[q.questionId].trim()),
+                        comment: this.comments[q.questionId] || ''
+                    };
+                })
+            };
+        });
+    }
+
+    get reviewStrengths() {
+        return this.strengths.filter(s => s && s.trim());
+    }
+
+    get reviewWeaknesses() {
+        return this.weaknesses.filter(w => w && w.trim());
+    }
+
+    get recValueClass() {
+        return this.recChoice === REC_DO_NOT ? 'recval recval-no' : 'recval recval-yes';
+    }
+
+    get recValueIcon() {
+        return this.recChoice === REC_DO_NOT ? '✕' : '✓';
+    }
+
+    get recChoiceDisplayLabel() {
+        return this.recChoice || 'No Decision Selected';
+    }
+
+    get recStrengthLabel() {
+        return this.recStrength ? `${this.recStrength} - ${RATING_LABEL[this.recStrength] || ''}` : '';
+    }
+
+    get reviewRejectionReasonLabels() {
+        return this.rejectionReasons;
+    }
+
+    get isAllCompleted() {
+        const allQuestions = (this.categories || []).flatMap(c => c.questions || []);
+        if (allQuestions.length === 0) return false;
+        const unrated = allQuestions.filter(q => this.ratings[q.questionId] == null);
+        const uncommented = allQuestions.filter(q => {
+            const r = this.ratings[q.questionId];
+            return r != null && !(this.comments[q.questionId] || '').trim();
+        });
+        const hasS = (this.strengths[0] || '').trim().length > 0;
+        const hasW = (this.weaknesses[0] || '').trim().length > 0;
+        const hasRec = !!this.recChoice;
+        return unrated.length === 0 && uncommented.length === 0 && hasS && hasW && hasRec;
+    }
+
+    toggleRubric() {
+        this.rubricOpen = !this.rubricOpen;
+    }
+
+    // ── Error clearing helpers ─────────────────────────────────────
+    _clearQuestionRatingError(qId) {
+        if (this.invalidQuestions[qId] && this.invalidQuestions[qId].rating) {
+            const next = { ...this.invalidQuestions };
+            next[qId] = { ...next[qId], rating: false };
+            if (!next[qId].comment) {
+                delete next[qId];
+            }
+            this.invalidQuestions = next;
+        }
+    }
+
+    _clearQuestionCommentError(qId) {
+        if (this.invalidQuestions[qId] && this.invalidQuestions[qId].comment) {
+            const next = { ...this.invalidQuestions };
+            next[qId] = { ...next[qId], comment: false };
+            if (!next[qId].rating) {
+                delete next[qId];
+            }
+            this.invalidQuestions = next;
+        }
+    }
+
+    _clearAllFieldErrors() {
+        this.invalidQuestions = {};
+        this.swErrors = { strength: false, strengthMessage: '', weakness: false, weaknessMessage: '' };
+        this.recErrors = {
+            choice: false, choiceMessage: '',
+            strength: false, strengthMessage: '',
+            comment: false, commentMessage: '',
+            rejectionReasons: false, rejectionReasonsMessage: '',
+            rejectionComment: false, rejectionCommentMessage: ''
+        };
+    }
+
+    // Rating Selection Handler
+    handleRating(event) {
+        const qId = event.currentTarget.dataset.qid;
+        const val = parseInt(event.currentTarget.dataset.rate || event.currentTarget.dataset.val, 10);
+        if (qId && !isNaN(val)) {
+            this.ratings = { ...this.ratings, [qId]: val };
+            this._clearQuestionRatingError(qId);
+            this.autoSave();
+        }
+    }
+    handleRatingClick(event) {
+        this.handleRating(event);
+    }
+
+    handleCommentInput(event) {
+        const qId = event.target.dataset.qid;
+        let text = event.target.value;
+        if (countWords(text) > MAX_WORDS) {
+            text = truncateToWordLimit(text, MAX_WORDS);
+            event.target.value = text;
+        }
+        this.comments = { ...this.comments, [qId]: text };
+        if (text.trim()) {
+            this._clearQuestionCommentError(qId);
+        }
+        this.autoSave();
+    }
+
+    handleCommentKeyDown(event) {
+        if (ALWAYS_ALLOWED_KEYS.has(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
+            return;
+        }
+        if (event.key.length !== 1) return; // ignore non-character keys (arrows, F-keys, etc.)
+
+        const target = event.target;
+        const text = target.value;
+        const selStart = target.selectionStart;
+        const selEnd = target.selectionEnd;
+
+        // Build what the text WOULD be after this keystroke (handles selection replace too)
+        const newText = text.slice(0, selStart) + event.key + text.slice(selEnd);
+
+        if (countWords(newText) > MAX_WORDS) {
+            event.preventDefault();
+        }
+    }
+
+    handleCommentPaste(event) {
+        const pasted = (event.clipboardData || window.clipboardData).getData('text');
+        const current = event.target.value;
+        const selStart = event.target.selectionStart;
+        const selEnd = event.target.selectionEnd;
+        const combined = current.slice(0, selStart) + pasted + current.slice(selEnd);
+        if (countWords(combined) > MAX_WORDS) {
+            event.preventDefault();
+            const truncated = truncateToWordLimit(combined, MAX_WORDS);
+            const qId = event.target.dataset.qid;
+            event.target.value = truncated;
+            this.comments = { ...this.comments, [qId]: truncated };
+            if (truncated.trim()) {
+                this._clearQuestionCommentError(qId);
+            }
+            this.autoSave();
+        }
+    }
+
+    handleSwChange(event) {
+        const kind = event.target.dataset.kind;
+        const idx = parseInt(event.target.dataset.idx, 10);
+        let val = event.target.value;
+        if (countWords(val) > MAX_WORDS) {
+            val = truncateToWordLimit(val, MAX_WORDS);
+            event.target.value = val;
+        }
+        if (kind === 'strength') {
+            const next = [...this.strengths];
+            next[idx] = val;
+            this.strengths = next;
+            if (idx === 0 && val.trim() && this.swErrors.strength) {
+                this.swErrors = { ...this.swErrors, strength: false, strengthMessage: '' };
+            }
+        } else {
+            const next = [...this.weaknesses];
+            next[idx] = val;
+            this.weaknesses = next;
+            if (idx === 0 && val.trim() && this.swErrors.weakness) {
+                this.swErrors = { ...this.swErrors, weakness: false, weaknessMessage: '' };
+            }
+        }
+        this.autoSave();
+    }
+
+    handleRecChoice(event) {
+        this.recChoice = event.currentTarget.dataset.rec || event.currentTarget.dataset.val;
+        if (this.recErrors.choice) {
+            this.recErrors = { ...this.recErrors, choice: false, choiceMessage: '' };
+        }
+        this.autoSave();
+    }
+    handleRecCardClick(event) {
+        this.handleRecChoice(event);
+    }
+
+    handleRecStrength(event) {
+        this.recStrength = parseInt(event.currentTarget.dataset.recstr || event.currentTarget.dataset.val, 10);
+        if (this.recErrors.strength) {
+            this.recErrors = { ...this.recErrors, strength: false, strengthMessage: '' };
+        }
+        this.autoSave();
+    }
+    handleRecStrengthClick(event) {
+        this.handleRecStrength(event);
+    }
+
+    handleRecCommentInput(event) {
+        let text = event.target.value;
+        if (countWords(text) > MAX_WORDS) {
+            text = truncateToWordLimit(text, MAX_WORDS);
+            event.target.value = text;
+        }
+        this.reviewData = { ...this.reviewData, Recommendation_Strength_Comments__c: text };
+        if (text.trim() && this.recErrors.comment) {
+            this.recErrors = { ...this.recErrors, comment: false, commentMessage: '' };
+        }
+        this.autoSave();
+    }
+    handleRecCommentKeyDown(event) {
+        if (ALWAYS_ALLOWED_KEYS.has(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
+            return;
+        }
+        const text = event.target.value;
+        const selStart = event.target.selectionStart;
+        const selEnd = event.target.selectionEnd;
+        const hasSelection = selStart !== selEnd;
+        if (!hasSelection && countWords(text) >= MAX_WORDS && (event.key === ' ' || event.key.length === 1)) {
+            event.preventDefault();
+        }
+    }
+    handleRecCommentPaste(event) {
+        const pasted = (event.clipboardData || window.clipboardData).getData('text');
+        const current = event.target.value;
+        const selStart = event.target.selectionStart;
+        const selEnd = event.target.selectionEnd;
+        const combined = current.slice(0, selStart) + pasted + current.slice(selEnd);
+        if (countWords(combined) > MAX_WORDS) {
+            event.preventDefault();
+            const truncated = truncateToWordLimit(combined, MAX_WORDS);
+            event.target.value = truncated;
+            this.reviewData = { ...this.reviewData, Recommendation_Strength_Comments__c: truncated };
+            if (truncated.trim() && this.recErrors.comment) {
+                this.recErrors = { ...this.recErrors, comment: false, commentMessage: '' };
+            }
+            this.autoSave();
+        }
+    }
+
+    handleRejectionReasonToggle(event) {
+        const val = event.currentTarget.dataset.value || event.target.dataset.value;
+        const checked = event.target.checked;
+        if (checked) {
+            if (!this.rejectionReasons.includes(val)) {
+                this.rejectionReasons = [...this.rejectionReasons, val];
+            }
+        } else {
+            this.rejectionReasons = this.rejectionReasons.filter(v => v !== val);
+        }
+        if (this.rejectionReasons.length > 0 && this.recErrors.rejectionReasons) {
+            this.recErrors = { ...this.recErrors, rejectionReasons: false, rejectionReasonsMessage: '' };
+        }
+        this.autoSave();
+    }
+    handleRejectionReasonChange(event) {
+        this.rejectionReasons = event.detail.value;
+        this.autoSave();
+    }
+
+    handleRejectionCommentInput(event) {
+        let text = event.target.value;
+        if (countWords(text) > MAX_WORDS) {
+            text = truncateToWordLimit(text, MAX_WORDS);
+            event.target.value = text;
+        }
+        this.reviewData = { ...this.reviewData, Rejection_Comment__c: text };
+        if (text.trim() && this.recErrors.rejectionComment) {
+            this.recErrors = { ...this.recErrors, rejectionComment: false, rejectionCommentMessage: '' };
+        }
+        this.autoSave();
+    }
+    handleRejectionCommentKeyDown(event) {
+        if (ALWAYS_ALLOWED_KEYS.has(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
+            return;
+        }
+        const text = event.target.value;
+        const selStart = event.target.selectionStart;
+        const selEnd = event.target.selectionEnd;
+        const hasSelection = selStart !== selEnd;
+        if (!hasSelection && countWords(text) >= MAX_WORDS && (event.key === ' ' || event.key.length === 1)) {
+            event.preventDefault();
+        }
+    }
+    handleRejectionCommentPaste(event) {
+        const pasted = (event.clipboardData || window.clipboardData).getData('text');
+        const current = event.target.value;
+        const selStart = event.target.selectionStart;
+        const selEnd = event.target.selectionEnd;
+        const combined = current.slice(0, selStart) + pasted + current.slice(selEnd);
+        if (countWords(combined) > MAX_WORDS) {
+            event.preventDefault();
+            const truncated = truncateToWordLimit(combined, MAX_WORDS);
+            event.target.value = truncated;
+            this.reviewData = { ...this.reviewData, Rejection_Comment__c: truncated };
+            if (truncated.trim() && this.recErrors.rejectionComment) {
+                this.recErrors = { ...this.recErrors, rejectionComment: false, rejectionCommentMessage: '' };
+            }
+            this.autoSave();
+        }
+    }
+
+    handleProgressClick(event) {
+        const targetStep = parseInt(event.currentTarget.dataset.idx, 10);
+        if (targetStep <= this.currentStep) {
+            this.currentStep = targetStep;
+            this._clearAllFieldErrors();
+            this._scrollToTop();
+        }
+    }
+
+    _scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const formInner = document.querySelector('.rc-form-inner') || document.querySelector('.rf-shell') || document.querySelector('.rf-body');
+        if (formInner) {
+            formInner.scrollTop = 0;
+        }
+        const head = this.template.querySelector('.formhead') || this.template.querySelector('.step-intro');
+        if (head) {
+            head.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Previous button handler
+    prevStep() {
+        if (this.currentStep > 0) {
+            this.currentStep -= 1;
+            this._clearAllFieldErrors();
+            this.rubricOpen = false;
+            this._scrollToTop();
+        }
+    }
+    handlePrev() {
+        this.prevStep();
+    }
+
+    // Next / Submit button handler
+    nextStep() {
+
+        // Validate Dynamic Category Step (0 to totalCategoryCount - 1)
+        if (this.isDimStep) {
+            const cat = this.categories[this.currentStep];
+            const qs = (cat && cat.questions) ? cat.questions : [];
+            const newInvalid = {};
+            let firstQId = null;
+            let firstMessage = '';
+
+            qs.forEach(q => {
+                const r = this.ratings[q.questionId];
+                const entry = { rating: false, comment: false };
+
+                if (r == null) {
+                    entry.rating = true;
+                } else {
+                    const c = (this.comments[q.questionId] || '').trim();
+                    if (!c) {
+                        entry.comment = true;
+                    }
+                }
+
+                if (entry.rating || entry.comment) {
+                    newInvalid[q.questionId] = entry;
+                    if (!firstQId) {
+                        firstQId = q.questionId;
+                        firstMessage = entry.rating
+                            ? `Please select a rating for question ${q.questionId}.`
+                            : `Please enter a justification comment for question ${q.questionId}.`;
+                    }
+                }
+            });
+
+            if (firstQId) {
+                this.invalidQuestions = newInvalid;
+                this.showToast('Validation Error', firstMessage, 'error');
+                this._scrollToQuestion(firstQId);
+                return;
+            }
+            this.invalidQuestions = {};
+        }
+
+        // Validate Strengths & Weaknesses Step
+        if (this.isSwStep) {
+            const errors = { strength: false, strengthMessage: '', weakness: false, weaknessMessage: '' };
+            let message = '';
+
+            if (!(this.strengths[0] || '').trim()) {
+                errors.strength = true;
+                errors.strengthMessage = 'Please provide at least your #1 primary strength.';
+                message = errors.strengthMessage;
+            }
+            if (!(this.weaknesses[0] || '').trim()) {
+                errors.weakness = true;
+                errors.weaknessMessage = 'Please provide at least your #1 primary weakness / concern.';
+                if (!message) message = errors.weaknessMessage;
+            }
+
+            if (errors.strength || errors.weakness) {
+                this.swErrors = errors;
+                this.showToast('Validation Error', message, 'error');
+                this._scrollToSwError(errors);
+                return;
+            }
+            this.swErrors = { strength: false, strengthMessage: '', weakness: false, weaknessMessage: '' };
+        }
+
+        // Validate Final Recommendation Step
+        if (this.isRecStep) {
+            const errors = {
+                choice: false, choiceMessage: '',
+                strength: false, strengthMessage: '',
+                comment: false, commentMessage: '',
+                rejectionReasons: false, rejectionReasonsMessage: '',
+                rejectionComment: false, rejectionCommentMessage: ''
+            };
+            let message = '';
+
+            if (!this.recChoice) {
+                errors.choice = true;
+                errors.choiceMessage = 'Please select a final recommendation decision.';
+                message = errors.choiceMessage;
+            } else if (this.showCeoRecommendationYes) {
+                if (this.recStrength == null) {
+                    errors.strength = true;
+                    errors.strengthMessage = 'Please select a recommendation strength level (1 to 5).';
+                    message = errors.strengthMessage;
+                } else if (!(this.reviewData.Recommendation_Strength_Comments__c || '').trim()) {
+                    errors.comment = true;
+                    errors.commentMessage = 'Please provide recommendation strength comments.';
+                    message = errors.commentMessage;
+                }
+            } else if (this.showCeoRecommendationNo) {
+                if (!this.rejectionReasons || this.rejectionReasons.length === 0) {
+                    errors.rejectionReasons = true;
+                    errors.rejectionReasonsMessage = 'Please select at least one rejection reason.';
+                    message = errors.rejectionReasonsMessage;
+                } else if (!(this.reviewData.Rejection_Comment__c || '').trim()) {
+                    errors.rejectionComment = true;
+                    errors.rejectionCommentMessage = 'Please provide a detailed rejection comment.';
+                    message = errors.rejectionCommentMessage;
+                }
+            }
+
+            const hasError = errors.choice || errors.strength || errors.comment
+                || errors.rejectionReasons || errors.rejectionComment;
+
+            if (hasError) {
+                this.recErrors = errors;
+                this.showToast('Validation Error', message, 'error');
+                this._scrollToRecError(errors);
+                return;
+            }
+            this.recErrors = {
+                choice: false, choiceMessage: '',
+                strength: false, strengthMessage: '',
+                comment: false, commentMessage: '',
+                rejectionReasons: false, rejectionReasonsMessage: '',
+                rejectionComment: false, rejectionCommentMessage: ''
+            };
+        }
+
+        // Submit Step
+        if (this.isReviewStep) {
+            this.handleSubmit();
+            return;
+        }
+
+        // Advance to next step
+        this.currentStep += 1;
+        this.rubricOpen = false;
+        this._scrollToTop();
+    }
+
+    _scrollToQuestion(qId) {
+        setTimeout(() => {
+            const el = this.template.querySelector(`.subq[data-qid="${qId}"]`)
+                || this.template.querySelector('.rating-row');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
+
+    _scrollToSwError(errors) {
+        setTimeout(() => {
+            const kind = errors.strength ? 'strength' : 'weakness';
+            const el = this.template.querySelector(`lightning-input[data-kind="${kind}"][data-idx="0"]`)
+                || this.template.querySelector('.sw-block');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
+
+    _scrollToRecError(errors) {
+        setTimeout(() => {
+            let selector = '.yesno-row';
+            if (errors.strength || errors.comment) selector = '.path.yes';
+            if (errors.rejectionReasons || errors.rejectionComment) selector = '.path.no';
+            const el = this.template.querySelector(selector);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
+
+    handleNext() {
+        this.nextStep();
+    }
+
+    // Manual Save Draft button handler
+    handleSaveDraft() {
+        if (!this._applicationId) return;
+        this.saveStateText = 'Saving…';
+        this.saveStateClass = 'save-saving';
+
+        const payload = this.buildReviewPayload(false);
+        saveDraftReview({ reviewDataJson: JSON.stringify(payload) })
+            .then(saved => {
+                if (saved && saved.Id) {
+                    this.reviewData.Id = saved.Id;
+                }
+                this.saveStateText = 'Saved · just now';
+                this.saveStateClass = 'save-idle';
+                this.showToast('Success', 'Draft saved successfully.', 'success');
+            })
+            .catch(err => {
+                console.error('Draft manual save error:', err);
+                this.saveStateText = 'Save error';
+                this.saveStateClass = 'save-error';
+                this.showToast('Error', 'Failed to save draft.', 'error');
+            });
+    }
+
+   /*    handleTriggerFileInput() {
+        const input = this.template.querySelector('input[data-id="fileInput"]');
+        if (input) {
+            input.click();
+        }
+    }
+
+    handleDragOver(event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    handleFileDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const files = event.dataTransfer?.files;
+        if (files && files.length > 0) {
+            this.handleCustomFileUpload({ target: { files: files, value: '' } });
+        }
+    }
+
+    async handleCustomFileUpload(event) {
+        const files = event.target?.files;
+        if (!files || files.length === 0) return;
+
+        let targetReviewId = this.reviewData.Id;
+        if (!targetReviewId && this._applicationId) {
+            try {
+                const trackParam = this.outcomeDeveloperName || this._incomingTrack || 'Both';
+                targetReviewId = await createReviewRecord({ applicationId: this._applicationId, track: trackParam });
+                if (targetReviewId) {
+                    this.reviewData = { ...this.reviewData, Id: targetReviewId };
+                }
+            } catch (err) {
+                console.error('Error creating review record for upload:', err);
+            }
+        }
+
+        if (!targetReviewId) {
+            this.showToast('Error', 'Review record is not ready. Please save a draft first.', 'error');
+            return;
+        }
+
+        this.isUploadingFile = true;
+        const uploadPromises = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            // Validate file size (max 25MB)
+            if (file.size > 25 * 1024 * 1024) {
+                this.showToast('File Too Large', `${file.name} exceeds the 25MB file size limit.`, 'error');
+                continue;
+            }
+
+            uploadPromises.push(
+                new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const resultStr = reader.result;
+                        const base64Data = resultStr.includes(',') ? resultStr.split(',')[1] : resultStr;
+                        uploadSupportingDocument({
+                            reviewId: targetReviewId,
+                            fileName: file.name,
+                            base64Data: base64Data
+                        })
+                            .then(res => {
+                                if (res && res.documentId) {
+                                    resolve(res);
+                                } else {
+                                    reject(new Error('Invalid response from server'));
+                                }
+                            })
+                            .catch(err => reject(err));
+                    };
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                })
+            );
+        }
+
+        try {
+            const results = await Promise.allSettled(uploadPromises);
+            let successCount = 0;
+            const newFiles = [];
+
+            results.forEach(res => {
+                if (res.status === 'fulfilled') {
+                    newFiles.push({
+                        documentId: res.value.documentId,
+                        name: res.value.name
+                    });
+                    successCount++;
+                } else {
+                    console.error('File upload error:', res.reason);
+                    this.showToast('Upload Error', res.reason?.body?.message || res.reason?.message || 'Failed to upload file', 'error');
+                }
+            });
+
+            if (newFiles.length > 0) {
+                this.uploadedFiles = [...this.uploadedFiles, ...newFiles];
+                this.showToast('Success', `${successCount} file(s) attached successfully`, 'success');
+            }
+        } catch (e) {
+            console.error('Upload processing error:', e);
+            this.showToast('Error', 'An error occurred while uploading files.', 'error');
+        } finally {
+            this.isUploadingFile = false;
+            if (event.target) {
+                event.target.value = '';
+            }
+        }
+    } */
+
+ handleUploadFinished(event) {
+    const files = event.detail.files || [];
+    if (!files.length || !this.reviewData.Id) return;
+
+    linkUploadedFiles({
+        reviewId: this.reviewData.Id,
+        documentIds: files.map(f => f.documentId)
+    })
+        .then(rejectedIds => {
+            const rejected = new Set(rejectedIds || []);
+
+            // Tell the user about each oversized file
+            files
+                .filter(f => rejected.has(f.documentId))
+                .forEach(f => this.showToast(
+                    'File Too Large',
+                    `${f.name} exceeds the 25 MB limit and was not attached.`,
+                    'error'
+                ));
+
+            // Add only the accepted files to the list
+            const existing = new Set(this.uploadedFiles.map(f => f.documentId));
+            const added = files
+                .filter(f => !rejected.has(f.documentId) && !existing.has(f.documentId))
+                .map(f => ({ documentId: f.documentId, name: f.name }));
+
+            if (added.length) {
+                this.uploadedFiles = [...this.uploadedFiles, ...added];
+                this.showToast('Success', `${added.length} file(s) attached successfully`, 'success');
+            }
+        })
+        .catch(err => {
+            console.error('Error linking files:', err);
+            this.showToast('Error', err?.body?.message || 'Files uploaded but could not be attached to the review.', 'error');
+        });
+}
+    handleDeleteFile(event) {
+        const docId = event.currentTarget.dataset.id;
+        deleteUploadedFile({ contentDocumentId: docId })
+            .then(() => {
+                this.uploadedFiles = this.uploadedFiles.filter(f => f.documentId !== docId);
+                this.showToast('Success', 'File removed', 'success');
+            })
+            .catch(err => {
+                console.error('Error deleting file:', err);
+                this.showToast('Error', 'Failed to delete file', 'error');
+            });
+    }
+
+    handleViewRfi() {
+        if (!this._applicationId) return;
+        this[NavigationMixin.GenerateUrl]({
+            type: 'standard__webPage',
+            attributes: {
+                url: `${COMMUNITY_BASE_PATH || ''}/rfi-application-form?recordId=${this._applicationId}&mode=preview`
+            }
+        }).then(url => {
+            window.open(url, '_blank');
+        });
+    }
+
+    handleBackToDashboard() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__webPage',
+            attributes: {
+                url: `${COMMUNITY_BASE_PATH || ''}/wg-reviewer-dashboard`
+            }
+        });
+    }
+
+    // Build structured payload for saving
+    buildReviewPayload(isFinalSubmit) {
+        const activeTrack = this.outcomeDeveloperName || this._incomingTrack || '';
+        const payload = {
+            ApplicationId: this._applicationId,
+            Recommend_for_CEO_review__c: storedRecValue(this.recChoice),
+            Strength_of_recommendation__c: this.recStrength ? String(this.recStrength) : null,
+            Top_3_proposal_strengths_ranked__c: this.strengths.filter(s => s && s.trim()).join('\n'),
+            Top_3_proposal_weaknesses_ranked__c: this.weaknesses.filter(w => w && w.trim()).join('\n'),
+            Rejection_Reasons__c: this.rejectionReasons.join(';')
+        };
+
+        if (this.reviewData.Id) {
+            payload.Id = this.reviewData.Id;
+        }
+        if (this._resolvedRecordTypeId) {
+            payload.RecordTypeId = this._resolvedRecordTypeId;
+        }
+        if (this.reviewData.Recommendation_Strength_Comments__c) {
+            payload.Recommendation_Strength_Comments__c = this.reviewData.Recommendation_Strength_Comments__c;
+        }
+        if (this.reviewData.Rejection_Comment__c) {
+            payload.Rejection_Comment__c = this.reviewData.Rejection_Comment__c;
+        }
+
+        // Populate physical fields dynamically based on active track
+        const structuredAnswers = [];
+        (this.categories || []).forEach(cat => {
+            (cat.questions || []).forEach(q => {
+                const ladderArr = q.ladder || [];
+                const r = this.ratings[q.questionId];
+                const c = this.comments[q.questionId] || '';
+
+                // Map physical fields if available
+                const mapping = resolvePhysicalFields(q.questionId, activeTrack);
+                if (mapping) {
+                    if (r != null) {
+                        payload[mapping.rating] = String(r);
+                    }
+                    if (c && mapping.comment) { payload[mapping.comment] = c; }
+                }
+
+                // Append full structured answer to JSON array
+                structuredAnswers.push({
+                    questionId: q.questionId,
+                    categoryNumber: cat.categoryNumber,
+                    categoryTitle: cat.title,
+                    questionText: q.questionText,
+                    rating: r != null ? r : null,
+                    ladderLevelText: r != null && ladderArr[r - 1] ? ladderArr[r - 1] : '',
+                    comment: c
+                });
+            });
+        });
+
+        // Pack full structured answers in Decision_rationale__c / Decision_Rationale__c for zero-loss persistence
+        const rationaleJson = JSON.stringify({
+            recChoice: this.recChoice,
+            currentStep: this.currentStep,
+            structuredAnswers: structuredAnswers
+        });
+        payload.Decision_rationale__c = rationaleJson;
+        payload.Decision_Rationale__c = rationaleJson;
+
+        return payload;
+    }
+
+    autoSave() {
+        if (!this._applicationId) return;
+        this.saveStateText = 'Saving…';
+        this.saveStateClass = 'save-saving';
+
+        if (this._saveTimer) clearTimeout(this._saveTimer);
+        this._saveTimer = setTimeout(() => {
+            const payload = this.buildReviewPayload(false);
+            saveDraftReview({ reviewDataJson: JSON.stringify(payload) })
+                .then(saved => {
+                    if (saved && saved.Id) {
+                        this.reviewData.Id = saved.Id;
+                    }
+                    this.saveStateText = 'Auto-saved · just now';
+                    this.saveStateClass = 'save-idle';
+                })
+                .catch(err => {
+                    console.error('Draft auto-save error:', err);
+                    this.saveStateText = 'Save error';
+                    this.saveStateClass = 'save-error';
+                });
+        }, 600);
+    }
+
+    handleSubmit() {
+        if (!this.isAllCompleted) {
+            this.showToast('Validation Error', 'Please complete all ratings, comments, strengths, weaknesses, and recommendation before submitting.', 'error');
+            return;
+        }
+
+        const payload = this.buildReviewPayload(true);
+        saveApplicationReview({ reviewDataJson: JSON.stringify(payload) })
+            .then(res => {
+                if (res && res.isSuccess) {
+                    this.showToast('Success', 'Evaluation submitted successfully!', 'success');
+                    this.showForm = false;
+                    this.submitted = true;
+                } else {
+                    this.showToast('Error', res?.errorMessage || 'Failed to submit review.', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Submit error:', err);
+                this.showToast('Error', err?.body?.message || 'An error occurred while submitting.', 'error');
+            });
+    }
+
+    showToast(title, message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
+}

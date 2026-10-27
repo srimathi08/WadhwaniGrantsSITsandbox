@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <encodingKey>UTF-8</encodingKey>
+    <name>WG OTP Verification Code</name>
+    <style>none</style>
+    <subject>Verify your email address for Wadhwani Grants</subject>
+    <textOnly>Hello {!Pwdless_New_User.FirstName},
+
+Thank you for signing up with Wadhwani Grants. Enter the code below where prompted to confirm your email address.
+
+Verification code: {!Verification_Code}
+
+For your security, do not share this code with anyone. The Wadhwani Grants team will never ask you for it.
+
+If you did not try to sign up or sign in to Wadhwani Grants, you can ignore this email.
+
+Kind regards,
+The Wadhwani Grants Team</textOnly>
+    <type>custom</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

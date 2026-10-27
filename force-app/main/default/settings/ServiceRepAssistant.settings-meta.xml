@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ServiceRepAssistantSettings xmlns="http://soap.sforce.com/2006/04/metadata">
+    <enableConversationCaseGrounding>false</enableConversationCaseGrounding>
+    <enableServicePlanQuickAction>false</enableServicePlanQuickAction>
+    <enableServicePlannerCreation>false</enableServicePlannerCreation>
+    <enableSimilarCases>false</enableSimilarCases>
+    <enableSvcPlanCustomizeMsgGround>false</enableSvcPlanCustomizeMsgGround>
+    <enableSvcPlanCustomizeVcGround>false</enableSvcPlanCustomizeVcGround>
+</ServiceRepAssistantSettings>

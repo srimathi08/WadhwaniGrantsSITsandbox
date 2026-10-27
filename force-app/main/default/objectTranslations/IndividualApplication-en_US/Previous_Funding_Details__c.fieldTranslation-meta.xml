@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomFieldTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <help><!-- Details of Prior Funding received / approved under this Project: (source, type and quantum of funding – grants, institutional support, personal financing, venture capital investment, strategic corporate investment, etc.) --></help>
+    <label><!-- 5.2 Previous Funding Details --></label>
+    <name>Previous_Funding_Details__c</name>
+</CustomFieldTranslation>

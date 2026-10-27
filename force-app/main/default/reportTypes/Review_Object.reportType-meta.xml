@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ReportType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <baseObject>ApplicationReview</baseObject>
+    <category>other</category>
+    <deployed>false</deployed>
+    <description>Review Object</description>
+    <label>Review Object</label>
+    <sections>
+        <masterLabel>Proposal Reviews</masterLabel>
+    </sections>
+    <sections>
+        <masterLabel>Proposal</masterLabel>
+    </sections>
+    <sections>
+        <masterLabel>Person Account</masterLabel>
+    </sections>
+    <sections>
+        <masterLabel>Account</masterLabel>
+    </sections>
+</ReportType>

@@ -1,0 +1,38 @@
+<table border="0" cellpadding="5" cellspacing="5" width="550" style="font-family: Arial, sans-serif; font-size: 12pt; color:#000;">
+    <tr valign="top">
+        <td style="background-color:#FFFFFF;">
+
+            <p>Dear [Dr./Prof.] {!IndividualApplication.PI_Name__c},</p>
+
+            <p>
+                We thank you for the submission of your application titled 
+                <b>{!IndividualApplication.Project_Title__c}</b>. After careful review of the proposal and the 
+                presentation before the Selection Committee, we would like to inform you that your application 
+                titled <b>“{!IndividualApplication.Project_Title__c}”</b> has not been selected for funding 
+                support by <b>{!IndividualApplication.Account}</b> in this round, following their review on 
+                <b>{!IndividualApplication.Rejected_by_COE_on__c}</b>.
+            </p>
+
+            <p>
+                The review panel’s comments and feedback have been attached for your reference.
+<b> Comments - {!IndividualApplication.COE_Approval_Comments__c} </b>
+ You are encouraged 
+                to consider these recommendations should you wish to revise and resubmit the proposal in future 
+                rounds of calls for applications.
+            </p>
+
+            <p>
+                Please don’t hesitate to reach out to 
+                <b>{!IndividualApplication.COE_Approver__c}</b> at 
+                <b>{!IndividualApplication.Coe_Email_Address__c}</b> if you would like to discuss the feedback 
+                or next steps.
+            </p>
+
+            <p>
+                Sincerely,<br>
+                <b>Wadhwani Foundation</b>
+            </p>
+
+        </td>
+    </tr>
+</table>

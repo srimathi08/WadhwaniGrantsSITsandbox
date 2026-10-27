@@ -1,0 +1,116 @@
+.section-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.step {
+    background: #eef2ff;
+    color: #4f46e5;
+    font-weight: 600;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.title-group h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.title-group p {
+    margin: 2px 0 12px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+
+.section-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.section-header p {
+    margin: 4px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+     margin-bottom: 20px; /* 👈 THIS creates space before cards */
+}
+
+.step {
+    background: #eef2ff;
+    color: #4f46e5;
+    font-weight: 600;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status.active {
+    background: #e0f7ea;
+    color: #1b7f3c;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.action-card {
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.action-card:hover {
+    background: #f0f7ff;
+    border-color: #3b82f6;
+}
+
+.action-card h4 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.action-card p {
+    margin: 4px 0 0;
+    color: #2563eb;
+    font-weight: 500;
+}
+
+.arrow {
+    font-size: 20px;
+    color: #2563eb;
+}

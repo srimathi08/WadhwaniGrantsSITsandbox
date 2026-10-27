@@ -1,0 +1,1457 @@
+import { LightningElement, api, track, wire } from 'lwc';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { getPicklistValues, getObjectInfo } from 'lightning/uiObjectInfoApi';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
+import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
+import getReviewerReturnInfo from '@salesforce/apex/WCFValidatorController.getReviewerReturnInfo';
+import getWCFValidatorRecordTypeIdForClient from '@salesforce/apex/WCFValidatorController.getWCFValidatorRecordTypeIdForClient';
+import getValidatorFormMetadata from '@salesforce/apex/WCFValidatorController.getValidatorFormMetadata';
+
+// Static resource — Wadhwani logo
+import WADHWANI_LOGO from '@salesforce/resourceUrl/WIN_Logo';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OBJECT & FIELDS
+// ─────────────────────────────────────────────────────────────────────────────
+import VALIDATOR_REVIEW_OBJECT from '@salesforce/schema/ApplicationReview';
+import QUESTION_NUMBER_FIELD from '@salesforce/schema/ApplicationReview.Question_Number__c';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CURRENT USER
+// ─────────────────────────────────────────────────────────────────────────────
+import CURRENT_USER_ID from '@salesforce/user/Id';
+import USER_NAME_FIELD from '@salesforce/schema/User.Name';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APEX
+// ─────────────────────────────────────────────────────────────────────────────
+import getExistingReview from '@salesforce/apex/WCFValidatorController.getExistingReview';
+import saveValidatorRecord from '@salesforce/apex/WCFValidatorController.saveValidatorRecord';
+import getApplicationAttachments from '@salesforce/apex/WCFValidatorController.getApplicationAttachments';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+const S2_3_YES_VALUE = 'Yes';
+const DECISION_PASS = 'Pass';
+const DECISION_RETURN = 'Return';
+const DECISION_FLAG = 'Flag';
+const FLAG_OTHER_VALUE = 'Other';
+
+// U173 / IP-11: questions that never block (TR-35). Used only for the S1.1
+// fallback list when the server check is unavailable. Keep in sync with
+// OPTIONAL_QUESTION_KEYS in WCFValidatorController.
+const OPTIONAL_CANONICAL_KEYS = new Set(['Q7', 'Q8', 'Q27', 'Q28']);
+
+const DEFAULT_WORD_LIMITS = {
+    s1_4_text: 200,
+    s2_3_text: 300,
+    s3_2: 300,
+    s3_5: 300,
+    s5_1: 500,
+};
+
+const REQUIRED_FIELDS = [
+    { key: 's1_1_confirm' },
+    { key: 's1_2_confirm' },
+    { key: 's1_3_confirm' },
+    { key: 's2_1' },
+    { key: 's2_2' },
+    { key: 's2_3' },
+    { key: 's3_1' },
+    { key: 's3_2', isText: true },
+    { key: 's4_1' },
+    { key: 's4_2' },
+];
+
+const DEFAULT_STATE = () => ({
+    existingReviewId: null,
+    s1_1_confirm: null,
+    s1_2_confirm: null,
+    s1_3_confirm: null,
+    s1_4_text: '',
+    s2_1: null,
+    s2_2: null,
+    s2_3: null,
+    s2_3_text: '',
+    s3_1: null,
+    s3_2: '',
+    s3_3: [],
+    s3_4: '',
+    s3_5: '',
+    s4_1: null,
+    s4_2: null,
+    s5_1: '',
+    selectedQuestions: [],
+    questionTexts: {},
+});
+// ─────────────────────────────────────────────────────────────────────────────
+// VOCABULARY  (single source of truth for display text)
+// RULE: `value` = stored picklist value (never change it, saved data depends on it).
+//       `label` = what users read. `code` = what logic keys off. Never match logic on label text.
+// ─────────────────────────────────────────────────────────────────────────────
+const TRACK_LABEL = Object.freeze({
+    JOB_FULFILLMENT: 'Job Fulfillment',
+    JOB_CREATION: 'Job Creation',
+    LIVELIHOOD: 'Livelihood Upliftment'
+});
+const ALL_TRACK_LABELS = [TRACK_LABEL.JOB_FULFILLMENT, TRACK_LABEL.JOB_CREATION, TRACK_LABEL.LIVELIHOOD];
+
+// "A", "A and B", "A, B and C" (conj = 'and' | 'or')
+const joinTracks = (list, conj = 'and') =>
+    list.length <= 1 ? (list[0] || '')
+        : `${list.slice(0, -1).join(', ')} ${conj} ${list[list.length - 1]}`;
+
+// Was: `${JOB_FULFILLMENT} and ${JOB_CREATION}`  ← the U85 root cause in code
+const MANDATE_SCOPE = joinTracks(ALL_TRACK_LABELS); // "Job Fulfillment, Job Creation and Livelihood Upliftment"
+
+// Display-only safety net for text coming from Apex/metadata. NEVER apply to stored values.
+const normalizeTerms = t =>
+    typeof t === 'string' ? t.replace(/\b([Ff])ulfilment\b/g, '$1ulfillment') : t;
+
+const OPTION_CATALOG = Object.freeze({
+    s2_1: [
+        { value: 'Within active clusters', label: 'Inside active clusters' },
+        { value: 'Borderline', label: 'Partly inside active clusters' },
+        { value: 'Outside active clusters', label: 'Outside active clusters' }
+    ],
+    s2_2: [
+        { value: 'Fit', label: 'Matches the chosen track' },
+        { value: 'Borderline', label: 'Partly matches the chosen track' },
+        { value: 'Misfit', label: `Outside ${MANDATE_SCOPE}` }
+    ],
+    s4_1: [
+        { value: 'WSN / WEN Nomination', label: 'WSN / WEN Nomination' },
+        { value: 'WCF Direct Research', label: 'Wadhwani Grants Direct Research' },
+        { value: 'Self-Signup', label: 'Self-Signup' },
+        { value: 'Unknown / TBD', label: 'Unknown / TBD' }
+    ],
+    s4_2: ['< $1M', '$1M – $5M', '$5M – $10M', '$10M – $50M',
+           '$50M – $100M', '> $100M', 'Unknown / cannot determine']
+        .map(v => ({ value: v, label: v }))
+});
+
+const FLAG_REASONS = Object.freeze([
+    { code: 'geo', value: 'Geographic scope outside active clusters', label: 'Geographic scope outside active clusters' },
+    // `value` keeps the legacy UK spelling on purpose: saved records hold it. It is never displayed.
+    { code: 'mandate', value: 'Mandate misfit (work not Job Fulfilment / Job Creation aligned)', label: `Work outside ${MANDATE_SCOPE}` },
+    { code: 'sanctions', value: 'Sanctions / debarment / watchlist concern', label: 'Sanctions / debarment / watchlist concern' },
+    { code: 'floor', value: 'Materially below missing-middle floor', label: 'Materially below missing-middle floor' },
+    { code: 'ceiling', value: 'Materially above missing-middle ceiling', label: 'Materially above missing-middle ceiling' },
+    { code: 'outcome', value: 'Outcome credibility concern at first read', label: 'Outcome credibility concern at first read' },
+    { code: 'institution', value: 'Institutional credibility concern at first read', label: 'Institutional credibility concern at first read' },
+    { code: 'other', value: 'Other', label: 'Other' }
+]);
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pad2 = n => String(n).padStart(2, '0');
+// File size for display: B / KB / MB (never "0 MB" for a small file)
+const formatFileSize = (bytes, mbFallback) => {
+    if (bytes == null) {
+        return mbFallback != null ? `${mbFallback} MB` : '';
+    }
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+export default class WcfValidatorForm extends NavigationMixin(LightningElement) {
+
+    @api recordId;
+    @track formState = DEFAULT_STATE();
+    @track isLoading = true;
+    @track isSaving = false;
+    @track _attachments = [];
+    @track dynamicSections = [];
+
+    @track _attestingUserName = null;
+    @track _attestingUserTitle = null;
+    @track _submissionDate = null;
+    @track _attestationDateTime = null;
+    @track _reviewerReturnComment = null;
+    @track _reviewerReturnDate = null;
+    @track _applicationName = null;
+    @track _dueDate = null;
+    @track _appStatus = null;
+    @track _mandateTrack = null;
+    @track _orgArea = null;
+    @track _geography = null;
+    @track _populatedQuestionKeys = [];
+    // U173 / IP-11: server-computed S1.1 verdict (declared tracks, required,
+    // missing and not-auto-checkable questions)
+    @track _mandatoryCheck = null;
+
+    // Draft tracking
+    @track isDraftSaved = false;
+    @track draftLastSaved = '';
+    @track showDraftBanner = false;
+    @track showPreview = false;
+    @track _wiredAppId = null;
+
+    _reviewLoaded = false;
+    _effectiveRecordId = null;
+    _urlRecordId = null;
+    _recordTypeId = null;
+    _userData = null;
+
+    // FIX (RFI view): sequence counter so a slow, stale metadata response
+    // (e.g. the initial 'ALL' call from connectedCallback) can never overwrite
+    // the track-specific metadata (e.g. Livelihood) that is loaded afterwards.
+    _metadataRequestSeq = 0;
+
+    // Picklist options
+    _s3_1Options = [];
+    _s3_3Options = [];
+
+    get wadhwaniLogoUrl() { return WADHWANI_LOGO; }
+
+    @wire(CurrentPageReference)
+    wiredPageRef(pageRef) {
+        if (pageRef?.state?.recordId) {
+            this._urlRecordId = pageRef.state.recordId;
+            this._syncWiredAppId();
+        }
+    }
+
+    _syncWiredAppId() {
+        const id = this.recordId || this._urlRecordId;
+        if (id && id !== this._wiredAppId) {
+            this._wiredAppId = id;
+        }
+    }
+    // Text for {tracks}: the applicant's declared tracks, or all three if none detected
+get mandateTrackText() {
+    const declared = this.declaredTrackLabels;
+    return joinTracks(declared.length ? declared : ALL_TRACK_LABELS, 'or');
+}
+_fillTokens(t) {
+    return typeof t === 'string' ? t.replace(/\{tracks\}/g, this.mandateTrackText) : t;
+}
+
+    get applicantName() { return this._applicationName || '—'; }
+    get applicationId() { return this.recordId || this._urlRecordId || '—'; }
+    get submittedDate() {
+        if (this._submissionDate) {
+            try {
+                return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    .format(new Date(this._submissionDate));
+            } catch (e) {
+                return this._submissionDate;
+            }
+        }
+                return '—';
+    }
+    get geography() { return this._geography || '—'; }
+    get mandateTrack() { return this._mandateTrack; }
+
+    // FIX (RFI view): the org area drives the track (and therefore the question
+    // numbering). Previously it relied only on the Apex value, so if that came
+    // back empty the Livelihood block (Q19–Q23) was silently dropped. It now
+    // falls back to the wired Application field (already in APP_FIELDS but
+    // never read) and finally to the mandate track. Apex value still wins.
+    get orgArea() {
+    if (this._orgArea) return this._orgArea;
+    return this._mandateTrack || '';
+}
+
+    // U173: track detection now uses the same case-insensitive rule as
+    // WCFValidatorController (contains 'both' / 'fulfil' / 'creation' /
+    // 'livelihood'), so 'Fulfilment' vs 'Fulfillment' spellings can no
+    // longer make the UI numbering disagree with Apex.
+    get isJobFulfillment() {
+        const a = (this.orgArea || '').toLowerCase();
+        return a.includes('both') || a.includes('fulfil');
+    }
+    get isJobCreation() {
+        const a = (this.orgArea || '').toLowerCase();
+        return a.includes('both') || a.includes('creation');
+    }
+    get isLivelihood() {
+        const a = (this.orgArea || '').toLowerCase();
+        return a.includes('livelihood');
+    }
+
+    get hasJF() { return this.isJobFulfillment; }
+    get hasJC() { return this.isJobCreation; }
+    get hasLiv() { return this.isLivelihood; }
+
+    get qNum() {
+        let currentNumber = 1;
+        const map = {};
+
+        map.Q1 = currentNumber++;
+        map.Q2 = currentNumber++;
+        map.Q3 = currentNumber++;
+        map.Q4 = currentNumber++;
+        map.Q5 = currentNumber++;
+        map.Q6 = currentNumber++;
+        map.Q7 = currentNumber++;
+        map.Q8 = currentNumber++;
+        map.Q9 = currentNumber++;
+        map.Q10 = currentNumber++;
+
+        if (this.isJobFulfillment) {
+            map.Q11 = currentNumber++;
+            map.Q12 = currentNumber++;
+            map.Q13 = currentNumber++;
+            map.Q14 = currentNumber++;
+        }
+
+        if (this.isJobCreation) {
+            map.Q15 = currentNumber++;
+            map.Q16 = currentNumber++;
+            map.Q17 = currentNumber++;
+            map.Q18 = currentNumber++;
+        }
+
+        if (this.isLivelihood) {
+            map.Q19 = currentNumber++;
+            map.Q20 = currentNumber++;
+            map.Q21 = currentNumber++;
+            map.Q22 = currentNumber++;
+            map.Q23 = currentNumber++;
+        }
+
+        map.Q24 = currentNumber++;
+        map.Q25 = currentNumber++;
+        map.Q26 = currentNumber++;
+        map.Q27 = currentNumber++;
+        map.Q28 = currentNumber++;
+
+        return map;
+    }
+
+    getDynamicQuestionKey(canonicalKey) {
+        if (!canonicalKey) return '';
+        const qMap = this.qNum;
+        if (canonicalKey === 'Q24') {
+            return `Q${qMap.Q24 || '24'}`;
+        }
+        if (canonicalKey === 'Q28') {
+            return `Q${qMap.Q28 || '28'}`;
+        }
+        if (canonicalKey.startsWith('Q') && qMap[canonicalKey]) {
+            return `Q${qMap[canonicalKey]}`;
+        }
+        return canonicalKey;
+    }
+
+    get questionTitleMap() {
+        const q = this.qNum;
+        const map = {
+            [q.Q1]: 'Organizational Area(s) for Funding/Investment',
+            [q.Q2]: 'Organizational Identifying Information',
+            [q.Q3]: 'Submitter Contact Information',
+            [q.Q4]: 'Legal Structure',
+            [q.Q5]: 'Legal and Tax Compliance',
+            [q.Q6]: 'Fiscal Year End Date',
+            [q.Q7]: 'Top 3 Most Prominent Funders',
+            [q.Q8]: 'References for Outreach',
+            [q.Q9]: 'Historical Financial Data',
+            [q.Q10]: 'Current Fiscal Year Data'
+        };
+        if (this.isJobFulfillment) {
+            map[q.Q11] = 'Your Skilling & Placement Approach';
+            map[q.Q12] = 'Skilling Domains Offered';
+            map[q.Q13] = 'Job Fulfillment Outcomes (Actuals)';
+            map[q.Q14] = 'Job Fulfillment Outcomes (Projections)';
+        }
+        if (this.isJobCreation) {
+            map[q.Q15] = 'Your Job Creation Approach';
+            map[q.Q16] = 'Business Sectors Served';
+            map[q.Q17] = 'Job Creation Outcomes (Actuals)';
+            map[q.Q18] = 'Job Creation Outcomes (Projections)';
+        }
+        if (this.isLivelihood) {
+            map[q.Q19] = 'Your Livelihood Upliftment Approach';
+            map[q.Q20] = 'Your Key Programs / Initiatives';
+            map[q.Q21] = 'Communities that you work in';
+            map[q.Q22] = 'Livelihood Outcomes (Actuals)';
+            map[q.Q23] = 'Livelihood Outcomes, Current FY Projections';
+        }
+        map[q.Q24] = 'Independent Verification of Your Outcomes';
+        map[q.Q25] = 'Sustainability Plan';
+        map[q.Q26] = 'Direction for Additional Funding';
+        map[q.Q27] = 'Operational Synergies: GenieAI';
+        map[q.Q28] = 'Supporting Documents';
+        return map;
+    }
+
+    get displayToCanonicalMap() {
+        const q = this.qNum;
+        const reverse = {};
+        for (const [canonicalKey, dispNum] of Object.entries(q)) {
+            if (dispNum != null) {
+                reverse[String(dispNum)] = canonicalKey;
+            }
+        }
+        return reverse;
+    }
+
+    // FIX (RFI view): previously, whenever populatedQuestionKeys was non-empty,
+    // ONLY answered questions were offered in the "Select Question Number(s)"
+    // grid. Optional questions the partner left blank (Q7 Top 3 Funders,
+    // Q8 References for Outreach) and any other unanswered track question
+    // therefore vanished — which is exactly when a Validator needs to return
+    // them. The grid now lists every question that belongs to the selected
+    // track (per qNum), plus any populated keys the server reports and any
+    // numbers already selected in a saved draft, so nothing selected is hidden.
+    get allowedQuestionNumbers() {
+        const q = this.qNum;
+        const allowedSet = new Set();
+
+        // 1. Every question in the current track (common + track-specific blocks)
+        Object.values(q).forEach(dispNum => {
+            if (dispNum != null) allowedSet.add(String(dispNum));
+        });
+
+        // 2. Anything the server flagged as populated (normalised key match)
+        (this._populatedQuestionKeys || []).forEach(key => {
+            const k = String(key || '').trim().toUpperCase();
+            if (q[k]) allowedSet.add(String(q[k]));
+        });
+
+        // 3. Previously selected numbers (e.g. loaded from a draft) stay visible
+        (this.formState.selectedQuestions || []).forEach(num => {
+            if (num) allowedSet.add(String(num));
+        });
+
+        return Array.from(allowedSet).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+    }
+
+    get dueDate() {
+        if (!this._dueDate) return '—';
+        return new Intl.DateTimeFormat('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric'
+        }).format(new Date(this._dueDate));
+    }
+
+    @wire(getRecord, { recordId: CURRENT_USER_ID, fields: [USER_NAME_FIELD] })
+    wiredUser({ data }) { if (data) this._userData = data; }
+
+    get validatorName() {
+        return this._userData ? getFieldValue(this._userData, USER_NAME_FIELD) : 'Validator';
+    }
+
+    handleLogoError() { /* logo failed to load */ }
+
+    async connectedCallback() {
+        this._syncWiredAppId();
+        try {
+            this._recordTypeId = await getWCFValidatorRecordTypeIdForClient();
+        } catch (e) {
+            console.error('Failed to resolve WCF_Validator record type:', JSON.stringify(e));
+        }
+        this._loadValidatorMetadata();
+    }
+
+    renderedCallback() {
+        const id = this.recordId || this._urlRecordId;
+        if (id && id !== this._effectiveRecordId) {
+            this._effectiveRecordId = id;
+            // FIX (RFI view): metadata was previously requested in parallel with
+            // the review load, before _mandateTrack / _orgArea were known, so it
+            // was always fetched with trackName 'ALL' and the Livelihood-specific
+            // question set (incl. the Decision question) was never loaded.
+            // Now the track-aware metadata is requested once the review data
+            // (which carries the track) has arrived.
+            this._loadExistingReview().then(() => this._loadValidatorMetadata());
+            this._loadReviewerReturnInfo();
+        }
+        this._syncWiredAppId();
+    }
+
+    async _loadValidatorMetadata() {
+        const requestSeq = ++this._metadataRequestSeq;
+        try {
+            const track = this._mandateTrack || this.orgArea || 'ALL';
+            const payload = await getValidatorFormMetadata({ trackName: track });
+            // Ignore a response if a newer request has been issued in the meantime
+            if (requestSeq !== this._metadataRequestSeq) return;
+            if (payload && payload.success && payload.sections && payload.sections.length > 0) {
+                this.dynamicSections = payload.sections;
+            }
+        } catch (e) {
+            console.error('getValidatorFormMetadata error:', JSON.stringify(e));
+        }
+    }
+
+    async _loadReviewerReturnInfo() {
+        if (!this._effectiveRecordId) return;
+        try {
+            const info = await getReviewerReturnInfo({ applicationId: this._effectiveRecordId });
+            if (info) {
+                this._reviewerReturnComment = info.comment;
+                this._reviewerReturnDate = info.lastModified;
+            } else {
+                this._reviewerReturnComment = null;
+                this._reviewerReturnDate = null;
+            }
+        } catch (e) {
+            console.error('loadReviewerReturnInfo error:', JSON.stringify(e));
+            this._reviewerReturnComment = null;
+        }
+    }
+
+    async _loadExistingReview() {
+        if (!this._effectiveRecordId) return;
+        this.isLoading = true;
+        try {
+            const data = await getExistingReview({ applicationId: this._effectiveRecordId });
+
+            this._attestingUserName = data.attestingUserName || null;
+            this._attestingUserTitle = data.attestingUserTitle || null;
+            this._submissionDate = data.submissionDate || null;
+            this._attestationDateTime = data.attestationDateTime || null;
+            this._applicationName = data.applicationName || null;
+            this._dueDate = data.dueDate || null;
+            this._appStatus = data.appStatus || null;
+            this._mandateTrack = data.mandateTrack || null;
+            this._orgArea = data.orgArea || null;
+            this._geography = data.geography || null;
+            this._populatedQuestionKeys = data.populatedQuestionKeys || [];
+            this._mandatoryCheck = data.mandatoryCheck || null;
+
+            const review = data.review;
+            if (review && review.Id) {
+                const combined = review.Field_level_checklist_for_the_Partner__c || '';
+                const parts = combined.split('|||BLOCKING|||');
+                const s3_5Val = parts[0] || '';
+                const s2_3Val = parts[1] || '';
+
+                const qMap = this.qNum;
+                const qTextMap = {};
+                const selectedSet = new Set();
+
+                for (let i = 1; i <= 28; i++) {
+                    const canonicalKey = `Q${i}`;
+                    const val = review[`Question_Number_${i}__c`];
+                    if (val && val.trim()) {
+                        const dispNum = qMap[canonicalKey] ? String(qMap[canonicalKey]) : String(i);
+                        qTextMap[dispNum] = val;
+                        selectedSet.add(dispNum);
+                    }
+                }
+
+                if (review.Question_Number__c) {
+                    review.Question_Number__c.split(';').forEach(s => {
+                        const trimmed = s.trim();
+                        if (trimmed) {
+                            const canonicalKey = `Q${trimmed}`;
+                            const dispNum = qMap[canonicalKey] ? String(qMap[canonicalKey]) : trimmed;
+                            selectedSet.add(dispNum);
+                        }
+                    });
+                }
+
+                const selectedNums = Array.from(selectedSet).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+                this.formState = {
+                    existingReviewId: review.Id,
+                    s1_1_confirm: review.Mandatory_fields__c || null,
+                    s1_2_confirm: review.Verification_reports__c || null,
+                    s1_3_confirm: review.Attestation__c || null,
+                    s1_4_text: review.Substantive_content_gap__c || '',
+                    s2_1: review.Geography_Within_WCF_Operating_Cluster__c || null,
+                    s2_2: review.Mandate_fitFits_Job_CreationFulfilment__c || null,
+                    s2_3: review.Blocking_concern_Blocking_Identified__c || null,
+                    s2_3_text: s2_3Val,
+                    s3_1: review.Decision_Final_Decision_from_Sec_1_2__c || null,
+                    s3_2: review.Decision_rationale__c || '',
+                    s3_3: review.Flag_rationale_Flagging_Criteria__c
+                        ? review.Flag_rationale_Flagging_Criteria__c.split(';').filter(Boolean)
+                        : [],
+                    s3_4: review.Other_describe_the_concern__c || '',
+                    s3_5: s3_5Val,
+                    s4_1: review.Source_Channel_Source_of_Application__c || null,
+                    s4_2: review.Budget_Range_Annual_Budget_Range__c || null,
+                    s5_1: review.Notes_for_Reviewers__c || '',
+                    selectedQuestions: selectedNums,
+                    questionTexts: qTextMap,
+                };
+
+                if (review.Status === 'Draft') {
+                    this.isDraftSaved = true;
+                    this.draftLastSaved = this._formatRelativeTime(review.LastModifiedDate);
+                    this.showDraftBanner = true;
+                }
+            } else {
+                this.formState = DEFAULT_STATE();
+                this.isDraftSaved = false;
+                this.showDraftBanner = false;
+            }
+        } catch (e) {
+            console.error('loadExistingReview error:', JSON.stringify(e));
+            this.formState = DEFAULT_STATE();
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    @wire(getApplicationAttachments, { applicationId: '$_wiredAppId' })
+    wiredAttachments({ data, error }) {
+        if (data) {
+            this._attachments = [...data];
+        } else if (error) {
+            console.error('Attachments wire error:', JSON.stringify(error));
+            this._attachments = [];
+        }
+    }
+
+    handleDismissDraftBanner() {
+        this.showDraftBanner = false;
+    }
+
+    get completedFieldCount() {
+        return REQUIRED_FIELDS.filter(f => {
+            const val = this.formState[f.key];
+            if (f.isText) return val && val.trim().length > 0;
+            return !!val;
+        }).length;
+    }
+
+    get totalRequiredFieldCount() {
+        return REQUIRED_FIELDS.length;
+    }
+
+    get completionPercent() {
+        return Math.round((this.completedFieldCount / this.totalRequiredFieldCount) * 100);
+    }
+
+    get progressBarClass() {
+        const step = Math.round(this.completionPercent / 10) * 10;
+        return `wcf-draft-progress-bar wcf-pb-${step}`;
+    }
+
+    get saveDraftLabel() {
+        return this.isSaving ? 'Saving…' : 'Save Draft';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // DYNAMIC METADATA QUESTION VIEW ENRICHER
+    // ─────────────────────────────────────────────────────────────────────────────
+    _enrichQuestion(q) {
+        const isConfirmPill = q.displayType === 'ConfirmPill';
+        const isPicklistCard = q.displayType === 'PicklistCard';
+        const isBinaryRadio = q.displayType === 'BinaryRadio';
+        const isTextArea = q.displayType === 'TextArea';
+        const isWrapPicklist = q.key === 's4_2';
+
+        let showQuestion = true;
+        if (q.key === 's5_1') {
+            showQuestion = this.showNotesSection;
+        } else if (q.conditionalParentKey) {
+            showQuestion = this.formState[q.conditionalParentKey] === q.conditionalParentValue;
+        }
+
+        let autoIndicator = { show: false };
+        if (q.key === 's1_1_confirm') {
+            autoIndicator = {
+                show: true,
+                stateClass: this.s1_1_stateClass,
+                icon: this.s1_1_icon,
+                message: this.s1_1_message
+            };
+        } else if (q.key === 's1_2_confirm') {
+            autoIndicator = {
+                show: true,
+                stateClass: this.s1_2_stateClass,
+                icon: this.s1_2_icon,
+                message: this.verificationStatus.message
+            };
+        } else if (q.key === 's1_3_confirm') {
+            autoIndicator = {
+                show: true,
+                stateClass: this.s1_3_stateClass,
+                icon: '✓',
+                message: this.s1_3_message
+            };
+        }
+
+               let rawOpts = q.options || [];
+        if (rawOpts.length === 0) {
+            if (isConfirmPill) {
+                rawOpts = [
+                    { label: 'Confirmed correct', value: 'Confirmed correct' },
+                    { label: 'Auto-derived state appears wrong', value: 'Auto-derived state appears wrong' }
+                ];
+            } else if (isBinaryRadio) {
+                rawOpts = [
+                    { label: 'No', value: 'No' },
+                    { label: 'Yes', value: 'Yes', sublabel: 'specify in follow-on field' }
+                ];
+            } else if (OPTION_CATALOG[q.key]) {
+                rawOpts = OPTION_CATALOG[q.key];
+            }
+        }
+
+        const mappedOptions = rawOpts.map(opt => {
+            const val = opt.value || opt.val;
+            const catalogLabel = (OPTION_CATALOG[q.key] || []).find(c => c.value === val)?.label;
+            const isSelected = this.formState[q.key] === val;
+            let cls = '';
+            if (isConfirmPill) {
+                cls = 'wcf-confirm-pill' + (isSelected ? ' wcf-confirm-pill-sel' : '');
+            } else if (isBinaryRadio) {
+                cls = 'wcf-pick-opt wcf-pick-binary' + (isSelected ? ' wcf-pick-sel' : '');
+            } else {
+                cls = 'wcf-pick-opt' + (isSelected ? ' wcf-pick-sel' : '');
+            }
+            return {
+                val: val,
+                 label: normalizeTerms(catalogLabel || opt.label),
+                sublabel: opt.sublabel || null,
+                cls: cls
+            };
+        });
+
+        const wordLimit = q.wordLimit || DEFAULT_WORD_LIMITS[q.key] || 0;
+        const currentCount = this.wc(this.formState[q.key]);
+
+        return {
+            key: q.key,
+            label: normalizeTerms(q.label),
+            questionText: normalizeTerms(this._fillTokens(q.questionText)),
+            hintText: normalizeTerms(this._fillTokens(q.hintText)),
+            isRequired: q.isRequired,
+            displayType: q.displayType,
+            isConfirmPill,
+            isPicklistCard,
+            isBinaryRadio,
+            isTextArea,
+            isWrapPicklist,
+            showQuestion,
+            autoIndicator,
+            options: mappedOptions,
+            value: this.formState[q.key] || '',
+            wordCount: currentCount,
+            wordLimit: wordLimit,
+            requiredLabel: q.isRequired ? 'Required' : 'Optional',
+            wcClass: this.wcClass(q.key),
+            placeholder: q.placeholder || (q.key === 's1_4_text' ? 'e.g., \'Q14 Sustainability Plan is populated but reads as boilerplate; needs substantive content.\'' : (q.key === 's2_3_text' ? 'Describe in 1–3 sentences. e.g., \'Watchlist hit on founder name; awaiting compliance clearance.\'' : (q.key === 's5_1' ? 'e.g., \'Nominated by WEN partner [name] in March; warm intro through [contact].\'' : ''))),
+            containerClass: 'wcf-vf-field' + (!q.isRequired ? ' wcf-vf-field-optional' : '') + (q.conditionalParentKey ? ' wcf-dep-wrapper' : '')
+        };
+    }
+
+    get section1() {
+        const sec = (this.dynamicSections || []).find(s => s.sectionNumber === 1 || s.code === 'SEC_COMPLETENESS');
+        const sectionNumber = sec?.sectionNumber || 1;
+        const title = sec?.title || 'Completeness check';
+        const lede = sec?.lede || 'Auto-derived from the submitted Application. Confirm each check, and note any substantive content gap the platform cannot detect.';
+        const questions = (sec?.questions && sec.questions.length > 0)
+            ? sec.questions.map(q => this._enrichQuestion(q))
+            : [
+                this._enrichQuestion({ key: 's1_1_confirm', questionText: 'Mandatory fields: populated', displayType: 'ConfirmPill', isRequired: true }),
+                this._enrichQuestion({ key: 's1_2_confirm', questionText: 'Verification reports: uploaded where claimed', displayType: 'ConfirmPill', isRequired: true }),
+                this._enrichQuestion({ key: 's1_3_confirm', questionText: 'Attestation: signed and timestamped', displayType: 'ConfirmPill', isRequired: true }),
+                this._enrichQuestion({ key: 's1_4_text', questionText: 'Substantive content gap', hintText: 'Note any field that is technically populated but effectively empty (placeholder text, single-word responses to narrative questions, etc.)', displayType: 'TextArea', isRequired: false, wordLimit: 200 })
+            ];
+        return { sectionNumber, title, lede, questions };
+    }
+
+    get section2() {
+        const sec = (this.dynamicSections || []).find(s => s.sectionNumber === 2 || s.code === 'SEC_ELIGIBILITY');
+        const sectionNumber = sec?.sectionNumber || 2;
+        const title = sec?.title || 'First-pass eligibility';
+        const lede = sec?.lede || 'Your judgement on geography, mandate fit, and any blocking concern. None of these gate progression.';
+        const questions = (sec?.questions && sec.questions.length > 0)
+            ? sec.questions.map(q => this._enrichQuestion(q))
+            : [
+                this._enrichQuestion({ key: 's2_1', questionText: 'Geography: Does the applicant\'s primary geography fall within Wadhwani Grants\'s active operating clusters?', hintText: 'Active clusters: India, Latin America (Brazil / Mexico), Southeast Asia (Indonesia / Philippines). MENA = monitor only.', displayType: 'PicklistCard', isRequired: true }),
+                this._enrichQuestion({ key: 's2_2', questionText: 'Mandate fit: Does the applicant\'s work fall credibly within {tracks}, at first read?', displayType: 'PicklistCard', isRequired: true }),
+                this._enrichQuestion({ key: 's2_3', questionText: 'Blocking concern: Did your first-pass review surface any concern that could materially affect Reviewer evaluation?', hintText: 'Examples: sanctions / watchlist hit; contradicting outcome data; institutional credibility concerns. Most applicants: No.', displayType: 'BinaryRadio', isRequired: true }),
+                this._enrichQuestion({ key: 's2_3_text', questionText: 'Describe the blocking concern', displayType: 'TextArea', isRequired: true, wordLimit: 300, conditionalParentKey: 's2_3', conditionalParentValue: 'Yes' })
+            ];
+        return { sectionNumber, title, lede, questions };
+    }
+
+    get section4() {
+        const sec = (this.dynamicSections || []).find(s => s.sectionNumber === 4 || s.code === 'SEC_TAGS');
+        const sectionNumber = sec?.sectionNumber || 4;
+        const title = sec?.title || 'Application tags';
+        const lede = sec?.lede || 'Two structured tags, always mandatory regardless of decision. Stored on the Application entity.';
+        const questions = (sec?.questions && sec.questions.length > 0)
+            ? sec.questions.map(q => this._enrichQuestion(q))
+            : [
+                this._enrichQuestion({ key: 's4_1', questionText: 'Source Channel: How did this Application reach Wadhwani Grants?', displayType: 'PicklistCard', isRequired: true }),
+                this._enrichQuestion({ key: 's4_2', questionText: 'Budget Range: Which band does the applicant\'s most recent annual operating budget fall into?', displayType: 'PicklistCard', isRequired: true })
+            ];
+        return { sectionNumber, title, lede, questions };
+    }
+
+    get section5() {
+        const sec = (this.dynamicSections || []).find(s => s.sectionNumber === 5 || s.code === 'SEC_NOTES');
+        const sectionNumber = sec?.sectionNumber || 5;
+        const title = sec?.title || 'Notes for Reviewers';
+        const lede = sec?.lede || 'Free-form hand-off. Examples: sourcing-channel context; prior conversations the applicant referenced; relationships with current donees; useful background on the founder or leadership team.';
+        const questions = (sec?.questions && sec.questions.length > 0)
+            ? sec.questions.map(q => this._enrichQuestion(q))
+            : [
+                this._enrichQuestion({ key: 's5_1', questionText: 'Notes for Reviewers', hintText: 'Free-form hand-off. Examples: sourcing-channel context; prior conversations the applicant referenced; relationships with current donees; useful background on the founder or leadership team.', displayType: 'TextArea', isRequired: true, wordLimit: 500 })
+            ];
+        return { sectionNumber, title, lede, questions };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // RETURN QUESTION SELECTOR & GRID (SECTION 3)
+    // ─────────────────────────────────────────────────────────────────────────────
+    get questionNumberOptions() {
+        const allowed = this.allowedQuestionNumbers;
+        return (allowed || [])
+            .map(n => ({
+                val: String(n),
+                label: `Question ${n}`,
+                isSelected: (this.formState.selectedQuestions || []).includes(String(n)),
+                cls: 'wcf-qnum-pill' +
+                    ((this.formState.selectedQuestions || []).includes(String(n))
+                        ? ' wcf-qnum-pill-sel' : '')
+            }));
+    }
+
+    get attestingUserName() { return this._attestingUserName; }
+    get attestingUserTitle() { return this._attestingUserTitle; }
+
+ get submittedDateFormatted() {
+    if (!this._attestationDateTime) return null;
+    const d = new Date(this._attestationDateTime);   // ISO UTC from Apex, so no guessing
+    if (isNaN(d.getTime())) return null;
+    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+    get s1_3_message() {
+        const name = this.attestingUserName;
+        const title = this.attestingUserTitle;
+        const date = this.submittedDateFormatted;
+        if (name && date) {
+            return `Attestation signed by ${name}${title ? ' (' + title + ')' : ''} on ${date}.`;
+        }
+        if (name) {
+            return `Attestation signed by ${name}${title ? ' (' + title + ')' : ''}. Date server-stamped on submission.`;
+        }
+        return 'Verify attestation is signed and timestamped in the submitted form.';
+    }
+
+    get openQuestionCards() {
+        const texts = this.formState.questionTexts || {};
+        const titleMap = this.questionTitleMap;
+        return (this.formState.selectedQuestions || [])
+            .slice()
+            .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+            .map(num => {
+                const hasValue = !!(texts[num] && texts[num].trim());
+                const title = titleMap[num] ? `: ${titleMap[num]}` : ': Return Reason';
+                return {
+                    key: num,
+                    num: num,
+                    label: `Question ${num}${title}`,
+                    value: texts[num] || '',
+                    field: `qtext_${num}`,
+                    hasValue,
+                    cls: 'wcf-qcard' + (!hasValue ? ' wcf-qcard-missing' : ''),
+                };
+            });
+    }
+
+    get hasOpenQuestions() {
+        return (this.formState.selectedQuestions || []).length > 0;
+    }
+
+    get previewQuestionCards() {
+        const texts = this.formState.questionTexts || {};
+        const titleMap = this.questionTitleMap;
+        return (this.formState.selectedQuestions || [])
+            .slice()
+            .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+            .map(num => ({
+                key: num,
+                num: num,
+                label: titleMap[num] ? `Question ${num}: ${titleMap[num]}` : `Question ${num}`,
+                text: texts[num] || '—',
+            }));
+    }
+
+    get hasPreviewQuestions() {
+        return (this.formState.selectedQuestions || []).length > 0;
+    }
+
+get attachmentSummary() { return this.verificationStatus.message; }
+
+    get hasAttachments() {
+        return Array.isArray(this._attachments) &&
+            this._attachments.some(a => a.fileName != null && a.fileName !== '');
+    }
+
+    get s3_1Options() {
+        const meta = {
+    [DECISION_PASS]: {
+        badgeCls: 'wcf-dec-badge wcf-dec-badge-pass',
+        desc: 'The application moves on to the Reviewers.'
+    },
+    [DECISION_RETURN]: {
+        badgeCls: 'wcf-dec-badge wcf-dec-badge-return',
+        desc: 'The application goes back to the Partner so they can make changes.'
+    },
+    [DECISION_FLAG]: {
+        badgeCls: 'wcf-dec-badge wcf-dec-badge-flag',
+        desc: 'The application moves on to the Reviewers, with your flagged concerns attached.'
+    }
+};
+        const rawList = (this._s3_1Options && this._s3_1Options.length > 0)
+            ? this._s3_1Options
+            : [
+                { label: 'Pass', value: DECISION_PASS },
+                { label: 'Return', value: DECISION_RETURN },
+                { label: 'Flag', value: DECISION_FLAG }
+            ];
+
+        return rawList.map(o => {
+            const m = meta[o.value] || {};
+            const sel = this.formState.s3_1 === o.value;
+            return {
+                val: o.value,
+                label: o.label,
+                badgeText: m.badgeText || '',
+                badgeCls: m.badgeCls || 'wcf-dec-badge',
+                desc: m.desc || '',
+                cls: ['wcf-dec-card', 'wcf-dec-' + o.value.toLowerCase(),
+                    sel ? 'wcf-dec-sel-' + o.value.toLowerCase() : '']
+                    .join(' ').trim()
+            };
+        });
+    }
+
+        get _suggestedFlagCodes() {
+        const has = (v, t) => String(v || '').toLowerCase().includes(t);
+        const s = this.formState;
+        const codes = new Set();
+        if (has(s.s2_1, 'outside')) codes.add('geo');
+        if (has(s.s2_2, 'misfit')) codes.add('mandate');
+        if (s.s2_3 === S2_3_YES_VALUE) codes.add('sanctions');
+        return codes;
+    }
+
+    get flagOptions() {
+        const byValue = new Map(FLAG_REASONS.map(r => [r.value, r]));
+        const list = (this._s3_3Options && this._s3_3Options.length > 0)
+            ? this._s3_3Options.map(m => ({
+                code: byValue.get(m.value)?.code || null,
+                value: m.value,
+                label: normalizeTerms(m.label)
+            }))
+            : FLAG_REASONS;
+
+        const suggestedCodes = this._suggestedFlagCodes;
+        const selected = this.formState.s3_3 || [];
+
+        return list.map(r => {
+            const isSelected = selected.includes(r.value);
+            const isSuggested = !!r.code && suggestedCodes.has(r.code);
+            return {
+                val: r.value,
+                label: r.label,
+                suggested: isSuggested,
+                cls: ['wcf-check-opt',
+                    isSelected ? 'wcf-check-sel' : '',
+                    isSuggested && !isSelected ? 'wcf-check-suggested' : ''
+                ].filter(Boolean).join(' ')
+            };
+        });
+    }
+
+    get showS2_3_text() { return this.formState.s2_3 === S2_3_YES_VALUE; }
+    get showDecisionRationale() { return !!this.formState.s3_1; }
+    get showFlagSection() { return this.formState.s3_1 === DECISION_FLAG; }
+    get showReturnSection() { return this.formState.s3_1 === DECISION_RETURN; }
+    get showNotesSection() {
+        return this.formState.s3_1 === DECISION_PASS || this.formState.s3_1 === DECISION_FLAG;
+    }
+    get showFlagOther() {
+        return this.showFlagSection && this.formState.s3_3.includes(FLAG_OTHER_VALUE);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // EVENT HANDLERS
+    // ─────────────────────────────────────────────────────────────────────────────
+    handleConfirmPill(evt) {
+        const field = evt.currentTarget.dataset.field;
+        const val = evt.currentTarget.dataset.val;
+        this.formState = {
+            ...this.formState,
+            [field]: this.formState[field] === val ? null : val
+        };
+    }
+
+    handlePicklist(evt) {
+        const field = evt.currentTarget.dataset.field;
+        const val = evt.currentTarget.dataset.val;
+        const newState = { ...this.formState, [field]: this.formState[field] === val ? null : val };
+        if (field === 's3_1') {
+            newState.s3_3 = [];
+            newState.s3_4 = '';
+            newState.s3_5 = '';
+            if (val !== DECISION_RETURN) {
+                newState.selectedQuestions = [];
+                newState.questionTexts = {};
+            }
+        }
+        if (field === 's2_3' && val !== S2_3_YES_VALUE) {
+            newState.s2_3_text = '';
+        }
+        this.formState = newState;
+    }
+
+    handleFlagCheck(evt) {
+        const val = evt.currentTarget.dataset.val;
+        const current = [...this.formState.s3_3];
+        const idx = current.indexOf(val);
+        if (idx >= 0) current.splice(idx, 1);
+        else current.push(val);
+        const newState = { ...this.formState, s3_3: current };
+        if (!current.includes(FLAG_OTHER_VALUE)) newState.s3_4 = '';
+        this.formState = newState;
+    }
+
+    handleTextChange(evt) {
+        const field = evt.currentTarget.dataset.field;
+        const raw = evt.target.value || '';
+        const limit = DEFAULT_WORD_LIMITS[field];
+        if (limit) {
+            const words = raw.trim().split(/\s+/).filter(Boolean);
+            if (words.length > limit) {
+                const previousWordCount = this.wc(this.formState[field]);
+                if (previousWordCount >= limit) {
+                    // Already at capacity — reject the keystroke by rolling back
+                    // to the last accepted value (rather than rebuilding via
+                    // words.join(' ')) so the boundary space/newline just typed
+                    // isn't silently dropped — dropping it is what made the next
+                    // character appear to merge into the last word.
+                    evt.target.value = this.formState[field] || '';
+                    return;
+                }
+                // A large multi-word jump while still under the limit (e.g. a
+                // paste) — accept as much as fits instead of rejecting the
+                // whole paste outright.
+                const truncated = words.slice(0, limit).join(' ');
+                evt.target.value = truncated;
+                this.formState = { ...this.formState, [field]: truncated };
+                return;
+            }
+        }
+        this.formState = { ...this.formState, [field]: raw };
+    }
+
+    handleQuestionNumberToggle(evt) {
+        const val = evt.currentTarget.dataset.val;
+        const current = [...(this.formState.selectedQuestions || [])];
+        const idx = current.indexOf(val);
+        if (idx >= 0) {
+            current.splice(idx, 1);
+            const newTexts = { ...this.formState.questionTexts };
+            delete newTexts[val];
+            this.formState = { ...this.formState, selectedQuestions: current, questionTexts: newTexts };
+        } else {
+            current.push(val);
+            this.formState = { ...this.formState, selectedQuestions: current };
+        }
+    }
+
+    handleQuestionCardTextChange(evt) {
+        const num = evt.currentTarget.dataset.num;
+        const raw = evt.target.value || '';
+        const newTexts = { ...this.formState.questionTexts, [num]: raw };
+        this.formState = { ...this.formState, questionTexts: newTexts };
+    }
+
+    handleRemoveQuestionCard(evt) {
+        const num = evt.currentTarget.dataset.num;
+        const current = (this.formState.selectedQuestions || []).filter(q => q !== num);
+        const newTexts = { ...this.formState.questionTexts };
+        delete newTexts[num];
+        this.formState = { ...this.formState, selectedQuestions: current, questionTexts: newTexts };
+    }
+
+    async handleSaveDraft() {
+        if (this.isSaving) return;
+        this.isSaving = true;
+        try {
+            const id = await saveValidatorRecord({
+                reviewJson: JSON.stringify(this.buildPayload('Draft'))
+            });
+            this.formState = { ...this.formState, existingReviewId: id };
+            this.isDraftSaved = true;
+            this.draftLastSaved = this._formatNow();
+            this.showDraftBanner = true;
+
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Draft saved',
+                message: `Progress saved: ${this.completionPercent}% complete (${this.completedFieldCount} of ${this.totalRequiredFieldCount} required fields).`,
+                variant: 'success'
+            }));
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Save failed',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    async handleSeal() {
+        if (this.isSealDisabled) {
+            return;
+        }
+        this.showPreview = true;
+    }
+
+    async handleFinalSeal() {
+        if (this.missingFields.length > 0) return;
+        this.isSaving = true;
+        try {
+            const id = await saveValidatorRecord({
+                reviewJson: JSON.stringify(this.buildPayload('Validated'))
+            });
+            this.formState = { ...this.formState, existingReviewId: id };
+            this.showPreview = false;
+
+            const toastByDecision = {
+                [DECISION_PASS]: { title: 'Validator Record Passed', message: 'Validator Record Passed Successfully.' },
+                [DECISION_RETURN]: { title: 'Proposal Returned', message: 'Proposal Returned for Revision Successfully.' },
+                [DECISION_FLAG]: { title: 'Proposal Flagged', message: 'Proposal Flagged Successfully.' }
+            };
+            const toastInfo = toastByDecision[this.formState.s3_1] || {
+                title: 'Validator Record Validated', message: 'Record successfully Validated.'
+            };
+
+            this.dispatchEvent(new ShowToastEvent({
+                title: toastInfo.title,
+                message: toastInfo.message,
+                variant: 'success'
+            }));
+
+            setTimeout(() => { window.location.reload(); }, 800);
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Seal failed',
+                message: e.body?.message || e.message,
+                variant: 'error'
+            }));
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    handleClosePreview() {
+        this.showPreview = false;
+    }
+
+    buildPayload(status) {
+        return {
+            Id: this.formState.existingReviewId || null,
+            applicationId: this._effectiveRecordId || this.recordId,
+            status,
+            s1_1_confirm: this.formState.s1_1_confirm,
+            s1_2_confirm: this.formState.s1_2_confirm,
+            s1_3_confirm: this.formState.s1_3_confirm,
+            s1_4_text: this.formState.s1_4_text,
+            s2_1: this.formState.s2_1,
+            s2_2: this.formState.s2_2,
+            s2_3: this.formState.s2_3,
+            s2_3_text: this.formState.s2_3_text,
+            s3_1: this.formState.s3_1,
+            s3_2: this.formState.s3_2,
+            s3_3: this.formState.s3_3.join(';'),
+            s3_4: this.formState.s3_4,
+            s3_5: this.formState.s3_5,
+            s4_1: this.formState.s4_1,
+            s4_2: this.formState.s4_2,
+            s5_1: this.formState.s5_1,
+            selectedQuestions: (this.formState.selectedQuestions || []).map(dispNum => {
+                const canonicalKey = this.displayToCanonicalMap[String(dispNum)];
+                return canonicalKey ? canonicalKey.replace('Q', '') : String(dispNum);
+            }).join(';'),
+            questionTexts: JSON.stringify(
+                (this.formState.selectedQuestions || []).reduce((acc, dispNum) => {
+                    const canonicalKey = this.displayToCanonicalMap[String(dispNum)];
+                    const canonicalNum = canonicalKey ? canonicalKey.replace('Q', '') : String(dispNum);
+                    acc[canonicalNum] = (this.formState.questionTexts || {})[String(dispNum)] || '';
+                    return acc;
+                }, {})
+            ),
+        };
+    }
+
+    get missingFields() {
+        const m = [];
+        if (!this.formState.s1_1_confirm) m.push('S1.1 Mandatory fields');
+        if (!this.formState.s1_2_confirm) m.push('S1.2 Verification reports');
+        if (!this.formState.s1_3_confirm) m.push('S1.3 Attestation');
+        if (!this.formState.s2_1) m.push('S2.1 Geography');
+        if (!this.formState.s2_2) m.push('S2.2 Mandate fit');
+        if (!this.formState.s2_3) m.push('S2.3 Blocking concern');
+        if (this.showS2_3_text && !this.formState.s2_3_text.trim()) m.push('S2.3 description');
+        if (!this.formState.s3_1) m.push('S3.1 Decision');
+        if (!this.formState.s3_2.trim()) m.push('S3.2 Rationale');
+        if (this.showFlagSection && this.formState.s3_3.length === 0) m.push('S3.3 Flag rationale');
+        if (this.showFlagOther && !this.formState.s3_4.trim()) m.push('S3.4 Other');
+        if (this.showNotesSection && !this.formState.s5_1.trim()) m.push('S5.1 Notes for Reviewers');
+        if (this.showReturnSection) {
+            const selected = this.formState.selectedQuestions || [];
+            if (selected.length === 0) {
+                m.push('S3.5 Question Number(s) for Return');
+            } else {
+                const texts = this.formState.questionTexts || {};
+                const emptyOnes = selected.filter(num => !(texts[num] && texts[num].trim()));
+                if (emptyOnes.length > 0) {
+                    m.push(`Return reason for Q${emptyOnes.join(', Q')}`);
+                }
+            }
+        }
+        if (!this.formState.s4_1) m.push('S4.1 Source Channel');
+        if (!this.formState.s4_2) m.push('S4.2 Budget Range');
+        return m;
+    }
+
+    get isSealDisabled() {
+        return this.isSaving || this.missingFields.length > 0 || !this.formState.s3_1;
+    }
+
+    get footerStatus() {
+        if (!this.formState.s3_1) return 'Pick a decision in Section 3 to enable submission.';
+        if (this.missingFields.length === 0) {
+            const labels = {
+                [DECISION_PASS]: 'Pass to Reviewers',
+                [DECISION_RETURN]: 'Return to Applicant',
+                [DECISION_FLAG]: 'Flag and route to Reviewers'
+            };
+            return 'Ready to submit: decision: ' + labels[this.formState.s3_1];
+        }
+        return this.missingFields.length + ' required field(s) pending: '
+            + this.missingFields.slice(0, 3).join(', ')
+            + (this.missingFields.length > 3 ? ' +' + (this.missingFields.length - 3) + ' more' : '');
+    }
+
+    wc(txt) { return txt ? txt.trim().split(/\s+/).filter(Boolean).length : 0; }
+    get wordCount_s1_4() { return this.wc(this.formState.s1_4_text); }
+    get wordCount_s2_3() { return this.wc(this.formState.s2_3_text); }
+    get wordCount_s3_2() { return this.wc(this.formState.s3_2); }
+    get wordCount_s3_4() { return this.wc(this.formState.s3_4); }
+    get wordCount_s3_5() { return this.wc(this.formState.s3_5); }
+    get wordCount_s5_1() { return this.wc(this.formState.s5_1); }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // S1.1 MANDATORY-FIELDS CHECK  (U173 / IP-11)
+    // Server returns requiredKeys / missingKeys / unverifiedKeys. Nothing is
+    // reported as "populated" unless Apex actually verified it.
+    // ─────────────────────────────────────────────────────────────────────────────
+    get declaredTrackLabels() {
+        const labels = [];
+               if (this.isJobFulfillment) labels.push(TRACK_LABEL.JOB_FULFILLMENT);
+        if (this.isJobCreation) labels.push(TRACK_LABEL.JOB_CREATION);
+        if (this.isLivelihood) labels.push(TRACK_LABEL.LIVELIHOOD); // TR-16 wording
+        return labels;
+    }
+
+    _questionLabel(key) {
+        const disp = this.qNum[key];
+        const title = disp != null ? this.questionTitleMap[disp] : '';
+        return `Q${disp != null ? disp : String(key).replace('Q', '')}${title ? ' ' + title : ''}`;
+    }
+
+    get mandatoryCheck() {
+        const mc = this._mandatoryCheck;
+        const tracks = ((mc && mc.declaredTracks && mc.declaredTracks.length)
+            ? mc.declaredTracks : this.declaredTrackLabels).join(' + ') || 'No track declared';
+
+        // Server did not return a check: claim nothing, but still list what to verify
+        if (!mc || !Array.isArray(mc.requiredKeys) || mc.requiredKeys.length === 0) {
+            const expected = Object.keys(this.qNum)
+                .filter(k => !OPTIONAL_CANONICAL_KEYS.has(k))
+                .map(k => this._questionLabel(k));
+            return {
+                state: 'unverified',
+                tracks,
+                requiredCount: expected.length,
+                missing: [],
+                unverified: expected
+            };
+        }
+
+        const missing = (mc.missingKeys || []).map(k => this._questionLabel(k));
+        const unverified = (mc.unverifiedKeys || []).map(k => this._questionLabel(k));
+        return {
+            state: missing.length ? 'missing' : 'ok',
+            tracks,
+            requiredCount: mc.requiredKeys.length,
+            missing,
+            unverified
+        };
+    }
+
+    get s1_1_stateClass() {
+        return this.mandatoryCheck.state === 'ok'
+            ? 'wcf-auto-state wcf-auto-green'
+            : 'wcf-auto-state wcf-auto-amber';
+    }
+
+    get s1_1_icon() {
+        return this.mandatoryCheck.state === 'ok' ? '✓' : '⚠';
+    }
+
+    get s1_1_message() {
+        const c = this.mandatoryCheck;
+        const lines = [];
+        if (c.state === 'missing') {
+            lines.push(`${c.tracks}: ${c.missing.length} of ${c.requiredCount} mandatory questions are empty.`);
+            lines.push(`Missing: ${c.missing.join('; ')}`);
+        } else if (c.state === 'ok') {
+            lines.push(`${c.tracks}: no empty mandatory questions found (${c.requiredCount} checked).`);
+        } else {
+            lines.push(`${c.tracks}: automatic check unavailable. Verify these ${c.requiredCount} mandatory questions manually.`);
+        }
+        if (c.unverified.length) {
+            lines.push(`${c.state === 'unverified' ? 'Check' : 'Not auto-checked, confirm on the form'}: ${c.unverified.join('; ')}`);
+        }
+        return lines.join('\n');
+    }
+    // S1.2: verification report status, driven by the applicant's Yes/No answer
+get verificationStatus() {
+    if (!this._attachments || this._attachments.length === 0) {
+        return { ok: false, message: 'Checking verification reports…' };
+    }
+    const rows = this._attachments.filter(a => a.questionKey === 'Q24');
+    const answer = String((rows[0] && rows[0].v1Value) || '').trim().toLowerCase();
+    const files = rows.filter(a => a.fileName);
+    const label = `Independent verification of outcomes (Q${this.qNum.Q24})`;
+
+    const fileList = files.map(a => {
+        const ext = a.fileExtension ? '.' + a.fileExtension : '';
+        const sizeText = formatFileSize(a.fileSizeBytes, a.fileSizeMB);
+        const size = sizeText ? ` (${sizeText})` : '';
+        return `${a.fileName}${ext}${size}`;
+    }).join(', ');
+
+    if (answer === 'no' || answer.startsWith('no ')) {
+        return {
+            ok: true,
+            message: `${label}: the applicant answered "No", so no verification report is expected.`
+                + (files.length ? `\nA file was uploaded anyway: ${fileList}` : '')
+        };
+    }
+    if (answer.startsWith('yes')) {
+        return files.length
+            ? { ok: true, message: `${label}: the applicant answered "Yes" and uploaded a report: ${fileList}` }
+            : { ok: false, message: `${label}: the applicant answered "Yes" but no verification report was uploaded.` };
+    }
+    // No answer found (N/A)
+    return files.length
+        ? { ok: true, message: `${label}: report uploaded: ${fileList}` }
+        : { ok: false, message: `${label}: no answer found and no report uploaded. Please check the form.` };
+}
+    get s1_2_stateClass() {
+    return this.verificationStatus.ok
+        ? 'wcf-auto-state wcf-auto-green'
+        : 'wcf-auto-state wcf-auto-amber';
+}
+get s1_2_icon() { return this.verificationStatus.ok ? '✓' : '⚠'; }
+    get s1_3_stateClass() { return 'wcf-auto-state wcf-auto-green'; }
+
+       get selectedFlagReasons() {
+        const labelByVal = new Map(this.flagOptions.map(o => [o.val, o.label]));
+        // A stored value that is no longer in the list still shows, rather than vanishing.
+        return (this.formState.s3_3 || []).map(v => labelByVal.get(v) || normalizeTerms(v));
+    }
+
+        // "Source Channel: How did this Application reach…" -> "Source Channel" (same text the form shows)
+    _shortName(q) {
+        const t = normalizeTerms(q.questionText || q.label || '');
+        const i = t.indexOf(':');
+        return (i > 0 ? t.slice(0, i) : t).trim();
+    }
+
+    // Builds dialog rows from the SAME enriched questions the form renders.
+    _previewSection(section) {
+        return {
+            title: section.title,
+            rows: section.questions
+                .filter(q => q.showQuestion)
+                .map(q => {
+                    const raw = this.formState[q.key];
+                    const hit = (q.options || []).find(o => o.val === raw);
+                    return { key: q.key, label: this._shortName(q), value: hit ? hit.label : (raw || '—') };
+                })
+        };
+    }
+
+    get previewCompleteness() { return this._previewSection(this.section1); }
+    get previewEligibility() { return this._previewSection(this.section2); }
+    get previewTags() { return this._previewSection(this.section4); }
+    get previewNotesTitle() { return this.section5.title; }
+
+    wcClass(field) {
+        const limit = DEFAULT_WORD_LIMITS[field];
+        const count = this.wc(this.formState[field]);
+        if (!limit) return 'wcf-char-count';
+        if (count >= limit) return 'wcf-char-count wcf-wc-limit';
+        if (count >= Math.floor(limit * 0.9)) return 'wcf-char-count wcf-wc-warn';
+        return 'wcf-char-count';
+    }
+
+    get wcClass_s1_4() { return this.wcClass('s1_4_text'); }
+    get wcClass_s2_3() { return this.wcClass('s2_3_text'); }
+    get wcClass_s3_2() { return this.wcClass('s3_2'); }
+    get wcClass_s3_4() { return this.wcClass('s3_4'); }
+    get wcClass_s3_5() { return this.wcClass('s3_5'); }
+    get wcClass_s5_1() { return this.wcClass('s5_1'); }
+
+    _formatRelativeTime(isoString) {
+        if (!isoString) return '';
+        try {
+            const diff = Date.now() - new Date(isoString).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+            const days = Math.floor(hrs / 24);
+            return `${days} day${days === 1 ? '' : 's'} ago`;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    _formatNow() {
+        return new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short'
+        }).format(new Date());
+    }
+
+    get savingLabel() {
+        return this.isSaving ? 'Saving draft…' : '';
+    }
+
+    get sealButtonLabel() {
+        return this.isSaving ? 'Sealing…' : 'Submit';
+    }
+
+    get isReturnedByReviewer() {
+        return this._appStatus === 'Returned to Validator';
+    }
+
+    get reviewerReturnComment() {
+        return this._reviewerReturnComment;
+    }
+
+    get reviewerReturnDateFormatted() {
+        if (!this._reviewerReturnDate) return null;
+        return new Intl.DateTimeFormat('en-GB', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        }).format(new Date(this._reviewerReturnDate));
+    }
+}

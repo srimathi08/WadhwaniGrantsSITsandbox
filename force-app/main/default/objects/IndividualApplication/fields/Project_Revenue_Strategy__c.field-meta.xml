@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Project_Revenue_Strategy__c</fullName>
+    <inlineHelpText>Potential Revenue Generation Strategy for Project</inlineHelpText>
+    <label>4.5 Project Revenue Strategy</label>
+    <length>35000</length>
+    <trackHistory>false</trackHistory>
+    <type>Html</type>
+    <visibleLines>25</visibleLines>
+</CustomField>

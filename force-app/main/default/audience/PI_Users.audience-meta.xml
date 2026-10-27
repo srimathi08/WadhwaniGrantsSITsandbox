@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Audience xmlns="http://soap.sforce.com/2006/04/metadata">
+    <audienceName>PI Users</audienceName>
+    <container>Wadhwani Innovation Network</container>
+    <criteria>
+        <criterion>
+            <criteriaNumber>1</criteriaNumber>
+            <criterionValue>
+                <profile>pi user profile</profile>
+            </criterionValue>
+            <operator>Equal</operator>
+            <type>Profile</type>
+        </criterion>
+    </criteria>
+    <formulaFilterType>AllCriteriaMatch</formulaFilterType>
+    <isDefaultAudience>false</isDefaultAudience>
+    <targets>
+        <target>
+            <groupName>cc31bc63-f25c-4131-9501-fa717f9ba2dd</groupName>
+            <priority>1</priority>
+            <targetType>ExperienceVariation</targetType>
+            <targetValue>Individual_Application_Detail_IndividualApplication_Detail_page_PI_Page</targetValue>
+        </target>
+        <target>
+            <groupName>54e73359-e221-4777-a56a-5e7c793393ae</groupName>
+            <priority>2</priority>
+            <targetType>ExperienceVariation</targetType>
+            <targetValue>Home_PI_LOGGED_IN_PAGE_Page</targetValue>
+        </target>
+    </targets>
+</Audience>

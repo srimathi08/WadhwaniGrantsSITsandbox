@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObjectTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <caseValues>
+        <plural>false</plural>
+        <value>Proposals</value>
+    </caseValues>
+    <caseValues>
+        <plural>true</plural>
+        <value>Proposals</value>
+    </caseValues>
+    <layouts>
+        <layout>COE Admin</layout>
+        <sections>
+            <label><!-- COE Proposal Detail --></label>
+            <section>COE Proposal Detail</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+        <sections>
+            <label><!-- Focus Area --></label>
+            <section>Focus Area</section>
+        </sections>
+    </layouts>
+    <layouts>
+        <layout>COE User COE Proposal</layout>
+        <sections>
+            <label><!-- COE Proposal Detail --></label>
+            <section>COE Proposal Detail</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+        <sections>
+            <label><!-- Focus Area --></label>
+            <section>Focus Area</section>
+        </sections>
+    </layouts>
+    <layouts>
+        <layout>Project Proposal admin</layout>
+        <sections>
+            <label><!-- 1.General Info --></label>
+            <section>1.General Info</section>
+        </sections>
+        <sections>
+            <label><!-- 2.1.Details of Principal Investigator --></label>
+            <section>2.1.Details of Principal Investigator</section>
+        </sections>
+        <sections>
+            <label><!-- 2.2.Details of Co - Principal Investigator --></label>
+            <section>2.2.Details of Co - Principal Investigator</section>
+        </sections>
+        <sections>
+            <label><!-- 2.3 Team details --></label>
+            <section>2.3 Team details</section>
+        </sections>
+        <sections>
+            <label><!-- Budgetary Requirements --></label>
+            <section>Budgetary Requirements</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+        <sections>
+            <label><!-- Project Commercialization Details --></label>
+            <section>Project Commercialization Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Details --></label>
+            <section>Project Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Outcomes &amp; Impact --></label>
+            <section>Project Outcomes &amp; Impact</section>
+        </sections>
+    </layouts>
+    <layouts>
+        <layout>Project Proposal layout for COE users</layout>
+        <sections>
+            <label><!-- 2.1 Principal Investigator Details --></label>
+            <section>2.1 Principal Investigator Details</section>
+        </sections>
+        <sections>
+            <label><!-- 2.2 Co PI Details --></label>
+            <section>2.2 Co PI Details</section>
+        </sections>
+        <sections>
+            <label><!-- Budgetary Requirements --></label>
+            <section>Budgetary Requirements</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+        <sections>
+            <label><!-- General Info --></label>
+            <section>General Info</section>
+        </sections>
+        <sections>
+            <label><!-- Project Commercialization Details --></label>
+            <section>Project Commercialization Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Details --></label>
+            <section>Project Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Outcomes &amp; Impact --></label>
+            <section>Project Outcomes &amp; Impact</section>
+        </sections>
+        <sections>
+            <label><!-- Start-Up Details --></label>
+            <section>Start-Up Details</section>
+        </sections>
+        <sections>
+            <label><!-- Team &amp; Budget Details --></label>
+            <section>Team &amp; Budget Details</section>
+        </sections>
+    </layouts>
+    <layouts>
+        <layout>Project Proposal layout for PI users</layout>
+        <sections>
+            <label><!-- 2.1 Principal Investigator Details --></label>
+            <section>2.1 Principal Investigator Details</section>
+        </sections>
+        <sections>
+            <label><!-- 2.2 Co PI Details --></label>
+            <section>2.2 Co PI Details</section>
+        </sections>
+        <sections>
+            <label><!-- Budgetary Requirements --></label>
+            <section>Budgetary Requirements</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+        <sections>
+            <label><!-- General Info --></label>
+            <section>General Info</section>
+        </sections>
+        <sections>
+            <label><!-- Project Commercialization Details --></label>
+            <section>Project Commercialization Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Details --></label>
+            <section>Project Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Outcomes &amp; Impact --></label>
+            <section>Project Outcomes &amp; Impact</section>
+        </sections>
+        <sections>
+            <label><!-- Start-Up Details --></label>
+            <section>Start-Up Details</section>
+        </sections>
+        <sections>
+            <label><!-- Team &amp; Budget Details --></label>
+            <section>Team &amp; Budget Details</section>
+        </sections>
+    </layouts>
+    <layouts>
+        <layout>Reviewer COE Proposal layout</layout>
+        <sections>
+            <label><!-- Application Details --></label>
+            <section>Application Details</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+    </layouts>
+    <layouts>
+        <layout>Reviewer Project Proposal layout</layout>
+        <sections>
+            <label><!-- 2.1 Principal Investigator Details --></label>
+            <section>2.1 Principal Investigator Details</section>
+        </sections>
+        <sections>
+            <label><!-- 2.2 Co PI Details --></label>
+            <section>2.2 Co PI Details</section>
+        </sections>
+        <sections>
+            <label><!-- Budgetary Requirements --></label>
+            <section>Budgetary Requirements</section>
+        </sections>
+        <sections>
+            <label><!-- Custom Links --></label>
+            <section>Custom Links</section>
+        </sections>
+        <sections>
+            <label><!-- General Info --></label>
+            <section>General Info</section>
+        </sections>
+        <sections>
+            <label><!-- Project Commercialization Details --></label>
+            <section>Project Commercialization Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Details --></label>
+            <section>Project Details</section>
+        </sections>
+        <sections>
+            <label><!-- Project Outcomes &amp; Impact --></label>
+            <section>Project Outcomes &amp; Impact</section>
+        </sections>
+        <sections>
+            <label><!-- Start-Up --></label>
+            <section>Start-Up</section>
+        </sections>
+        <sections>
+            <label><!-- Team &amp; Budget Details --></label>
+            <section>Team &amp; Budget Details</section>
+        </sections>
+    </layouts>
+    <quickActions>
+        <label><!-- Submit Proposal - COE Admin --></label>
+        <name>Submit_Proposal_COE_Admin</name>
+    </quickActions>
+    <recordTypes>
+        <label><!-- COE Proposal --></label>
+        <name>COE_Proposal</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- Project Proposal --></label>
+        <name>Project_Proposal</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- WCF Job Creation Proposals --></label>
+        <name>WCF_Job_Creation_Proposals</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- WCF Job Fulfillment &amp; Job Creation Proposals --></label>
+        <name>WCF_Job_Fulfillment_Job_Creation_Proposals</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- WCF Job Fulfillment Proposals --></label>
+        <name>WCF_Job_Fulfillment_Proposals</name>
+    </recordTypes>
+    <recordTypes>
+        <label><!-- Wadhwani Grants --></label>
+        <name>Wadhwani_Grants</name>
+    </recordTypes>
+    <startsWith>Vowel</startsWith>
+    <webLinks>
+        <label><!-- Assign_proposals_to_reviewers --></label>
+        <name>Assign_proposals_to_reviewers</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- Evaluate_Proposal --></label>
+        <name>Evaluate_Proposal</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- Project_Proposal_Review --></label>
+        <name>Project_Proposal_Review</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- Reviewer_Assignment_Report --></label>
+        <name>Reviewer_Assignment_Report</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- Submit_New_Project_Proposal --></label>
+        <name>Submit_New_Project_Proposal</name>
+    </webLinks>
+    <webLinks>
+        <label><!-- WIN_Admin_Level_1_Approval_Dashboard --></label>
+        <name>WIN_Admin_Level_1_Approval_Dashboard</name>
+    </webLinks>
+</CustomObjectTranslation>

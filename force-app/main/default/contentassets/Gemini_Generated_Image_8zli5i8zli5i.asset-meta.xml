@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ContentAsset xmlns="http://soap.sforce.com/2006/04/metadata">
+    <isVisibleByExternalUsers>false</isVisibleByExternalUsers>
+    <language>en_US</language>
+    <masterLabel>Gemini_Generated_Image_8zli5i8zli5i</masterLabel>
+    <originNetwork>Wadhwani Innovation Network</originNetwork>
+    <relationships>
+        <network>
+            <access>VIEWER</access>
+            <name>Partner Portal</name>
+        </network>
+        <workspace>
+            <access>INFERRED</access>
+            <isManagingWorkspace>true</isManagingWorkspace>
+            <name>sfdc_asset_company_assets</name>
+        </workspace>
+    </relationships>
+    <versions>
+        <version>
+            <number>1</number>
+            <pathOnClient>Gemini_Generated_Image_8zli5i8zli5i8zli.png</pathOnClient>
+        </version>
+    </versions>
+</ContentAsset>

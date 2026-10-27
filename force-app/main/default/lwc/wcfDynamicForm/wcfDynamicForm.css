@@ -1,0 +1,2114 @@
+@import "c/commonStyleTheme";
+
+/* ── commonStyleTheme wiring notes ──────────────────────────────────
+   This file previously had its own parallel design system (see header
+   below) with different color values than the brand doc / commonStyleTheme
+   uses. Recolored to brand tokens per explicit confirmation:
+     - primary red family (#8A1C1C, #C30000, #990000, #d92d20, hover
+       states) -> var(--wg-red) / var(--wg-red-deep)
+     - SLDS default error red (#c23934) -> var(--wg-error)
+     - SLDS focus blue (#0176d3) -> var(--wg-orange), matching
+       commonStyleTheme's own focus-ring color on .primary-btn/.form-input
+     - near-black/muted grays (many distinct shades) -> var(--wg-gray) /
+       var(--wg-text-muted); one of them (#414042) was the exact typo the
+       brand doc itself flags as a known bad value
+     - card/table/input border grays -> var(--wg-border) / var(--wg-input-border)
+     - green submit-button family -> var(--wg-success) / var(--wg-success-bg)
+       (a new --wg-success-deep token was added to commonStyleTheme for the
+       hover state, mirroring --wg-red-deep/--wg-orange-deep)
+     - orange divider/tag/callout family -> var(--wg-warning) family,
+       including one more one-digit hex typo (#f68721 vs #F68720)
+     - blue info callout -> var(--wg-info) family (a new --wg-info-text
+       token was added to commonStyleTheme for the darker banner-copy color,
+       mirroring --wg-warning-text)
+   Deliberately LEFT UNTOUCHED (out of scope for this pass):
+     - the purple "optional question"/AI-assist sub-palette (#7d5bd6 and
+       friends) — not in the brand doc, looks like an intentional distinct
+       accent, not a bug
+     - the many near-white pink background tints (#fff5f5, #fff8f8,
+       #fffafa, #fdf6f6, #fff0f0, #fef1f0, #FAECE7, #feb2b2) — decorative,
+       and none of them map cleanly to a semantically-correct token
+     - font-size (rem units) elsewhere in the file — doesn't map cleanly
+       onto the brand doc's px-based type scale; a separate decision from
+       color recoloring
+     - two font-weight: 500 uses (.tracker-main-title, .rv-lbl) — no
+       matching weight token exists (scale only has 400/600/700)
+
+   SECOND PASS — button shape + button typography (per explicit follow-up
+   request): EVERY real action button, no exceptions on shape, including
+   the "Previous"/"Next" step-nav buttons (.btn-primary-red/.btn-brand-red,
+   .btn-tab-next, .btn-secondary-grey, .btn-submit-green ×2,
+   .btn-secondary-outline, .btn-save-draft, .btn-remove-row,
+   .btn-download-pdf, .mockup-add-btn, .toolbar-min-btn) is now
+   border-radius: 0 (square), matching commonStyleTheme's
+   .primary-btn/.ghost-btn convention, and the labeled CTA-style buttons
+   among them now use var(--wg-font-heading) / 14px
+   var(--wg-font-size-button) / var(--wg-weight-semibold) — the brand
+   doc's Barlow-SemiBold-600 button spec — instead of the inherited
+   Open-Sans/bold/rem values they had before. (An earlier version of this
+   pass made the step-nav pair round as an exception; that was a
+   misreading of the request and was corrected back to square.)
+     - "Previous"/"Next" labels were shortened from "← Previous Tab"/
+       "Next Tab →" to "Previous"/"Next", and the text arrows were
+       replaced with inline SVG chevrons (stroke: currentColor) for a
+       crisper, resolution-independent look instead of the old Unicode
+       arrow glyphs. .btn-secondary-grey (Previous only) was also
+       recolored from a muted-gray-on-near-white look — which read as a
+       disabled control — to the same red-border/red-text ghost-button
+       treatment as .btn-save-draft beside it, so it reads as an active,
+       on-brand control.
+     - EXCEPTION: .modern-ai-btn was squared for shape consistency, but its
+       purple color/font were left alone (same off-brand-by-design accent
+       noted above).
+     - EXCEPTION: .btn-file-chip-remove (the small "✕" dismiss control on
+       file-upload chips) was left circular — an icon-only chip affordance,
+       not a labeled action button, so square didn't read correctly there;
+       flagged instead of changed silently.
+     - Also swapped two remaining hardcoded disabled-state grays
+       (#e0e0e0 on .btn-primary-red:disabled / button:disabled and
+       .btn-submit-green:disabled) for var(--wg-border), closing the last
+       hardcoded colors on these specific button rules.
+
+   THIRD PASS — wcfDynamicForm.html inline styles (previously out of
+   scope, now fixed per explicit follow-up): 46 hardcoded hex colors used
+   directly in style="" attributes throughout the HTML — duplicates of
+   colors already tokenized in this CSS file, plus a standalone Bootstrap-
+   style warning box (#fff3cd/#ffeeba/#856404, not part of any design
+   system here) — were replaced with the matching var(--wg-*) tokens.
+   These inherit correctly through the shadow tree since --wg-* is set on
+   :host by the @import above. Left untouched: #faf8ff, a light lavender
+   that pairs with the purple AI-assist accent already excluded above.
+   Also found, NOT fixed here (separate from tokens, flagging only):
+     - .btn-submit-green, .subtext-muted are each defined twice with
+       conflicting values; the second definition silently wins
+     - .question-number's own rule is fully overridden by the earlier
+       ".modern-subsection-number, .question-number, .mockup-optional-number"
+       group, which uses !important on every property
+
+   FOURTH PASS — native toast replacement + a second recolor sweep
+   (per explicit follow-up): the "Missing Required Fields"-style red
+   block wasn't from this file at all — it was the platform's native
+   ShowToastEvent (lightning/platformShowToastEvent), rendered as SLDS's
+   default solid-fill toast outside this component's shadow tree, so no
+   CSS here could ever have restyled it. All 15 dispatchEvent(new
+   ShowToastEvent(...)) calls in the .js were replaced with a
+   showBanner()/closeBanner() pair that renders an in-component,
+   auto-dismissing .wg-toast-banner using the SAME tokenized
+   .error-banner/.warning-banner/.success-banner/.info-banner classes
+   as everywhere else, so it now gets the tinted-bg/left-accent/icon
+   look instead of a solid block. The now-unused ShowToastEvent import
+   was removed.
+     - While investigating, a second sweep turned up ~14 more hardcoded
+       hex values this file's original recolor pass had missed (it
+       wasn't exhaustive the first time): clear-cut near-black text
+       (#1f2937/#1a202c/#333333 -> var(--wg-gray)), light-gray borders/
+       dividers (#ddd/#e5e7eb/#edf2f7/#ececec/#d8dde6/#f3f2f2 ->
+       var(--wg-border)), an error-state hover pairing on the file-chip
+       remove control (#dc2626 -> var(--wg-error), #fee2e2 ->
+       var(--wg-error-bg)), and two more disabled/track grays
+       (#e0e0e0, #f3f3f3 -> var(--wg-border)).
+     - NOT fixed, flagged instead: a cluster of ~9 generic light-neutral
+       background washes (#f7fafc, #fafafa, #f8f9fa, #f7f7f7, #f5f5f5,
+       #f4f6f9, #f3f4f6, #f0f8ff, #fffdfa) used for table-header/chip/
+       hover-highlight fills. None of them carry brand-red/status-color
+       meaning, and commonStyleTheme doesn't currently define a "light
+       neutral surface" token distinct from --wg-white/--wg-border to
+       map them onto cleanly — reusing --wg-border felt too dark/flat
+       for some of these (several are blue-tinted, not gray). Left as-is
+       pending a decision on whether to add such a token.
+
+   FIFTH PASS — unified orange focus color across ALL form fields
+   (per explicit follow-up): lightning-combobox (every picklist) and
+   lightning-file-upload ("Upload Files" button) were still showing the
+   SLDS default blue focus ring, and comboboxes sometimes showed a mixed
+   orange/blue ring. Cause: the orange focus hooks were only set on
+   lightning-input, and the combobox reads styling hooks for :focus but
+   --lwc design tokens for its .slds-has-focus state. Fix: the hooks AND
+   the --lwc token fallbacks are now set once on :host (see "Unified
+   orange focus color" below) so they inherit into every base
+   component's shadow tree. Native .sector-chip and .attest-checkbox
+   controls also got an orange :focus-visible state. CSS-only change;
+   no JS/HTML logic was modified.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ==========================================================================
+   WADHWANI GRANTS RFI FORM - DYNAMIC ENGINE DESIGN SYSTEM (MATCHING wcfForm)
+   Headings: Barlow | Subheadings & Body: Open Sans
+   ========================================================================== */
+
+/* ── Typography Definitions ── */
+h1, h2, h3, h4, .rfi-page-title, .q-title, .section-heading, .faq-q-title, .section-card-title, .modern-section-title, .modern-subsection-title, .mockup-optional-title {
+    font-family: var(--wg-font-heading) !important;
+    font-weight: var(--wg-weight-bold);
+}
+
+p, span, label, input, button, select, textarea, .q-subtitle, .section-desc, .faq-ans, .modern-section-description, .modern-subsection-description, .mockup-optional-description {
+    font-family: var(--wg-font-body);
+}
+
+.required, .req-star {
+    color: var(--wg-error) !important;
+    font-weight: var(--wg-weight-bold);
+    margin-left: 2px;
+}
+
+/* ── Outer Page Wrapper (Matching wcfForm) ── */
+/* was max-width: 990px (a hardcoded, brand-token-adjacent value —
+   commonStyleTheme defines --wg-container-max-width: 960px, but this
+   never referenced it). Per explicit request, the cap was removed so
+   the form fills its page/region instead of floating as a narrow
+   centered card — and that "fill the page" behavior is now the
+   .wg-full-width shared utility from commonStyleTheme (see the .html,
+   which adds that class alongside this one) rather than being
+   redefined locally, so any other full-page component can reuse it. */
+.centered-form-container {
+    margin: 36px auto 0 auto;
+    padding: 36px 30px 120px 30px;
+    background: var(--wg-white);
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(80, 44, 100, 0.07);
+    position: relative;
+}
+
+/* ── Brand Header & Logo ── */
+.form-logo-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 12px;
+    margin-bottom: 24px;
+}
+
+.win-logo {
+    max-width: 110px;
+    height: auto;
+    margin-bottom: 14px;
+    display: block;
+}
+
+.rfi-page-title, .form-title {
+    font-size: 1.4rem;
+    font-weight: var(--wg-weight-bold);
+    text-align: center;
+    color: var(--wg-red);
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+    line-height: 1.3;
+}
+
+/* ── Progress Tracker Stepper (Matching wcfForm) ── */
+.wcf-tracker {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1.25rem 1rem 0.5rem;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.tracker-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+    cursor: pointer;
+}
+
+.tracker-connector {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--wg-border);
+    z-index: 0;
+}
+
+.tracker-connector--done {
+    background: var(--wg-red);
+}
+
+.tracker-bubble {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--wg-border);
+    background: var(--wg-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    position: relative;
+    z-index: 1;
+    transition: all 0.2s ease;
+}
+
+.tracker-bubble--active {
+    border-color: var(--wg-red);
+    background: var(--wg-red);
+    color: var(--wg-white);
+}
+
+.tracker-bubble--done {
+    border-color: var(--wg-red);
+    background: var(--wg-red);
+    color: var(--wg-white);
+}
+
+.tracker-label {
+    font-size: 11px;
+    color: var(--wg-text-muted);
+    margin-top: 8px;
+    text-align: center;
+    line-height: 1.3;
+    max-width: 110px;
+}
+
+.tracker-label--active {
+    color: var(--wg-red);
+    font-weight: var(--wg-weight-semibold);
+}
+
+/* ── Block Divider Labels ── */
+.block-divider-label {
+    font-family: var(--wg-font-heading);
+    font-size: 0.75rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-warning);
+    letter-spacing: 0.08em;
+    margin: 24px 0 16px 0;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--wg-warning);
+    padding-bottom: 6px;
+}
+
+/* ── Screen 1 Mockup Specific Styles (WCF_RFI_Track_Selection_and_FAQ_Mockup) ── */
+.rfi-branding-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.rfi-card-box {
+    background: var(--wg-white);
+    border: 1px solid var(--wg-border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+c-wcf-application-faq-modal {
+    display: block;
+    width: 100%;
+}
+
+.q-title {
+    font-size: 1.15rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+    margin: 0 0 6px 0;
+}
+
+.q-subtitle {
+    font-size: 0.88rem;
+    color: var(--wg-text-muted);
+    margin: 0 0 18px 0;
+}
+
+.track-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.track-card-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--wg-white);
+    border: 1.5px solid var(--wg-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.track-card-option:hover {
+    border-color: var(--wg-red);
+    background: #fffafa;
+}
+
+.track-card-option.selected {
+    border: 2px solid var(--wg-red);
+    background: #fff8f8;
+}
+
+.custom-checkbox {
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--wg-text-muted);
+    border-radius: 4px;
+    background: var(--wg-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--wg-weight-bold);
+    font-size: 13px;
+    color: var(--wg-white);
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.track-card-option.selected .custom-checkbox {
+    background: var(--wg-red);
+    border-color: var(--wg-red);
+}
+
+.track-label-text {
+    font-size: 0.98rem;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+}
+
+.next-btn-row {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.section-tag {
+    display: inline-block;
+    background: var(--wg-warning-bg);
+    color: var(--wg-warning-text);
+    font-size: 0.72rem;
+    font-weight: var(--wg-weight-bold);
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.section-heading {
+    font-size: 1.15rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+    margin: 4px 0 6px 0;
+}
+
+.section-desc {
+    font-size: 0.88rem;
+    color: var(--wg-text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* ── Section & Subsection Cards ── */
+.modern-section-wrapper {
+    margin-bottom: 28px;
+}
+
+.section-step {
+    font-size: 0.78rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-red);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+}
+
+.modern-section-title {
+    font-size: 1.6rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+    margin: 0 0 6px 0;
+}
+
+.modern-section-description {
+    font-size: 0.95rem;
+    color: var(--wg-text-muted);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.modern-subsection-card {
+    background: var(--wg-white);
+    border: 1px solid var(--wg-border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.modern-subsection-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.modern-subsection-number,
+.question-number,
+.mockup-optional-number {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    background: var(--wg-red-deep) !important;
+    color: var(--wg-white) !important;
+    font-weight: var(--wg-weight-bold) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.92rem !important;
+    flex-shrink: 0 !important;
+    font-family: var(--wg-font-heading) !important;
+}
+
+.modern-subsection-title,
+.question-title,
+.mockup-optional-title,
+.q-title {
+    font-family: var(--wg-font-heading) !important;
+    font-size: 1.25rem !important;
+    font-weight: var(--wg-weight-bold) !important;
+    color: var(--wg-gray) !important;
+    margin: 0 0 4px 0 !important;
+    line-height: 1.3 !important;
+}
+
+.modern-subsection-description {
+    font-size: 0.88rem;
+    color: var(--wg-text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.subtext-muted {
+    font-size: 0.78rem;
+    color: var(--wg-text-muted);
+    margin-top: 3px;
+    font-weight: var(--wg-weight-regular);
+    line-height: 1.35;
+}
+
+/* ── Track Selection Option Cards (Screen 1) ── */
+.question-block {
+    margin-bottom: 24px;
+}
+
+.question-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.question-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: #FAECE7;
+    color: #993C1D;
+    font-weight: var(--wg-weight-bold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.question-title {
+    font-size: 1.15rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+    margin-bottom: 4px;
+}
+
+.question-subtext {
+    font-size: 0.88rem;
+    color: var(--wg-text-muted);
+}
+
+.option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.option-card {
+    background: var(--wg-white);
+    border: 1.5px solid var(--wg-border);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.option-card:hover {
+    border-color: var(--wg-red);
+    box-shadow: 0 4px 12px rgba(138, 28, 28, 0.08);
+}
+
+.option-card.selected {
+    border: 2px solid var(--wg-red);
+    background: #fffafa;
+}
+
+.option-title {
+    font-size: 1rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+    margin-bottom: 6px;
+}
+
+.option-description {
+    font-size: 0.85rem;
+    color: var(--wg-text-muted);
+    line-height: 1.5;
+}
+
+.selected-check {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--wg-red);
+    color: var(--wg-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: var(--wg-weight-bold);
+}
+
+/* ── Modern Form Grids & Inputs ── */
+.modern-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+}
+
+.modern-form-grid.legal-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.modern-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.modern-field.full-width {
+    grid-column: 1 / -1;
+}
+
+.field-helper {
+    font-size: 0.75rem;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    margin-bottom: 4px;
+}
+
+.modern-field .slds-form-element__label,
+.field-label {
+    font-size: 0.75rem !important;
+    font-weight: var(--wg-weight-semibold) !important;
+    color: var(--wg-text-muted) !important;
+    margin-bottom: 4px !important;
+    display: block;
+}
+
+/* ── Optional Lavender Card (Mockup Style) ── */
+.mockup-optional-card {
+    background: #f5f1ff;
+    border: 1px solid #d8cdf6;
+    border-radius: 16px;
+    padding: 26px;
+    margin-top: 28px;
+    margin-bottom: 24px;
+}
+
+.mockup-optional-header {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.mockup-optional-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #7d5bd6;
+    color: var(--wg-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--wg-weight-bold);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.mockup-optional-header-content {
+    flex: 1;
+}
+
+.mockup-optional-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mockup-optional-title {
+    font-size: 1.3rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+}
+
+.mockup-optional-pill {
+    background: #ece5ff;
+    color: #7d5bd6;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-style: italic;
+    font-weight: var(--wg-weight-semibold);
+}
+
+.mockup-optional-description {
+    margin-top: 8px;
+    color: var(--wg-text-muted);
+    line-height: 1.7;
+    font-size: 0.88rem;
+}
+
+.mockup-inner-card {
+    background: var(--wg-white);
+    border: 1px solid #d9cdf6;
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 22px;
+}
+
+.mockup-inner-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed var(--wg-border);
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+}
+
+.mockup-inner-label {
+    font-size: 0.76rem;
+    letter-spacing: 1px;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+}
+
+.mockup-grid-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.mockup-grid-three {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+}
+
+.mockup-add-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.mockup-add-btn {
+    border: 1px dashed var(--wg-red);
+    background: var(--wg-white);
+    color: var(--wg-red);
+    padding: var(--wg-padding-button);
+    border-radius: var(--wg-radius-pill);
+    font-weight: var(--wg-weight-semibold);
+    font-size: var(--wg-font-size-button);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--wg-font-heading);
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.mockup-add-btn:hover {
+    background: #fff5f5;
+}
+
+/* ── Rich Text & Narrative Area ── */
+.modern-richtext-wrapper {
+    margin-top: 24px;
+}
+
+.modern-richtext-label {
+    font-size: 0.92rem;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    margin-bottom: 6px;
+}
+
+.modern-richtext-helper {
+    font-size: 0.82rem;
+    color: var(--wg-text-muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.modern-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f7f7f7;
+    border: 1px solid var(--wg-border);
+    border-bottom: none;
+    padding: 8px 12px;
+    border-radius: 10px 10px 0 0;
+}
+
+.toolbar-min-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    font-weight: var(--wg-weight-bold);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.toolbar-min-btn:hover {
+    background: var(--wg-border);
+}
+
+.modern-richtext-area {
+    min-height: 180px;
+    border: 1px solid var(--wg-border);
+    border-top: none;
+    padding: 16px;
+    outline: none;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    border-radius: 0 0 10px 10px;
+    background: var(--wg-white);
+    overflow-y: auto;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.modern-richtext-area:focus {
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+/* ── Unified orange focus color for EVERY field on the form ──
+   Set on :host (not just lightning-input) so the values inherit into all
+   base components' shadow trees: lightning-input, lightning-combobox,
+   lightning-textarea, lightning-file-upload and checkbox inputs. This
+   matches the orange focus ring already used by the native inputs
+   (.wcf-native-input, .wcf-number-input, .date-native-input,
+   .rfi-select-input, .phone-input-group, .modern-richtext-area).
+   Both the component styling hooks AND the --lwc design-token fallbacks
+   are set, because the combobox uses hooks for :focus but tokens for its
+   .slds-has-focus state; setting only one gave the mixed orange/blue look. */
+:host {
+    /* Input, combobox and textarea border + glow */
+    --slds-c-input-color-border-focus: var(--wg-orange);
+    --sds-c-input-color-border-focus: var(--wg-orange);
+    --slds-c-input-shadow-focus: 0 0 3px var(--wg-orange);
+    --sds-c-input-shadow-focus: 0 0 3px var(--wg-orange);
+
+    /* Buttons rendered inside base components ("Upload Files") */
+    --slds-c-button-color-border-focus: var(--wg-orange);
+    --sds-c-button-color-border-focus: var(--wg-orange);
+    --slds-c-button-neutral-color-border-focus: var(--wg-orange);
+    --sds-c-button-neutral-color-border-focus: var(--wg-orange);
+    --slds-c-button-shadow-focus: 0 0 3px var(--wg-orange);
+    --sds-c-button-shadow-focus: 0 0 3px var(--wg-orange);
+
+    /* Design-token fallbacks: combobox .slds-has-focus state,
+       file-upload drop zone, and checkbox focus */
+    --lwc-colorBorderInputActive: var(--wg-orange);
+    --lwc-shadowButtonFocus: 0 0 3px var(--wg-orange);
+}
+
+/* lightning-textarea keeps its host-level :focus-within glow as a
+   fallback. lightning-combobox and lightning-file-upload now get the
+   orange focus color from the :host hooks/tokens above, so they no
+   longer need (or use) a :focus-within workaround — which would also
+   have highlighted their label along with the control. */
+lightning-textarea:focus-within {
+    border-radius: 4px;
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+.modern-richtext-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.modern-ai-btn {
+    /* border/background/text stay off the brand palette on purpose — this
+       is the same decorative purple "AI-assist" accent flagged as out of
+       scope elsewhere in this file; only the shape is squared here */
+    border: 1px solid #d8c8ff;
+    background: #f9f4ff;
+    color: #6e43d6;
+    border-radius: var(--wg-radius-pill);
+    padding: 0 14px;
+    font-size: var(--wg-font-size-button);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 32px;
+    box-sizing: border-box;
+}
+
+.modern-ai-btn:hover {
+    background: #f0e6ff;
+}
+
+.word-counter {
+    margin-left: auto;
+    font-size: 0.82rem;
+    color: var(--wg-text-muted);
+}
+
+/* ── Callout Banners ── */
+.blue-info-callout, .info-banner-blue {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: var(--wg-info-bg);
+    border: 1px solid var(--wg-info);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.88rem;
+    color: var(--wg-info-text);
+    line-height: 1.5;
+}
+
+.orange-callout-box {
+    background: var(--wg-warning-bg);
+    border: 1px solid var(--wg-warning);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    color: var(--wg-warning-text);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+/* ── Data Tables ── */
+.table-container {
+    overflow-x: auto;
+    margin-top: 12px;
+}
+
+.rfi-data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--wg-input-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rfi-data-table th, .rfi-data-table td {
+    border-bottom: 1px solid var(--wg-input-border);
+    border-right: 1px solid var(--wg-input-border);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+}
+
+.rfi-data-table th:last-child, .rfi-data-table td:last-child {
+    border-right: none;
+}
+
+.rfi-data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.rfi-data-table th {
+    background: var(--wg-border);
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+}
+
+.end-balance-row {
+    background: var(--wg-success-bg);
+    color: var(--wg-success);
+}
+
+/* ── Action Buttons & Sticky Footer Bar ── */
+.form-footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--wg-white);
+    padding: 14px 32px;
+    border-top: 1px solid var(--wg-border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+}
+
+.screen-questionnaire {
+    padding-bottom: 90px;
+}
+
+.tracker-main-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--wg-text-muted);
+    line-height: 1.2;
+}
+
+.tracker-qrange-subtitle {
+    font-size: 0.72rem;
+    color: var(--wg-text-muted);
+    margin-top: 2px;
+    font-weight: var(--wg-weight-regular);
+}
+
+.tracker-label--active .tracker-main-title {
+    color: var(--wg-red);
+    font-weight: var(--wg-weight-bold);
+}
+
+.tracker-label--active .tracker-qrange-subtitle {
+    color: var(--wg-red);
+    font-weight: var(--wg-weight-semibold);
+}
+
+.btn-primary-red, .btn-brand-red {
+    background: var(--wg-red);
+    color: var(--wg-white);
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+    font-size: var(--wg-font-size-button);
+    padding: var(--wg-padding-button);
+    border-radius: var(--wg-radius-pill);
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+/* Tab-nav variant — added alongside .btn-primary-red ONLY on the "Next"
+   step-navigation button (see form-footer-bar in the .html), so it gets
+   the square shape + Barlow/14px/semibold styling from .btn-primary-red
+   above automatically. This modifier just adds the flex layout needed
+   to align the chevron icon with the "Next" label. */
+.btn-tab-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary-red:hover, .btn-brand-red:hover {
+    background: var(--wg-red-deep);
+}
+
+.btn-primary-red:disabled, button:disabled {
+    background: var(--wg-border) !important;
+    color: var(--wg-text-muted) !important;
+    border: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+    box-shadow: none !important;
+}
+
+.btn-secondary-grey {
+    /* used only by the "Previous" step-nav button. Square, matching every
+       other button in the file. Border/text are brand red (same ghost-
+       button treatment as .btn-save-draft right next to it in the footer
+       bar) rather than the previous muted-gray-on-near-white styling,
+       which read as a disabled control at a glance. */
+    background: var(--wg-white);
+    color: var(--wg-red);
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+    font-size: var(--wg-font-size-button);
+    padding: var(--wg-padding-button);
+    border-radius: var(--wg-radius-pill);
+    border: 1.5px solid var(--wg-red);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.btn-secondary-grey:hover {
+    background: var(--wg-error-bg);
+}
+
+.btn-submit-green {
+    /* Primary CTA: Wadhwani Red pill (Color System v1, UAT ST-05; U138).
+       Class name kept so the JS/HTML stay unchanged. */
+    background: var(--wg-red);
+    color: var(--wg-white);
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+    font-size: var(--wg-font-size-button);
+    padding: var(--wg-padding-button);
+    border-radius: var(--wg-radius-pill);
+    border: none;
+    cursor: pointer;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.btn-secondary-outline {
+    background: transparent;
+    border: 1.5px solid var(--wg-red);
+    color: var(--wg-red);
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+    font-size: var(--wg-font-size-button);
+    padding: var(--wg-padding-button);
+    border-radius: var(--wg-radius-pill);
+    cursor: pointer;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.btn-save-draft {
+    background: var(--wg-white);
+    color: var(--wg-red);
+    border: 1.5px solid var(--wg-red);
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-semibold);
+    font-size: var(--wg-font-size-button);
+    padding: var(--wg-padding-button);
+    border-radius: var(--wg-radius-pill);
+    cursor: pointer;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.tagline-footer-banner {
+    text-align: center;
+    font-family: var(--wg-font-heading);
+    font-size: 1.1rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-red);
+    margin-top: 32px;
+    padding: 16px;
+    background: #fff5f5;
+    border-radius: 8px;
+    border: 1px dashed #feb2b2;
+}
+
+/* ── Responsive Behavior ── */
+@media (max-width: 768px) {
+    .centered-form-container {
+        padding: 20px 16px 80px 16px;
+        margin-top: 12px;
+        border-radius: 12px;
+    }
+
+    .modern-form-grid, .modern-form-grid.legal-grid, .mockup-grid-two, .mockup-grid-three {
+        grid-template-columns: 1fr;
+    }
+
+    .wcf-tracker {
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+}
+
+/* ── Headquarters City/Country search (OpenStreetMap) ── */
+.hq-city-search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.hq-dropdown {
+    position: absolute;
+    z-index: 9999;
+    width: 100%;
+    background: var(--wg-white);
+    border: 1px solid var(--wg-input-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 240px;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.hq-dropdown-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--wg-border);
+    transition: background-color 0.15s ease;
+}
+
+.hq-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.hq-dropdown-item:hover {
+    background-color: #f0f8ff;
+}
+
+.hq-city-name {
+    font-size: 0.875rem;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+}
+
+.hq-city-detail {
+    font-size: 0.75rem;
+    color: var(--wg-text-muted);
+    margin-top: 2px;
+}
+
+.hq-loading-box {
+    position: absolute;
+    z-index: 9999;
+    width: 100%;
+    background: var(--wg-white);
+    border: 1px solid var(--wg-input-border);
+    border-radius: 4px;
+    padding: 12px;
+    text-align: center;
+    margin-top: 2px;
+}
+
+.hq-no-results {
+    position: absolute;
+    z-index: 9999;
+    width: 100%;
+    background: var(--wg-white);
+    border: 1px solid var(--wg-input-border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-size: 0.875rem;
+    color: var(--wg-text-muted);
+    margin-top: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Phone Input Group (intl-tel-input) ── */
+.phone-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--wg-input-border);
+    border-radius: 0.25rem;
+    background: var(--wg-white);
+    transition: border-color .15s ease, box-shadow .15s ease;
+    overflow: visible;
+}
+
+.phone-input-group:focus-within {
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+.phone-input-group.has-error { border-color: var(--wg-error); }
+.phone-input-group.has-error:focus-within { box-shadow: 0 0 3px var(--wg-error); }
+
+.phone-input-group .iti {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.phone-input-group .iti input[type="tel"],
+.phone-input-group .phone-iti-input {
+    display: block;
+    box-sizing: border-box;
+    width: 100% !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-right: 12px !important;
+    border: none !important;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.8125rem !important;
+    color: var(--wg-gray);
+}
+
+.phone-input-group .iti__flag-container { top: 0; bottom: 0; height: 100%; }
+
+.phone-input-group .iti--separate-dial-code .iti__selected-flag,
+.phone-input-group .iti__selected-flag {
+    height: 100% !important;
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 10px;
+    background-color: transparent !important;
+    border-right: 1px solid var(--wg-border);
+    border-radius: 0.25rem 0 0 0.25rem;
+}
+.phone-input-group .iti__selected-flag:hover,
+.phone-input-group .iti__selected-flag:focus { background-color: #fafafa !important; }
+
+.phone-input-group .iti__selected-dial-code {
+    font-size: 0.8125rem;
+    font-weight: var(--wg-weight-regular);
+    color: var(--wg-gray);
+}
+.phone-input-group .iti__arrow { border-top-color: var(--wg-text-muted); margin-left: 4px; }
+
+.phone-input-group input:-webkit-autofill,
+.phone-input-group input:-webkit-autofill:hover,
+.phone-input-group input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--wg-white) inset !important;
+    box-shadow: 0 0 0 1000px var(--wg-white) inset !important;
+    -webkit-text-fill-color: var(--wg-gray) !important;
+    caret-color: var(--wg-gray);
+    transition: background-color 100000s ease-in-out 0s !important;
+}
+
+.phone-input-group .iti__country-list {
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    z-index: 60;
+}
+
+.wcf-native-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 36px;
+    padding: 0 1rem;
+    border: 1px solid var(--wg-input-border);
+    border-radius: 0.25rem;
+    background: var(--wg-white);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    color: var(--wg-gray);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.wcf-native-input:focus {
+    outline: none;
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+.wcf-native-input:disabled,
+.wcf-native-input[readonly] {
+    background-color: var(--wg-border) !important;
+    color: var(--wg-gray) !important;
+    cursor: not-allowed !important;
+    border-color: var(--wg-input-border) !important;
+}
+
+.phone-error-msg { color: var(--wg-error); font-size: 12px; margin-top: 4px; }
+
+.computed-cell {
+    background-color: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    border: 1px solid var(--wg-border);
+    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.currency-input-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.currency-input-cell lightning-input {
+    flex: 1;
+    width: 100%;
+}
+
+.currency-prefix {
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.modern-field-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-text-muted);
+    margin-bottom: 4px;
+}
+
+.date-field-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.date-native-input {
+    width: 100%;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid var(--wg-input-border);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    background: var(--wg-white);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.date-native-input:focus {
+    outline: none;
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+.date-native-input::-webkit-datetime-edit,
+.date-native-input::-webkit-datetime-edit-fields-wrapper,
+.date-native-input::-webkit-datetime-edit-text,
+.date-native-input::-webkit-datetime-edit-month-field,
+.date-native-input::-webkit-datetime-edit-day-field,
+.date-native-input::-webkit-datetime-edit-year-field {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+.date-native-input::-webkit-datetime-edit-month-field:focus,
+.date-native-input::-webkit-datetime-edit-day-field:focus,
+.date-native-input::-webkit-datetime-edit-year-field:focus {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    background: transparent !important;
+}
+
+.date-native-input::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    z-index: 2;
+    position: relative;
+    cursor: pointer;
+}
+
+.date-overlay-text {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 0.8125rem;
+    color: var(--wg-gray);
+    max-width: calc(100% - 44px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.date-overlay-text:empty::after {
+    content: 'DD/MM/YYYY';
+    color: var(--wg-text-muted);
+}
+
+.date-native-input.input-error {
+    border-color: var(--wg-error) !important;
+    background: #fff8f8 !important;
+}
+
+.richtext-invalid {
+    border: 1.5px solid var(--wg-error) !important;
+    background: #fff8f8 !important;
+}
+
+.input-error {
+    border: 1.5px solid var(--wg-error) !important;
+    background: #fff8f8 !important;
+    border-radius: 4px;
+}
+
+.chips-error {
+    outline: 1.5px solid var(--wg-error);
+    outline-offset: 2px;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.field-error-msg {
+    color: var(--wg-error);
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 4px;
+}
+
+.error-msg {
+    color: var(--wg-error);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.word-count-over {
+    color: var(--wg-error) !important;
+    font-weight: var(--wg-weight-bold) !important;
+}
+
+.btn-remove-row {
+    background: transparent;
+    border: none;
+    color: var(--wg-error);
+    font-size: 1.1rem;
+    font-weight: var(--wg-weight-bold);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-remove-row:hover {
+    background: #fef1f0;
+    color: var(--wg-red-deep);
+}
+
+/* ── Native Number Input with Stepper Arrows (Matching wcfForm) ── */
+.wcf-number-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid var(--wg-input-border);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: var(--wg-gray);
+    background: var(--wg-white);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.wcf-number-input:focus {
+    outline: none;
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+.wcf-number-input::-webkit-inner-spin-button,
+.wcf-number-input::-webkit-outer-spin-button {
+    opacity: 1 !important;
+    cursor: pointer;
+}
+
+/* ── Native Select Dropdown Styling ── */
+.rfi-select-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 170px;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid var(--wg-input-border);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: var(--wg-gray);
+    background: var(--wg-white);
+    cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.rfi-select-input:focus {
+    outline: none;
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+/* ── File Upload & File Chips Styling ── */
+.field-label-bold {
+    font-size: 0.8125rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+    margin-bottom: 2px;
+    display: block;
+}
+
+.subtext-muted {
+    font-size: 0.78rem;
+    color: var(--wg-text-muted);
+    margin: 2px 0 8px 0;
+}
+
+.uploaded-files-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.file-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #f3f4f6;
+    border: 1px solid var(--wg-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.8125rem;
+    color: var(--wg-gray);
+    max-width: 100%;
+}
+
+.file-chip-icon {
+    margin-right: 6px;
+    font-size: 0.9rem;
+}
+
+.file-chip-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+}
+
+.btn-file-chip-remove {
+    background: transparent;
+    border: none;
+    color: var(--wg-text-muted);
+    font-size: 0.9rem;
+    font-weight: var(--wg-weight-bold);
+    cursor: pointer;
+    margin-left: 8px;
+    padding: 0 4px;
+    line-height: 1;
+    border-radius: 50%;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.btn-file-chip-remove:hover {
+    color: var(--wg-error);
+    background: var(--wg-error-bg);
+}
+
+/* ── Sector Support Type Multi-Select Chips ── */
+.sector-chip {
+    background: var(--wg-white);
+    border: 1px solid var(--wg-input-border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.8125rem;
+    color: var(--wg-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+}
+
+.sector-chip:hover {
+    border-color: var(--wg-red);
+    color: var(--wg-red);
+    background: #fdf6f6;
+}
+
+.sector-chip.selected {
+    background: #fff0f0;
+    border-color: var(--wg-red);
+    color: var(--wg-red);
+    font-weight: var(--wg-weight-semibold);
+}
+
+/* Native field controls: same orange focus as the inputs (keyboard focus
+   only, via :focus-visible, so a mouse click doesn't leave a ring behind) */
+.sector-chip:focus-visible {
+    outline: none;
+    border-color: var(--wg-orange);
+    box-shadow: 0 0 3px var(--wg-orange);
+}
+
+/* ── Review & Submit Section Styles (Matching Image & wcfForm) ── */
+.rv-section {
+    background: var(--wg-white);
+    border: 1px solid var(--wg-border);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.rv-section-head {
+    font-size: 1.1rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-red);
+    background: #fff0f0;
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    letter-spacing: 0.02em;
+    font-family: var(--wg-font-heading);
+}
+
+.rv-sub-head {
+    font-size: 0.95rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+    margin: 16px 0 8px 0;
+}
+
+.rv-row {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 20px;
+    padding: 9px 0;
+    font-size: 0.88rem;
+    border-bottom: 1px dashed var(--wg-border);
+}
+
+.rv-row:last-child {
+    border-bottom: 0;
+}
+
+.rv-lbl {
+    color: var(--wg-text-muted);
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.rv-q-num {
+    display: inline-block;
+    background: #f7fafc;
+    color: var(--wg-red);
+    font-weight: var(--wg-weight-bold);
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 8px;
+    border: 1px solid #fed7d7;
+}
+
+.rv-val {
+    color: var(--wg-gray);
+    font-weight: var(--wg-weight-semibold);
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+.rv-table-scroll {
+    overflow-x: auto;
+    margin-top: 8px;
+    margin-bottom: 12px;
+}
+
+.rv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.rv-table th {
+    background: #f7fafc;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--wg-border);
+}
+
+.rv-table td {
+    padding: 9px 12px;
+    color: var(--wg-text-muted);
+    border-bottom: 1px dashed var(--wg-border);
+}
+
+.wcf-attest-card {
+    background: #fffdfa;
+    border: 1.5px solid var(--wg-warning);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-top: 24px;
+    box-shadow: 0 4px 12px rgba(246, 135, 33, 0.08);
+}
+
+.wcf-attest-title {
+    font-size: 1.15rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-text-muted);
+    margin-bottom: 8px;
+}
+
+.wcf-attest-body {
+    font-size: 0.88rem;
+    color: var(--wg-text-muted);
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.wcf-attest-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.attest-checkbox {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Native attestation checkbox: orange keyboard-focus ring instead of the
+   browser's default blue outline */
+.attest-checkbox:focus-visible {
+    outline: 2px solid var(--wg-orange);
+    outline-offset: 2px;
+}
+
+.attest-checkbox-label {
+    font-size: 0.9rem;
+    color: var(--wg-text-muted);
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.wcf-attest-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.attest-date-block {
+    margin-bottom: 20px;
+}
+
+.attest-date-label {
+    font-size: 0.88rem;
+    font-weight: var(--wg-weight-semibold);
+    color: var(--wg-gray);
+    margin-bottom: 4px;
+}
+
+.attest-date-hint {
+    font-size: 0.78rem;
+    color: var(--wg-text-muted);
+    margin-bottom: 8px;
+}
+
+.attest-date-display {
+    background: #f5f5f5;
+    border: 1px solid var(--wg-border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: var(--wg-text-muted);
+    font-style: italic;
+    min-width: 320px;
+    width: max-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    cursor: not-allowed;
+}
+
+.wcf-attest-actions {
+    margin-top: 16px;
+}
+
+.btn-submit-green {
+    background-color: var(--wg-red);
+    color: var(--wg-white);
+    border: none;
+    border-radius: var(--wg-radius-pill);
+    padding: var(--wg-padding-button);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-button);
+    font-weight: var(--wg-weight-semibold);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.btn-submit-green:hover:not(:disabled) {
+    background-color: var(--wg-red-deep);
+}
+
+.btn-submit-green:disabled {
+    background-color: var(--wg-border);
+    color: var(--wg-text-muted);
+    cursor: not-allowed;
+}
+
+.wcf-download-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #fff5f5 0%, #ffebeb 100%);
+    border-radius: 8px;
+    border: 1px solid #feb2b2;
+}
+
+.btn-download-pdf {
+    background: var(--wg-red);
+    color: var(--wg-white);
+    border: none;
+    border-radius: var(--wg-radius-pill);
+    padding: var(--wg-padding-button);
+    font-family: var(--wg-font-heading);
+    font-size: var(--wg-font-size-button);
+    font-weight: var(--wg-weight-semibold);
+    cursor: pointer;
+    transition: background 0.2s ease;
+    min-height: var(--wg-button-height);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+.btn-download-pdf:hover {
+    background: var(--wg-red-deep);
+}
+
+/* ── Print / PDF Generation Styles ── */
+@media print {
+    .wcf-tracker,
+    .form-footer-bar,
+    .btn-secondary-outline,
+    .btn-save-draft,
+    .btn-primary-red,
+    .btn-secondary-grey,
+    .btn-submit-green,
+    .wcf-download-row,
+    .modern-ai-btn,
+    .modern-toolbar,
+    .btn-remove-row,
+    .btn-file-chip-remove,
+    .ai-modal,
+    .blue-info-callout,
+    .orange-callout-box,
+    .tagline-footer-banner,
+    .section-step {
+        display: none !important;
+    }
+
+    body, .centered-form-container, .screen-questionnaire {
+        background: var(--wg-white) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+    }
+
+    .form-logo-title, .rfi-branding-header {
+        display: block !important;
+        text-align: center !important;
+        margin-bottom: 24px !important;
+        page-break-after: avoid;
+    }
+
+    .win-logo {
+        max-width: 200px !important;
+        height: auto !important;
+        margin: 0 auto 12px auto !important;
+        display: block !important;
+    }
+
+    .rfi-page-title {
+        color: var(--wg-red) !important;
+        font-size: 22px !important;
+        font-weight: var(--wg-weight-bold) !important;
+        margin: 0 !important;
+    }
+
+    .rv-section, .modern-subsection-card, .wcf-attest-card {
+        page-break-inside: avoid;
+        border: 1px solid var(--wg-border) !important;
+        box-shadow: none !important;
+        margin-bottom: 20px !important;
+        border-radius: 8px !important;
+    }
+
+    .rv-section-head {
+        background: var(--wg-red) !important;
+        color: var(--wg-white) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: var(--wg-weight-bold) !important;
+        padding: 10px 16px !important;
+    }
+
+    .rv-table th {
+        background: #f4f6f9 !important;
+        color: var(--wg-gray) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .rv-q-num {
+        background: var(--wg-red) !important;
+        color: var(--wg-white) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* ── In-component toast banner (replaces native ShowToastEvent) ──
+   Reuses .error-banner/.warning-banner/.success-banner/.info-banner from
+   commonStyleTheme for the tinted-bg/left-accent/icon styling, and adds
+   fixed positioning + shadow + a close button on top so it behaves like
+   the toast it replaces. See showBanner()/closeBanner() in the .js. */
+.wg-toast-banner {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99998;
+    width: min(520px, calc(100vw - 32px));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.wg-toast-banner .wg-toast-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.wg-toast-banner .wg-toast-title {
+    font-family: var(--wg-font-heading);
+    font-weight: var(--wg-weight-bold);
+}
+
+.wg-toast-banner svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.wg-toast-banner .wg-toast-close {
+    flex-shrink: 0;
+    margin-left: auto;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.65;
+}
+
+.wg-toast-banner .wg-toast-close:hover {
+    opacity: 1;
+}
+
+@media (max-width: 600px) {
+    .wg-toast-banner {
+        top: 10px;
+        width: calc(100vw - 20px);
+    }
+}
+
+/* ── Submit / Processing Overlay ── */
+.wcf-submit-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wcf-submit-modal {
+    background: var(--wg-white);
+    border-radius: 16px;
+    padding: 36px 40px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    max-width: 440px;
+    width: 90%;
+    animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.wcf-submit-spinner {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 20px;
+    animation: rotateSpinner 1.2s linear infinite;
+}
+
+.wcf-submit-spinner-track {
+    stroke: var(--wg-border);
+}
+
+.wcf-submit-spinner-arc {
+    stroke: var(--wg-red);
+    stroke-linecap: round;
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: 0;
+}
+
+@keyframes rotateSpinner {
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.wcf-submit-modal-title {
+    font-size: 1.3rem;
+    font-weight: var(--wg-weight-bold);
+    color: var(--wg-gray);
+    margin: 0 0 8px 0;
+}
+
+.wcf-submit-modal-sub {
+    font-size: 0.9rem;
+    color: var(--wg-text-muted);
+    margin: 0;
+    line-height: 1.5;
+}

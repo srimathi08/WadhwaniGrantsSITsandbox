@@ -1,0 +1,20 @@
+/* Action buttons area */
+.action-bar {
+    background-color: #f4f6f9;
+    border-radius: 6px;
+}
+
+/* Table spacing */
+.table-wrapper {
+    margin-top: 0.75rem;
+}
+
+/* Modal polish */
+.slds-modal__container {
+    max-width: 32rem;
+}
+
+.slds-modal__header,
+.slds-modal__footer {
+    background-color: #f4f6f9;
+}

@@ -1,0 +1,593 @@
+<template>
+
+    <!-- ══ MAIN FORM ═══════════════════════════════════════════ -->
+    <template if:true={showForm}>
+        <div class="form-wrap">
+
+            <!-- Form header band -->
+            <div class="formhead">
+                <p class="eyebrow">Proposal review</p>
+                <h2 class="form-title">Wadhwani Grants Project Proposal Review</h2>
+                <div class="applicant">
+                    <div class="applicant-item">
+                        <span class="applicant-label">Applicant</span>
+                        <span class="applicant-value">{institutionName}</span>
+                    </div>
+                    <div class="applicant-item">
+                        <span class="applicant-label">ID</span>
+                        <span class="applicant-value">{applicationName}</span>
+                    </div>
+                    <template if:true={hasOutcomeType}>
+                        <div class="applicant-item">
+                            <span class="applicant-label">Track</span>
+                            <span class="track-badge-list">
+                                <template for:each={headerTrackBadges} for:item="tb">
+                                    <span key={tb.label} class={tb.badgeClass}>
+                                        <span class="dot"></span>
+                                        {tb.label}
+                                    </span>
+                                </template>
+                            </span>
+                        </div>
+                    </template>
+                </div>
+                <div class="savebar">
+                    <div class={saveStateClass}>{saveStateText}</div>
+                    <div class="step-meta">
+                        <span class="stepnum">Step {currentStepDisplay} of {totalStepsDisplay} ·
+                            {currentStepTitle}</span>
+                        <div class="progress">
+                            <template for:each={progressDots} for:item="dot">
+                                <span key={dot.idx} data-idx={dot.idx} class={dot.cls} title={dot.title}
+                                    onclick={handleProgressClick}></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step body -->
+            <div class="body">
+
+                <!-- Loading -->
+                <template if:true={isLoadingMetadata}>
+                    <div class="wg-loading">
+                        <lightning-spinner alternative-text="Loading review questions"
+                            size="medium"></lightning-spinner>
+                        <p class="wg-loading-text">Loading the reviewer rubric and questions…</p>
+                    </div>
+                </template>
+
+                <template if:false={isLoadingMetadata}>
+
+                    <!-- ═════ CATEGORY STEPS ═════ -->
+                    <template if:true={isDimStep}>
+                        <div class="step-intro">
+                            <div class="dim-head">
+                                <div class="dim-num">{currentDim.categoryNumber}</div>
+                                <div class="dim-title">
+                                    <h3>{currentDim.title}</h3>
+                                    <p class="lede">{currentDim.lede}</p>
+                                </div>
+                            </div>
+                            <div class="dim-tools">
+                                <button class={rubricBtnClass} type="button" onclick={toggleRubric}>
+                                    {rubricBtnLabel} <span class="chev">▾</span>
+                                </button>
+                                <span class="qcount">{currentDim.questionCount} question(s) in this category</span>
+                            </div>
+                            <div class={rubricClass}>
+                                <h4>General scoring philosophy · Category {currentDim.categoryNumber}:
+                                    {currentDim.title}</h4>
+                                <div class="rubric-grid">
+                                    <template for:each={currentDim.rubricCols} for:item="col">
+                                        <div key={col.n} class={col.cls}>
+                                            <div class="lvl"><span class="n">{col.n}</span> {col.label}</div>
+                                            <p>{col.text}</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Questions in this category -->
+                        <template for:each={currentQuestions} for:item="q">
+                            <div key={q.questionId} class={q.cardClass} data-qid={q.questionId}>
+                                <div class="subq-top">
+                                    <div class="subq-q">
+                                        <div class="qtext">
+                                            <span class="qnum-badge">{q.questionId}</span>
+                                            {q.questionText}
+                                        </div>
+
+                                        <!-- Track-specific guidance -->
+                                        <template if:true={q.trackAware}>
+                                            <div class="track-guidance">
+                                                <div class="track-guidance-title">Track-specific review guidance</div>
+                                                <template for:each={q.trackDescriptions} for:item="td">
+                                                    <div key={td.trackKey} class="track-guidance-row">
+                                                        <span class="track-guidance-tag">{td.trackLabel}</span>
+                                                        <span>{td.text}</span>
+                                                    </div>
+                                                </template>
+                                                <template if:false={q.trackDescriptions.length}>
+                                                    <div class="track-guidance-text">{q.resolvedDescription}</div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template if:false={q.trackAware}>
+                                            <template if:true={q.resolvedDescription}>
+                                                <div class="qhint">{q.resolvedDescription}</div>
+                                            </template>
+                                        </template>
+                                    </div>
+
+                                    <template if:true={q.showTag}>
+                                        <span class={q.tagClass}>{q.tagLabel}</span>
+                                    </template>
+                                </div>
+
+                                <!-- Rating 5 → 1 -->
+                                <div class="rating-row">
+                                    <span class="rating-label">Rating <span class="req">*</span></span>
+                                    <div class={q.segmentedClass} role="radiogroup" aria-label="Rating">
+                                        <template for:each={q.ratingBtns} for:item="rb">
+                                            <button key={rb.n} type="button" class={rb.cls} data-qid={q.questionId}
+                                                data-rate={rb.n} title={rb.ladderAnchor} onclick={handleRating}>
+                                                <span class="num">{rb.n}</span>
+                                                {rb.label}
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <template if:true={q.ratingError}>
+                                    <div class="field-error-text" role="alert">{q.ratingErrorMessage}</div>
+                                </template>
+
+                                <!-- Selected level description -->
+                                <template if:true={q.selectedLadderText}>
+                                    <div class="ladder-selected">
+                                        <span class="ladder-selected-level">Level {q.selectedRating}</span>
+                                        <span>{q.selectedLadderText}</span>
+                                    </div>
+                                </template>
+
+                                <!-- 5-point ladder accordion -->
+                                <div class="ladder-toggle-wrap">
+                                    <button class="link-btn" type="button" data-qid={q.questionId}
+                                        onclick={handleToggleQuestionLadder}>
+                                        {q.ladderToggleLabel}
+                                    </button>
+                                    <template if:true={q.showLadder}>
+                                        <div class="ladder-drawer">
+                                            <div class="ladder-drawer-title">5-point rating ladder · Question
+                                                {q.questionId}</div>
+                                            <template for:each={q.ladderItems} for:item="lItem">
+                                                <div key={lItem.level} class="ladder-row">
+                                                    <span class="ladder-row-level">Level {lItem.level}</span>
+                                                    <span>{lItem.text}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Comment -->
+                                <div class={q.commentClass}>
+                                    <div class="clab">
+                                        <span class="l">
+                                            Reviewer justification / comment
+                                            <template if:true={q.commentRequired}>
+                                                <span class="req"> *</span>
+                                            </template>
+                                        </span>
+                                        <span class="help">{q.commentHelp}</span>
+                                    </div>
+                                    <div class="textarea-wrap">
+                                        <textarea class={q.commentTextareaClass} data-qid={q.questionId}
+                                            placeholder={q.commentPlaceholder} aria-label="Reviewer justification"
+                                            rows="3" oninput={handleCommentInput} onkeydown={handleCommentKeyDown}
+                                            onpaste={handleCommentPaste}>{q.commentValue}</textarea>
+                                        <div class={q.wordCountClass}>{q.wordCountDisplay}</div>
+                                    </div>
+                                    <template if:true={q.commentError}>
+                                        <div class="field-error-text" role="alert">{q.commentErrorMessage}</div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                    <!-- ═════ STRENGTHS & WEAKNESSES ═════ -->
+                    <template if:true={isSwStep}>
+                        <div class="step-intro">
+                            <div class="dim-head">
+                                <div class="dim-num">8</div>
+                                <div class="dim-title">
+                                    <h3>Strengths and weaknesses</h3>
+                                    <p class="lede">Capture your top three strengths and your top three weaknesses or
+                                        concerns at the proposal level across all 7 categories. Order matters: the first
+                                        entry should be the most material. At least one entry is required in each block
+                                        (max 200 words each).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sw-block">
+                            <h4>Top 3 strengths · ranked</h4>
+                            <p class="sub">First entry is the most material strength. Each entry: 1–2 concise sentences.
+                            </p>
+                            <template for:each={strengthRows} for:item="row">
+                                <div key={row.idx} class="ranked-row-wrap">
+                                    <div class={row.rowClass}>
+                                        <div class="rank">{row.num}</div>
+                                        <lightning-input type="text" name={row.strengthField} label="Strength"
+                                            variant="label-hidden" value={row.strengthValue}
+                                            placeholder={row.sPlaceholder} onchange={handleSwChange}
+                                            data-kind="strength" data-idx={row.idx}
+                                            class={row.inputClass}></lightning-input>
+                                        <span class="req-mark">{row.reqMark}</span>
+                                    </div>
+                                    <template if:true={row.hasError}>
+                                        <div class="field-error-text field-error-indent" role="alert">{row.errorMessage}
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="sw-block">
+                            <h4>Top 3 weaknesses · ranked</h4>
+                            <p class="sub">First entry is the most material concern. Each entry: 1–2 concise sentences.
+                            </p>
+                            <template for:each={weaknessRows} for:item="row">
+                                <div key={row.idx} class="ranked-row-wrap">
+                                    <div class={row.rowClass}>
+                                        <div class="rank">{row.num}</div>
+                                        <lightning-input type="text" name={row.weaknessField} label="Weakness"
+                                            variant="label-hidden" value={row.weaknessValue}
+                                            placeholder={row.wPlaceholder} onchange={handleSwChange}
+                                            data-kind="weakness" data-idx={row.idx}
+                                            class={row.inputClass}></lightning-input>
+                                        <span class="req-mark">{row.reqMark}</span>
+                                    </div>
+                                    <template if:true={row.hasError}>
+                                        <div class="field-error-text field-error-indent" role="alert">{row.errorMessage}
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- ═════ FINAL RECOMMENDATION ═════ -->
+                    <template if:true={isRecStep}>
+                        <div class="step-intro">
+                            <div class="dim-head">
+                                <div class="dim-num">9</div>
+                                <div class="dim-title">
+                                    <h3>Final recommendation</h3>
+                                    <p class="lede">Based on your evaluation across all 7 categories (Institutional
+                                        Credibility, Operational Maturity, Outcome Track Record, Alignment with Wadhwani
+                                        Grants Priorities, Absorptive Capacity, Measurement Readiness, and Use of
+                                        Wadhwani Grants Funds), provide your independent recommendation.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="finalrec">
+                            <div class={yesnoRowClass}>
+                                <span class="ynl">Recommendation <span class="req">*</span></span>
+                                <div class="yesno">
+                                    <button type="button" class={recStronglyRecommendClass}
+                                        data-rec="Strongly Recommend" onclick={handleRecChoice}>
+                                        Yes-Strongly recommend
+                                    </button>
+                                    <button type="button" class={recRecommendClass} data-rec="Recommend"
+                                        onclick={handleRecChoice}>
+                                        Yes-Recommend
+                                    </button>
+                                    <button type="button" class={recReservationsClass}
+                                        data-rec="Recommend with Reservations" onclick={handleRecChoice}>
+                                        Yes-Recommend with reservations
+                                    </button>
+                                    <button type="button" class={recDoNotRecommendClass} data-rec="Do Not Recommend"
+                                        onclick={handleRecChoice}>
+                                        No-Do not recommend
+                                    </button>
+                                </div>
+                            </div>
+                            <template if:true={recErrors.choice}>
+                                <div class="field-error-text" role="alert">{recErrors.choiceMessage}</div>
+                            </template>
+
+                            <template if:true={showCeoRecommendationYes}>
+                                <div class="path yes">
+                                    <div class="pathlab good">Recommendation strength</div>
+                                    <div class="subform-row">
+                                        <span class="l">How strongly do you recommend FOR consideration of this
+                                            proposal? <span class="req">*</span></span>
+                                        <div class={recStrengthSegmentedClass} role="radiogroup"
+                                            aria-label="Recommendation strength">
+                                            <template for:each={recStrengthBtns} for:item="rb">
+                                                <button key={rb.n} type="button" class={rb.yesSelCls} data-recstr={rb.n}
+                                                    onclick={handleRecStrength}>
+                                                    <span class="num">{rb.n}</span>{rb.label}
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <template if:true={recErrors.strength}>
+                                            <div class="field-error-text" role="alert">{recErrors.strengthMessage}</div>
+                                        </template>
+                                    </div>
+                                    <div class="subform-row">
+                                        <span class="l">Recommendation strength comments <span
+                                                class="req">*</span></span>
+                                        <div class="textarea-wrap">
+                                            <textarea class={recYesCommentTextareaClass}
+                                                data-field="Recommendation_Strength_Comments__c"
+                                                placeholder="Explain why you recommend this proposal with this degree of conviction…"
+                                                aria-label="Recommendation strength comments" rows="3"
+                                                oninput={handleRecCommentInput} onkeydown={handleRecCommentKeyDown}
+                                                onpaste={handleRecCommentPaste}>{reviewData.Recommendation_Strength_Comments__c}</textarea>
+                                            <div class={recYesWordCountClass}>{recYesWordCountDisplay}</div>
+                                        </div>
+                                        <template if:true={recErrors.comment}>
+                                            <div class="field-error-text" role="alert">{recErrors.commentMessage}</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template if:true={showCeoRecommendationNo}>
+                                <div class="path no">
+                                    <div class="pathlab danger">Do not recommend</div>
+
+                                    <div class="subform-row">
+                                        <span class="l">Rejection reason(s) <span class="req">*</span></span>
+                                        <div class={rejectionReasonsGroupClass} role="group"
+                                            aria-label="Rejection reasons">
+                                            <template for:each={rejectionReasonRows} for:item="r">
+                                                <label key={r.value} class="checkbox-row">
+                                                    <input type="checkbox" data-value={r.value} checked={r.checked}
+                                                        onchange={handleRejectionReasonToggle} />
+                                                    <span>{r.label}</span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                        <template if:true={recErrors.rejectionReasons}>
+                                            <div class="field-error-text" role="alert">
+                                                {recErrors.rejectionReasonsMessage}</div>
+                                        </template>
+                                    </div>
+
+                                    <div class="subform-row">
+                                        <span class="l">
+                                            Rejection comment <span class="req">*</span>
+                                            <template if:true={showRejectionOther}>
+                                                <span class="help">: describe the "Other" reason here</span>
+                                            </template>
+                                        </span>
+                                        <div class="textarea-wrap">
+                                            <textarea class={rejectionCommentTextareaClass}
+                                                placeholder="Explain the detailed basis for rejection…"
+                                                aria-label="Rejection comment" rows="3"
+                                                oninput={handleRejectionCommentInput}
+                                                onkeydown={handleRejectionCommentKeyDown}
+                                                onpaste={handleRejectionCommentPaste}>{reviewData.Rejection_Comment__c}</textarea>
+                                            <div class={rejectionCommentWordCountClass}>
+                                                {rejectionCommentWordCountDisplay}</div>
+                                        </div>
+                                        <template if:true={recErrors.rejectionComment}>
+                                            <div class="field-error-text" role="alert">
+                                                {recErrors.rejectionCommentMessage}</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template if:false={hasRecChoice}>
+                                <div class="rec-placeholder">Select a recommendation option above to continue.</div>
+                            </template>
+                        </div>
+
+                        <!-- Supporting documents -->
+                        <div class="upload-section">
+                            <div class="upload-header">
+                                <span class="upload-title">Supporting documents</span>
+                                <span class="upload-sub">Optional: attach any notes, spreadsheets, or memos to support
+                                    your review</span>
+                            </div>
+                            <template if:true={uploadTargetRecordId}>
+                                <div class="upload-control-wrap">
+    <lightning-file-upload
+        label="Upload files"
+        name="reviewDocs"
+        accept={acceptedFormats}
+        multiple
+        onuploadfinished={handleUploadFinished}>
+    </lightning-file-upload>
+</div>
+                                <template if:true={uploadedFiles.length}>
+                                    <div class="uploaded-list">
+                                        <template for:each={uploadedFiles} for:item="f">
+                                            <div key={f.documentId} class="uploaded-file">
+                                                <lightning-icon icon-name="utility:attach" size="x-small"
+                                                    alternative-text="" class="file-icon"></lightning-icon>
+                                                <span class="file-name">{f.name}</span>
+                                                <button class="file-delete-btn" type="button" title="Remove file"
+                                                    aria-label="Remove file" data-docid={f.documentId}
+                                                    data-id={f.documentId} onclick={handleDeleteFile}>
+                                                    <lightning-icon icon-name="utility:close" size="xx-small"
+                                                        alternative-text=""></lightning-icon>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- ═════ REVIEW & SUBMIT ═════ -->
+                    <template if:true={isReviewStep}>
+                        <div class="step-intro">
+                            <div class="dim-head">
+                                <div class="dim-num">10</div>
+                                <div class="dim-title">
+                                    <h3>Review &amp; submit</h3>
+                                    <p class="lede">Summary of your 7-category evaluation. Use the progress bar above to
+                                        jump back to any category. When submitted, this evaluation is sealed and
+                                        forwarded to the Approver.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overall score -->
+                        <div class="score-card">
+                            <div>
+                                <div class="score-card-label">Arithmetic mean across all categories</div>
+                                <div class="score-card-title">Overall review score</div>
+                            </div>
+                            <div class="score-card-value">
+                                <span class="score-card-num">{overallCalculatedScore}</span>
+                                <span class="score-card-of">/ 5.0</span>
+                            </div>
+                        </div>
+
+                        <!-- Category breakdown -->
+                        <div class="review-summary">
+                            <template for:each={reviewSummaryDims} for:item="dim">
+                                <div key={dim.id} class="review-dim">
+                                    <div class="head">
+                                        <div class="name">
+                                            <span class="num">{dim.id}</span>
+                                            <span class="ttl">{dim.title}</span>
+                                        </div>
+                                        <div class="mean"><span class="lab">Category mean</span>{dim.mean}</div>
+                                    </div>
+                                    <template for:each={dim.qs} for:item="rq">
+                                        <div key={rq.id} class="review-q">
+                                            <div class="qx">
+                                                <span class="qx-id">{rq.id}</span>
+                                                {rq.text}
+                                            </div>
+                                            <div class="rx">
+                                                <span class={rq.pipCls}>{rq.ratingLabel}</span>
+                                                <span>{rq.ratingNum}</span>
+                                            </div>
+                                            <template if:true={rq.ladderText}>
+                                                <div class="review-q-ladder">{rq.ladderText}</div>
+                                            </template>
+                                            <template if:true={rq.hasComment}>
+                                                <div class="review-q-comment">{rq.comment}</div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <div class="review-other">
+                                <h5>Top 3 strengths</h5>
+                                <ul>
+                                    <template for:each={reviewStrengths} for:item="s">
+                                        <li key={s}>{s}</li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <div class="review-other">
+                                <h5>Top 3 weaknesses</h5>
+                                <ul>
+                                    <template for:each={reviewWeaknesses} for:item="w">
+                                        <li key={w}>{w}</li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <div class="review-rec">
+                                <div class="review-rec-head">
+                                    <h5>Final recommendation</h5>
+                                    <div class="recvalue-row">
+                                        <span class={recValueClass}>{recValueIcon} {recChoiceDisplayLabel}</span>
+                                        <template if:true={recStrengthLabel}>
+                                            <span class="strength">Strength: {recStrengthLabel}</span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <template if:true={showCeoRecommendationYes}>
+                                    <template if:true={reviewData.Recommendation_Strength_Comments__c}>
+                                        <div class="review-q-comment">{reviewData.Recommendation_Strength_Comments__c}
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <template if:true={showCeoRecommendationNo}>
+                                    <template if:true={reviewRejectionReasonLabels.length}>
+                                        <div class="review-q-comment">
+                                            <strong>Rejection reasons:</strong>
+                                            <ul>
+                                                <template for:each={reviewRejectionReasonLabels} for:item="rr">
+                                                    <li key={rr}>{rr}</li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                    <template if:true={reviewData.Rejection_Comment__c}>
+                                        <div class="review-q-comment">{reviewData.Rejection_Comment__c}</div>
+                                    </template>
+                                </template>
+                            </div>
+
+                            <template if:true={uploadedFiles.length}>
+                                <div class="review-other">
+                                    <h5>Attached documents</h5>
+                                    <div class="uploaded-list">
+                                        <template for:each={uploadedFiles} for:item="f">
+                                            <div key={f.documentId} class="uploaded-file">
+                                                <lightning-icon icon-name="utility:attach" size="x-small"
+                                                    alternative-text="" class="file-icon"></lightning-icon>
+                                                <span class="file-name">{f.name}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+
+            </div><!-- /body -->
+
+            <!-- Footer -->
+            <div class="footer">
+                <div class="left">
+                    <button class="btn btn-secondary" type="button" onclick={prevStep} disabled={isPrevDisabled}>←
+                        Previous</button>
+                </div>
+                <div class="right">
+                    <span class="step-here">Step {currentStepDisplay} of {totalStepsDisplay}</span>
+                    <button class="btn btn-secondary" type="button" onclick={handleSaveDraft}>Save draft</button>
+                    <button class={nextBtnClass} type="button" onclick={nextStep}>{nextBtnLabel}</button>
+                </div>
+            </div>
+
+        </div>
+    </template>
+
+    <!-- ══ SUBMITTED ═══════════════════════════════════════════ -->
+    <template if:true={submitted}>
+        <div class="form-wrap">
+            <div class="done-state">
+                <div class="done-icon">
+                    <lightning-icon icon-name="utility:check" size="small" alternative-text=""></lightning-icon>
+                </div>
+                <h3>Evaluation submitted</h3>
+                <p>Your evaluation of <strong>{institutionName}</strong> across all 7 categories has been sealed and
+                    submitted to the Approver.</p>
+                <button class="btn btn-secondary" type="button" onclick={handleBackToDashboard}>
+                    Back to dashboard
+                </button>
+            </div>
+        </div>
+    </template>
+
+</template>

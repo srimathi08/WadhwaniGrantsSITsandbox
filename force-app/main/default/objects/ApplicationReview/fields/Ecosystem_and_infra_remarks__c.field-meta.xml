@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ecosystem_and_infra_remarks__c</fullName>
+    <inlineHelpText>Availability of ecosystem and infrastructure Remarks</inlineHelpText>
+    <label>Ecosystem and infra remarks</label>
+    <length>20768</length>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

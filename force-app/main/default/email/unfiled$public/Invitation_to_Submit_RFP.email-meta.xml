@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>To be sent out by the WIN team to a potential WIN institute to submit a RFP for a COE</description>
+    <encodingKey>UTF-8</encodingKey>
+    <letterhead>WIN</letterhead>
+    <name>Invitation to Submit RFP</name>
+    <style>freeForm</style>
+    <subject>Invitation to Submit a Proposal for WIN Centre of Excellence</subject>
+    <type>html</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>
